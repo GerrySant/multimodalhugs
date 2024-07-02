@@ -1,0 +1,95 @@
+Metadata-Version: 2.1
+Name: multimodal-mt
+Version: 0.0.1
+Summary: Leveraging LLM Knowledge with a General Encoding Framework
+Author-email: Gerard Sant <gerard.santmuniesa@uzh.ch>
+Description-Content-Type: text/markdown
+Requires-Dist: datasets
+Requires-Dist: torch
+Requires-Dist: transformers
+Requires-Dist: opencv-python
+Requires-Dist: librosa
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pylint; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: isort; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: jupyter; extra == "dev"
+Provides-Extra: keras
+Requires-Dist: keras-nlp; extra == "keras"
+Requires-Dist: keras>=3; extra == "keras"
+Provides-Extra: huggingface
+Requires-Dist: peft; extra == "huggingface"
+Provides-Extra: visualization
+Requires-Dist: matplotlib; extra == "visualization"
+Requires-Dist: seaborn; extra == "visualization"
+Requires-Dist: plotly; extra == "visualization"
+
+# Bridging Modalities: Leveraging LLM Knowledge with a General Encoding Framework.
+
+This code is a simplified implementation of this [repository](https://github.com/GerrySant/slt_how2sign_wicv2023/tree/signwritting), originally implemented in [fairseq](https://github.com/facebookresearch/fairseq).
+
+## Intallation
+
+1. **Create a virtual environment named `multimodal-encoder`**:
+    ```bash
+    python -m venv multimodal-encoder
+    ```
+
+2. **Activate the virtual environment**:
+    ```bash
+    source multimodal-encoder/bin/activate
+    ```
+
+3. **Upgrade pip and setuptools**:
+    ```bash
+    pip install --upgrade pip setuptools
+    ```
+
+4. **Install PyTorch with CUDA support**:
+    ```bash
+    pip3 install torch torchvision torchaudio
+    ```
+
+5. **Install the required dependencies** (you can create a `requirements.txt` file with the following content):
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    The content of `requirements.txt` should be:
+    ```plaintext
+    datasets
+    torch
+    transformers
+    fairseq
+    opencv-python
+    librosa
+    numpy
+    scipy
+    pandas
+    pytest
+    pylint
+    black
+    isort
+    pre-commit
+    jupyter
+    keras-nlp
+    keras>=3
+    peft
+    matplotlib
+    seaborn
+    plotly
+    ```
+
+6. **Verify the installation**:
+    ```bash
+    python -c "import torch; print(torch.cuda.is_available())"
+    ```
+
+   This should print `True` if CUDA support is properly enabled.
+
+Following these steps will create and set up the `multimodal-encoder` environment with the necessary dependencies and CUDA support for PyTorch.

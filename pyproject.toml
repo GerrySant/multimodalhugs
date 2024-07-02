@@ -1,0 +1,60 @@
+[project]
+name = "multimodal-mt"
+description = "Leveraging LLM Knowledge with a General Encoding Framework"
+version = "0.0.1"
+authors = [
+    { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" }
+]
+readme = "README.md"
+dependencies = [
+    "datasets",
+    "torch",
+    "transformers",
+    "opencv-python",
+    "librosa",
+    "numpy",
+    "scipy",
+    "pandas"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pylint",
+    "black",
+    "isort",
+    "pre-commit",
+    "jupyter"
+]
+keras = [
+    "keras-nlp",
+    "keras>=3"
+]
+huggingface = [
+    "peft"
+]
+visualization = [
+    "matplotlib",
+    "seaborn",
+    "plotly"
+]
+
+[tool.yapf]
+based_on_style = "google"
+column_limit = 120
+
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "C0114", # Missing module docstring
+    "C0115", # Missing class docstring
+    "C0116", # Missing function or method docstring
+    "C0301", # Line too long
+]
+
+[tool.setuptools.packages.find]
+where = ["multimodal_mt"]
+
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["multimodal_mt"]

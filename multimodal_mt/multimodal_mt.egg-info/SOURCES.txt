@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+multimodal_mt/multimodal_mt.egg-info/PKG-INFO
+multimodal_mt/multimodal_mt.egg-info/SOURCES.txt
+multimodal_mt/multimodal_mt.egg-info/dependency_links.txt
+multimodal_mt/multimodal_mt.egg-info/requires.txt
+multimodal_mt/multimodal_mt.egg-info/top_level.txt
