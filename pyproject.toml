@@ -1,5 +1,5 @@
 [project]
-name = "multimodal-mt"
+name = "multimodal_embedder"
 description = "Leveraging LLM Knowledge with a General Encoding Framework"
 version = "0.0.1"
 authors = [
@@ -14,7 +14,11 @@ dependencies = [
     "librosa",
     "numpy",
     "scipy",
-    "pandas"
+    "pandas",
+    "omegaconf",
+    "sentencepiece",
+    "sacremoses",
+    "sacrebleu"
 ]
 
 [project.optional-dependencies]
@@ -53,8 +57,8 @@ disable = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["multimodal_mt"]
+where = ["multimodal_embedder"]
 
 [tool.pytest.ini_options]
 addopts = "-v"
-testpaths = ["multimodal_mt"]
+testpaths = ["multimodal_embedder"]
