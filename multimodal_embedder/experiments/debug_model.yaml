@@ -1,0 +1,59 @@
+model:
+  name: "multimodal_embedder"
+  feature_extractor_type: "clip"
+  pretrained_feature_extractor: "openai/clip-vit-base-patch32"
+  vl_mapper_type: "linear"
+  vl_mapper_layer_norm_before: true
+  vl_mapper_layer_norm: false
+  vl_mapper_activation: false
+  vl_factor: 2
+  vl_mapper_dropout: 0.1
+  backbone_name: "m2m100"
+  pretrained_backbone: "facebook/m2m100_418M"
+  encoder_embed_dim: 1024
+  feat_dim: 512
+  num_labels: 2
+  no_scale_embedding: False
+  init_lang_abbr: avg
+  freeze_feature_extractor: False
+  freeze_vl_mapper: False
+  freeze_lang_embeddings: False
+  freeze_backbone: True
+  freeze_lm_head: True
+  clip:
+    vision_embed_dim: 512
+    text_embed_dim: 512
+    logit_scale: 10.0
+
+training:
+  output_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline"
+  num_train_epochs: 3
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  warmup_steps: 500
+  weight_decay: 0.01
+  logging_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline/logs"
+  logging_steps: 10
+  evaluation_strategy: "steps"
+  save_steps: 10_000
+  save_total_limit: 2
+  remove_unused_columns: True
+
+data:
+  train_path: "/home/gsantm/repositories/signbank-plus/data/parallel/cleaned/train.csv"
+  val_path: "/home/gsantm/repositories/signbank-plus/data/parallel/cleaned/dev.csv"
+  test_path: "/home/gsantm/repositories/signbank-plus/data/parallel/test/all.csv"
+  filter_empty_samples: True
+  shuffle: True
+  src_lang_tokenizer_path: "/home/gsantm/data/sign_language_experiments/vocabulary/new_languages.txt"
+  text_tokenizer_path: "facebook/m2m100_418M"
+  max_seq_length: 512
+  remove_unused_columns: True
+  preprocess:
+    scale_image: false
+    width: 224
+    height: 224
+    invert_image: False
+    channels: 3
+    dataset_mean: "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]"
+    dataset_std: "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]"

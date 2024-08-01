@@ -19,18 +19,23 @@ This code is a simplified implementation of this [repository](https://github.com
     pip install --upgrade pip setuptools
     ```
 
-4. **Install PyTorch with CUDA support**:
+4. **Install other dependecniess**:
+    ```bash
+    pip install git+https://github.com/sign-language-processing/signwriting
+    ```
+
+5. **Install PyTorch with CUDA support**:
     ```bash
     pip3 install torch torchvision torchaudio
     ```
 
-5. **Install the framework dependencies**:
+6. **Install the framework dependencies**:
     ```bash
     cd /multimodal-mt
     pip install .
     ```
 
-6. **Verify CUDa for the torch installation**:
+7. **Verify CUDa for the torch installation**:
     ```bash
     python -c "import torch; print(torch.cuda.is_available())"
     ```
