@@ -18,7 +18,8 @@ dependencies = [
     "omegaconf",
     "sentencepiece",
     "sacremoses",
-    "sacrebleu"
+    "sacrebleu",
+    "wandb"
 ]
 
 [project.optional-dependencies]

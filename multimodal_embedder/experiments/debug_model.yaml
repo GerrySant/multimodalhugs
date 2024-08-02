@@ -25,6 +25,10 @@ model:
     text_embed_dim: 512
     logit_scale: 10.0
 
+common:
+  wandb_name: debug_model
+  wandb_project: debug_wandb
+
 training:
   output_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline"
   num_train_epochs: 3

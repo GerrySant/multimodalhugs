@@ -17,7 +17,6 @@ from typing import Optional
 from multimodal_embedder.models import freeze_module_parameters
 from multimodal_embedder.modules import VLMapper
 
-
 logger = logging.getLogger(__name__)
 
 def init_encoder_lang_embeddings(cfg, lang_embeddings, pretrained_embeddings, tokenizer):
