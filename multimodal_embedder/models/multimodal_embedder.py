@@ -5,17 +5,18 @@ import math
 # Third-party libraries
 import torch
 import torch.nn as nn
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 from transformers import (
-    BertConfig, BertModel, CLIPConfig, CLIPModel, M2M100Config, M2M100Model, 
+    BertConfig, BertModel, CLIPConfig, CLIPModel, M2M100Config, M2M100ForConditionalGeneration, 
     PreTrainedModel, PretrainedConfig
 )
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # Local application libraries
 from multimodal_embedder.models import freeze_module_parameters
-from multimodal_embedder.modules import VLMapper
+from multimodal_embedder.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
+from multimodal_embedder.utils import serialize_config
 
 logger = logging.getLogger(__name__)
 
@@ -49,28 +50,17 @@ def init_encoder_lang_embeddings(cfg, lang_embeddings, pretrained_embeddings, to
 
 # Factory function to create the appropriate configuration class based on backbone_name
 def get_backbone_config_class(backbone_name):
-    if backbone_name == "m2m100":
+    if backbone_name == "m2m100": # The actual version only supports M2M as backbone
         return M2M100Config
-    elif backbone_name == "bert":
-        return BertConfig
     else:
         raise ValueError(f"Unknown backbone name: {backbone_name}")
 
 # Factory function to create the appropriate model class based on backbone_name
 def get_backbone_model_class(backbone_name):
-    if backbone_name == "m2m100":
-        return M2M100Model
-    elif backbone_name == "bert":
-        return BertModel
+    if backbone_name == "m2m100": # The actual version only supports M2M as backbone
+        return M2M100ForConditionalGeneration
     else:
         raise ValueError(f"Unknown backbone name: {backbone_name}")
-
-# Factory function to create the appropriate feature extractor class based on feature_extractor_type
-def get_feature_extractor_class(feature_extractor_type):
-    if feature_extractor_type == "clip":
-        return CLIPModel, CLIPConfig
-    else:
-        raise ValueError(f"Unknown feature extractor type: {feature_extractor_type}")
 
 @dataclass
 class MultiModalEmbedderConfig(PretrainedConfig):
@@ -141,30 +131,33 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     encoder_embed_dim: int = field(
         default=1024, metadata={"help": "Dimention of the encoder backbone"}
     )
+    feature_extractor_cfg: Optional[Dict[str, Any]] = field(
+        default=None, metadata={"help": "Hyperparameters in case the feature_extractor is inicialized from scratch."}
+    )
 
-    def __init__(self, cfg=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if cfg and 'backbone_name' in cfg:
-            backbone_name = cfg.backbone_name
+        if kwargs and 'backbone_name' in kwargs:
+            backbone_name = kwargs['backbone_name']
             BackboneConfigClass = get_backbone_config_class(backbone_name)
-            self.backbone_config = BackboneConfigClass(**cfg.get(backbone_name, {}))
+            self.backbone_config = BackboneConfigClass(**kwargs.get(backbone_name, {}))
         else:
             self.backbone_config = None
-        
-        if cfg and 'feature_extractor_type' in cfg:
-            feature_extractor_type = cfg.feature_extractor_type
+
+        if kwargs and 'feature_extractor_type' in kwargs:
+            feature_extractor_type = kwargs['feature_extractor_type']
             FeatureExtractorConfigClass = get_feature_extractor_class(feature_extractor_type)[1]
-            self.feature_extractor_config = FeatureExtractorConfigClass(**cfg.get(feature_extractor_type, {}))
+            self.feature_extractor_config = FeatureExtractorConfigClass(**kwargs.get('feature_extractor_cfg', {}))
         else:
             self.feature_extractor_config = None
         
-        if cfg:
-            cfg_dict = OmegaConf.to_container(cfg, resolve=True)
-            for key, value in cfg_dict.items():
+        if kwargs:
+            for key, value in kwargs.items():
                 if hasattr(self, key):
                     setattr(self, key, value)
                 else:
                     setattr(self, key, value)
+
 
 # Define the custom model class
 class MultiModalEmbedderModel(PreTrainedModel):
@@ -173,34 +166,26 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
     def __init__(self, config, lang_embeddings = None, eos_indx = None, pad_index = None):
         super().__init__(config)
+        
         # Feature Extractor
-        self.feature_extractor_type = config.feature_extractor_type
-        if config.feature_extractor_type:
-            FeatureExtractorClass, _ = get_feature_extractor_class(config.feature_extractor_type)
-            if config.pretrained_feature_extractor is not None:
-                self.feature_extractor = FeatureExtractorClass.from_pretrained(config.pretrained_feature_extractor)
-            else:
-                self.feature_extractor = FeatureExtractorClass(config.feature_extractor_config)
-                
-            if isinstance(self.feature_extractor, CLIPModel):
-                self.feature_extractor.text_model = None
-                self.feature_extractor.text_projection = None
-                
-            if config.freeze_feature_extractor:
-                freeze_module_parameters(self.feature_extractor)
-        else:
-            self.feature_extractor = None
+        self.feature_extractor = FeatureExtractor(
+            feature_extractor_type=config.feature_extractor_type, 
+            pretrained_module=config.pretrained_feature_extractor, 
+            config=config.feature_extractor_config, 
+        )
+        if config.freeze_feature_extractor:
+            freeze_module_parameters(self.feature_extractor)
             
         # VL Mapper
         self.vl_mapper = VLMapper(
-            feat_dim = config.feat_dim, 
-            output_dim = config.encoder_embed_dim, 
-            mapping_layer_type = config.vl_mapper_type, 
-            layer_norm_before = config.vl_mapper_layer_norm_before,
-            adapter_factor = config.vl_factor, 
-            p_dropout = config.vl_mapper_dropout, 
-            layer_norm = config.vl_mapper_layer_norm, 
-            activation = config.vl_mapper_activation,
+            feat_dim=config.feat_dim, 
+            output_dim=config.encoder_embed_dim, 
+            mapping_layer_type=config.vl_mapper_type, 
+            layer_norm_before=config.vl_mapper_layer_norm_before,
+            adapter_factor=config.vl_factor, 
+            p_dropout=config.vl_mapper_dropout, 
+            layer_norm=config.vl_mapper_layer_norm, 
+            activation=config.vl_mapper_activation,
         )
         if config.freeze_vl_mapper:
             freeze_module_parameters(self.vl_mapper)
@@ -220,35 +205,31 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if config.freeze_backbone:
             freeze_module_parameters(self.backbone)
 
-        # LM Head
-        self.lm_head = nn.Linear(config.encoder_embed_dim, self.backbone.shared.num_embeddings, bias=False)
-        self.lm_head.weight = nn.Parameter(self.backbone.shared.weight.clone())
-        if config.freeze_lm_head:
-            freeze_module_parameters(self.lm_head)
-
         # Others
         self.embed_scale = 1.0 if config.no_scale_embedding else math.sqrt(config.encoder_embed_dim)
-        self.eos_indx = eos_indx
-        self.pad_index = pad_index
+        encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
+        self.padding_token = encoder.embed_tokens(torch.tensor([pad_index], dtype=torch.long)) if pad_index is not None else pad_index
+        self.eos_token = encoder.embed_tokens(torch.tensor([eos_indx], dtype=torch.long)) if pad_index is not None else eos_indx
 
     @classmethod
     def build_model(cls, cfg, dataset):
         """Build the MultiModal Embedder model using specific model configuration and dataset."""
 
         if not isinstance(cfg, PretrainedConfig):
-            cfg = cls.config_class.from_dict(cfg)
+            cfg = cls.config_class.from_dict(serialize_config(cfg))
         else:
             cfg = cfg
     
         BackboneModelClass = get_backbone_model_class(cfg.backbone_name)
-
+        
         if cfg.pretrained_backbone is not None:
             backbone = BackboneModelClass.from_pretrained(cfg.pretrained_backbone)
         else:
             backbone = BackboneModelClass(cfg.backbone_config)
 
         # Handling pretrained and language-specific embeddings
-        pretrained_embeddings = backbone.encoder.embed_tokens
+        pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens
+
         lang_embeddings = nn.Embedding(num_embeddings=dataset.src_tokenizer.vocab_size, embedding_dim=cfg.encoder_embed_dim)
 
         lang_embeddings = init_encoder_lang_embeddings(
@@ -265,15 +246,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Create an instance of the model
         model = cls(config=cfg, lang_embeddings=lang_embeddings, eos_indx=eos_indx, pad_index=pad_index)
         return model
-
-    def feature_extractor_forward(self, src_tokens, encoder_padding_mask=None):
-        # B x T x C x H x W
-        if self.feature_extractor_type == "clip":
-            B, T, _, _, _, = src_tokens.shape
-            src_tokens = torch.flatten(src_tokens, start_dim=0, end_dim=1) # B x T x C x H x W -> (B x T) x C x H x W
-            src_tokens = self.feature_extractor.get_image_features(pixel_values=src_tokens)
-            src_tokens = torch.unflatten(src_tokens, 0, (B, T)) # (B x T) x C -> B x T x C
-        return src_tokens, encoder_padding_mask
         
     def forward_special_tokens(self, x, encoder_padding_mask, src_langtoks):
         """
@@ -296,12 +268,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
             encoder_padding_mask = torch.cat([new_mask_entry, encoder_padding_mask], dim=1)
         
         # Adjust <pad> tokens and add <eos> token to every secuence in the batch:
-        if self.pad_index is not None and self.eos_indx is not None:
-            padding_token = self.backbone.encoder.embed_tokens(torch.tensor([self.pad_index], dtype=torch.long, device=encoder_padding_mask.device))
-            eos_token = self.backbone.encoder.embed_tokens(torch.tensor([self.eos_indx], dtype=torch.long, device=encoder_padding_mask.device))
+        if self.padding_token is not None and self.eos_token is not None:
             # Adjust <pad> tokens according the exped ones by the pretrained LM.
             bool_padding_mask = encoder_padding_mask == 0
-            x[bool_padding_mask] = padding_token
+            x[bool_padding_mask] = self.padding_token.to(encoder_padding_mask.device)
         
             # Add <eos> token to every secuence in the batch
         
@@ -317,9 +287,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
             eos_inster_mask = eos_inster_mask != 0
             
             # Add a padding token to each of the minibatch sequences to prepare it for the allocation of the <eos> tokens. Then append them.
-            new_padding_column = padding_token.repeat(x.size(0), 1).unsqueeze(1)
+            new_padding_column = self.padding_token.to(encoder_padding_mask.device).repeat(x.size(0), 1).unsqueeze(1)
             x = torch.cat([x, new_padding_column], dim=1)
-            x[eos_inster_mask] = eos_token
+            x[eos_inster_mask] = self.eos_token.to(encoder_padding_mask.device)
         x = self.embed_scale * x
             
         return x, encoder_padding_mask
@@ -340,9 +310,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - decoder_attention_mask: B x T_text <- 0 indicates padding elements
         """
         
-        if self.feature_extractor is not None:
-            input_frames, attention_mask = self.feature_extractor_forward(input_frames, attention_mask)
-            
+        input_frames = self.feature_extractor(input_frames)
+        
         if self.vl_mapper is not None:
             input_frames = self.vl_mapper(input_frames)
             
@@ -354,24 +323,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 attention_mask=attention_mask, # attention_mask expected to have shape of (batch_size, sequence_length)
                 decoder_input_ids=decoder_input_ids,
                 decoder_attention_mask=decoder_attention_mask,
-            )
-
-        elif self.config.backbone_name == "bert":
-            ## TODO: Not implemented yet (The below code is just a placeholder code)
-            outputs = self.backbone(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
+                labels=labels,
             )
         else:
             raise ValueError(f"Unknown backbone name: {self.config.backbone_name}")
 
-        # Placeholder Code created just as an example.
-        lm_logits = self.lm_head(outputs[0])
-        
-        loss = None
-        if labels is not None:
-            loss_fn = nn.CrossEntropyLoss(ignore_index=self.pad_index)
-            loss = loss_fn(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
-
-        return (loss, outputs) if loss is not None else outputs
+        return outputs
