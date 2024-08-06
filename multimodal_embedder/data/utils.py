@@ -165,3 +165,6 @@ def check_columns(dataset, required_columns):
     else:
         # Handling other types with `column_names` attribute
         return all(column in dataset.column_names for column in required_columns)
+
+def contains_empty(sample):
+    return any(v == "" or v is None for v in sample.values())

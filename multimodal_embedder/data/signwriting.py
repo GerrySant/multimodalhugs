@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Any
+import logging
 
 import torch
 from PIL import ImageOps
@@ -10,13 +11,18 @@ from transformers import M2M100Tokenizer
 
 from signwriting.tokenizer import normalize_signwriting
 from signwriting.visualizer.visualize import signwriting_to_image
-from multimodal_embedder.data import MultimodalMTDataConfig, check_columns
-from multimodal_embedder.data.utils import (
+from multimodal_embedder.data import (
+    MultimodalMTDataConfig,
+    check_columns,
     load_tokenizer_from_vocab_file,
     pad_and_create_mask,
     center_image_on_white_background,
+    contains_empty,
 )
 from multimodal_embedder.custom_datasets import properly_format_signbank_plus
+
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s] - %(message)s')
+logger = logging.getLogger(__name__)
 
 REQUIRED_COLUMNS = ['source', 'target', 'tgt_lang', 'src_lang']
 
@@ -31,6 +37,11 @@ class SignWritingDataset(torch.utils.data.Dataset):
             if not out_path.exists():
                 properly_format_signbank_plus(metafile_path)
             self.dataset = load_dataset('csv', data_files=[str(out_path)], split=split)
+
+        inicial_n_samples = len(self.dataset)
+        self.dataset = self.dataset.filter(lambda sample: not contains_empty(sample))
+        inicial_n_samples = inicial_n_samples - len(self.dataset)
+        logger.info(f'{inicial_n_samples} samples were filtered out as they contained empty values.')
         
         self.src_tokenizer = load_tokenizer_from_vocab_file(config.src_lang_tokenizer_path)
         self.remove_unused_columns = config.remove_unused_columns
