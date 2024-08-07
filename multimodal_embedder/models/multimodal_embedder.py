@@ -119,14 +119,14 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     backbone_name: str = field(
         default="m2m100", metadata={"help": "Name of the model to be used as a backbone"}
     )
+    backbone_cfg: Optional[Dict[str, Any]] = field(
+        default=None, metadata={"help": "Hyperparameters in case the backbone is inicialized from scratch."}
+    )
     pretrained_backbone: Optional[str] = field(
         default=None, metadata={"help": "Pretrained Backbone or path to the Pretrained Backbone checkpoint."}
     )
     freeze_backbone: bool = field(
         default=False, metadata={"help": "if True, the backbone parameters are frozen during training."}
-    )
-    freeze_lm_head: bool = field(
-        default=False, metadata={"help": "if True, the lm_head parameters are frozen during training."}
     )
     encoder_embed_dim: int = field(
         default=1024, metadata={"help": "Dimention of the encoder backbone"}
@@ -140,7 +140,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         if kwargs and 'backbone_name' in kwargs:
             backbone_name = kwargs['backbone_name']
             BackboneConfigClass = get_backbone_config_class(backbone_name)
-            self.backbone_config = BackboneConfigClass(**kwargs.get(backbone_name, {}))
+            self.backbone_config = BackboneConfigClass(**kwargs.get('backbone_cfg', {}))
         else:
             self.backbone_config = None
 
@@ -208,8 +208,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Others
         self.embed_scale = 1.0 if config.no_scale_embedding else math.sqrt(config.encoder_embed_dim)
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
-        self.padding_token = encoder.embed_tokens(torch.tensor([pad_index], dtype=torch.long)) if pad_index is not None else pad_index
-        self.eos_token = encoder.embed_tokens(torch.tensor([eos_indx], dtype=torch.long)) if pad_index is not None else eos_indx
+        self.padding_token = encoder.embed_tokens(torch.tensor([pad_index], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else pad_index
+        self.eos_token = encoder.embed_tokens(torch.tensor([eos_indx], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else eos_indx
 
     @classmethod
     def build_model(cls, cfg, dataset):
@@ -219,7 +219,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             cfg = cls.config_class.from_dict(serialize_config(cfg))
         else:
             cfg = cfg
-    
+        print(f"cfg: {cfg}")
         BackboneModelClass = get_backbone_model_class(cfg.backbone_name)
         
         if cfg.pretrained_backbone is not None:
@@ -240,11 +240,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
 
         # EOS and PAD token indices
-        eos_indx = dataset.src_tokenizer.convert_tokens_to_ids(dataset.src_tokenizer.eos_token)
+        eos_index = dataset.src_tokenizer.convert_tokens_to_ids(dataset.src_tokenizer.eos_token)
         pad_index = dataset.src_tokenizer.convert_tokens_to_ids(dataset.src_tokenizer.pad_token)
 
         # Create an instance of the model
-        model = cls(config=cfg, lang_embeddings=lang_embeddings, eos_indx=eos_indx, pad_index=pad_index)
+        model = cls(config=cfg, lang_embeddings=lang_embeddings, eos_indx=eos_index, pad_index=pad_index)
         return model
         
     def forward_special_tokens(self, x, encoder_padding_mask, src_langtoks):
@@ -271,8 +271,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if self.padding_token is not None and self.eos_token is not None:
             # Adjust <pad> tokens according the exped ones by the pretrained LM.
             bool_padding_mask = encoder_padding_mask == 0
-            x[bool_padding_mask] = self.padding_token.to(encoder_padding_mask.device)
-        
+            x[bool_padding_mask] = torch.from_numpy(self.padding_token).to(encoder_padding_mask.device)
             # Add <eos> token to every secuence in the batch
         
             # Adjust Padding Mask to reflect the addition of the <eos> token
@@ -287,9 +286,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
             eos_inster_mask = eos_inster_mask != 0
             
             # Add a padding token to each of the minibatch sequences to prepare it for the allocation of the <eos> tokens. Then append them.
-            new_padding_column = self.padding_token.to(encoder_padding_mask.device).repeat(x.size(0), 1).unsqueeze(1)
+            new_padding_column = torch.from_numpy(self.padding_token).to(encoder_padding_mask.device).repeat(x.size(0), 1).unsqueeze(1)
             x = torch.cat([x, new_padding_column], dim=1)
-            x[eos_inster_mask] = self.eos_token.to(encoder_padding_mask.device)
+            x[eos_inster_mask] = torch.from_numpy(self.eos_token).to(encoder_padding_mask.device)
         x = self.embed_scale * x
             
         return x, encoder_padding_mask
