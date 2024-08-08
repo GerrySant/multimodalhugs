@@ -7,7 +7,7 @@ import torch
 from PIL import ImageOps
 from datasets import load_dataset
 from torchvision.transforms import Compose
-from transformers import M2M100Tokenizer
+from transformers import M2M100Tokenizer, PreTrainedTokenizerFast
 
 from signwriting.tokenizer import normalize_signwriting
 from signwriting.visualizer.visualize import signwriting_to_image
@@ -45,7 +45,14 @@ class SignWritingDataset(torch.utils.data.Dataset):
         
         self.src_tokenizer = load_tokenizer_from_vocab_file(config.src_lang_tokenizer_path)
         self.remove_unused_columns = config.remove_unused_columns
-        self.tgt_tokenizer = M2M100Tokenizer.from_pretrained(config.text_tokenizer_path)
+        if os.path.isabs(config.text_tokenizer_path) and config.text_tokenizer_path.endswith('.json'):
+            self.tgt_tokenizer = PreTrainedTokenizerFast(tokenizer_file=config.text_tokenizer_path)
+        else:
+            try:
+                self.tgt_tokenizer = M2M100Tokenizer.from_pretrained(config.text_tokenizer_path)
+            except TypeError as error:
+                self.tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(config.text_tokenizer_path)
+        
         self.preprocess = preprocess_fn
         
     def get_langtok(self, langtok, tokenizer):
@@ -119,7 +126,7 @@ class SignWritingDataset(torch.utils.data.Dataset):
             src_langtoks = None
 
         collated =  {
-            "input_ids": padded_inputs,             # TODO: Passing None leads to an error at ModuleUtilsMixin.floating_point_ops(self, input_dict, exclude_embeddings) from transformers
+            "input_ids": None,                      # TODO: Passing None leads to an error at ModuleUtilsMixin.floating_point_ops(self, input_dict, exclude_embeddings) from transformers
             "input_frames": padded_inputs,          # torch.Size([batch_size, n_frames, n_channes, W, H])
             "attention_mask": padded_input_masks,   # torch.Size([batch_size, n_frames]) 0 indicates padding elements
             "src_langtoks": src_langtoks,           # torch.Size([batch_size, 1])
@@ -148,7 +155,6 @@ class SignWritingDataset(torch.utils.data.Dataset):
         decoder_attention_mask = decoder_attention_mask[..., :-1].contiguous()
 
         # Prepare final output for model consumption
-        ntokens = torch.sum(decoder_attention_mask, dim=1)
         decoder_input_ids = torch.full((tgt_tensor.size(0), 1), self.tgt_tokenizer.convert_tokens_to_ids(self.tgt_tokenizer.eos_token))
         decoder_input_ids = torch.cat((decoder_input_ids, tgt_tensor), dim=1)   # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
         decoder_input_ids = decoder_input_ids[..., :-1].contiguous()            # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>']
@@ -156,9 +162,7 @@ class SignWritingDataset(torch.utils.data.Dataset):
         # Collating all necessary information for model input
         collated["decoder_input_ids"] = decoder_input_ids           # torch.Size([batch_size, n_tokens]) (before: tgt_tensor)
         collated["labels"] = tgt_tensor                             # torch.Size([batch_size, n_tgt_tokens])
-        collated["decoder_attention_mask"] = decoder_attention_mask # torch.Size([batch_size, n_tokens]) 0 indicates padding elements
-        collated["ntokens"] = ntokens                               # torch.Size([batch_size]
-        
+        collated["decoder_attention_mask"] = decoder_attention_mask # torch.Size([batch_size, n_tokens]) 0 indicates padding elements        
         return collated
         
     def postprocess(self, sign):     

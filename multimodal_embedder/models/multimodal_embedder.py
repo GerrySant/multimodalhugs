@@ -10,11 +10,13 @@ from transformers import (
     BertConfig, BertModel, CLIPConfig, CLIPModel, M2M100Config, M2M100ForConditionalGeneration, 
     PreTrainedModel, PretrainedConfig
 )
+from transformers.modeling_outputs import Seq2SeqLMOutput
+
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple, Union
 
 # Local application libraries
-from multimodal_embedder.models import freeze_module_parameters
+from multimodal_embedder.models import EncoderWrapper, freeze_module_parameters
 from multimodal_embedder.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
 from multimodal_embedder.utils import serialize_config
 
@@ -134,6 +136,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     feature_extractor_cfg: Optional[Dict[str, Any]] = field(
         default=None, metadata={"help": "Hyperparameters in case the feature_extractor is inicialized from scratch."}
     )
+    is_encoder_decoder: bool = field(
+        default=True,
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -157,6 +162,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
                     setattr(self, key, value)
                 else:
                     setattr(self, key, value)
+        self.is_encoder_decoder = True
 
 
 # Define the custom model class
@@ -211,15 +217,32 @@ class MultiModalEmbedderModel(PreTrainedModel):
         self.padding_token = encoder.embed_tokens(torch.tensor([pad_index], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else pad_index
         self.eos_token = encoder.embed_tokens(torch.tensor([eos_indx], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else eos_indx
 
+    @property
+    def lm_head(self):
+        if hasattr(self.backbone, 'lm_head'):
+            return self.backbone.lm_head
+        return None
+
+    @property
+    def language_encoder(self):
+        return self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
+
     @classmethod
-    def build_model(cls, cfg, dataset):
+    def build_model(cls, cfg, dataset=None, src_tokenizer = None, tgt_tokenizer = None):
         """Build the MultiModal Embedder model using specific model configuration and dataset."""
+
+        if dataset is not None:
+            src_tokenizer = dataset.src_tokenizer
+            tgt_tokenizer = dataset.tgt_tokenizer
+
+        if src_tokenizer is None or tgt_tokenizer is None:
+            raise ValueError("Please provide the src_tokenizer and the tgt_tokenizer in case the dataset used does not have these as a parameter.")
 
         if not isinstance(cfg, PretrainedConfig):
             cfg = cls.config_class.from_dict(serialize_config(cfg))
         else:
             cfg = cfg
-        print(f"cfg: {cfg}")
+
         BackboneModelClass = get_backbone_model_class(cfg.backbone_name)
         
         if cfg.pretrained_backbone is not None:
@@ -230,22 +253,23 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Handling pretrained and language-specific embeddings
         pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens
 
-        lang_embeddings = nn.Embedding(num_embeddings=dataset.src_tokenizer.vocab_size, embedding_dim=cfg.encoder_embed_dim)
+        lang_embeddings = nn.Embedding(num_embeddings=src_tokenizer.vocab_size, embedding_dim=cfg.encoder_embed_dim)
 
         lang_embeddings = init_encoder_lang_embeddings(
             cfg=cfg, 
             lang_embeddings=lang_embeddings, 
             pretrained_embeddings=pretrained_embeddings, 
-            tokenizer=dataset.tgt_tokenizer
+            tokenizer=tgt_tokenizer
         )
 
         # EOS and PAD token indices
-        eos_index = dataset.src_tokenizer.convert_tokens_to_ids(dataset.src_tokenizer.eos_token)
-        pad_index = dataset.src_tokenizer.convert_tokens_to_ids(dataset.src_tokenizer.pad_token)
+        eos_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.eos_token)
+        pad_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
 
         # Create an instance of the model
         model = cls(config=cfg, lang_embeddings=lang_embeddings, eos_indx=eos_index, pad_index=pad_index)
         return model
+ 
         
     def forward_special_tokens(self, x, encoder_padding_mask, src_langtoks):
         """
@@ -257,7 +281,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - encoder_padding_mask: B x N_tokens <- 0 indicates padding elements
             - src_langtoks: B x 1     
         """
-
         # Append <src_lang>:
         if src_langtoks is not None:
             src_langtoks = self.lang_embeddings(src_langtoks)
@@ -271,6 +294,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if self.padding_token is not None and self.eos_token is not None:
             # Adjust <pad> tokens according the exped ones by the pretrained LM.
             bool_padding_mask = encoder_padding_mask == 0
+            
             x[bool_padding_mask] = torch.from_numpy(self.padding_token).to(encoder_padding_mask.device)
             # Add <eos> token to every secuence in the batch
         
@@ -293,7 +317,27 @@ class MultiModalEmbedderModel(PreTrainedModel):
             
         return x, encoder_padding_mask
 
-    def forward(self, input_ids=None, input_frames=None, src_langtoks=None, attention_mask=None, decoder_input_ids=None, labels=None, decoder_attention_mask=None, ntokens=None):
+    def forward(
+        self,
+        input_frames: Optional[torch.LongTensor] = None,
+        src_langtoks: Optional[torch.LongTensor] = None,
+        input_ids: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        decoder_input_ids: Optional[torch.LongTensor] = None,
+        decoder_attention_mask: Optional[torch.LongTensor] = None,
+        head_mask: Optional[torch.Tensor] = None,
+        decoder_head_mask: Optional[torch.Tensor] = None,
+        cross_attn_head_mask: Optional[torch.Tensor] = None,
+        encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
+        past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        decoder_inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+    ) -> Union[Tuple[torch.Tensor], Seq2SeqLMOutput]:
         """
         The forward method inherited from the base class has a **kwargs
         argument in its input, which is not supported in torchscript. This
@@ -309,22 +353,85 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - decoder_attention_mask: B x T_text <- 0 indicates padding elements
         """
         
-        input_frames = self.feature_extractor(input_frames)
-        
-        if self.vl_mapper is not None:
-            input_frames = self.vl_mapper(input_frames)
-            
-        input_frames, attention_mask =  self.forward_special_tokens(input_frames, attention_mask, src_langtoks)
-        
-        if self.config.backbone_name == "m2m100":
-            outputs = self.backbone(
-                inputs_embeds=input_frames, # inputs_embeds expected to have shape of (batch_size, sequence_length, hidden_size)
-                attention_mask=attention_mask, # attention_mask expected to have shape of (batch_size, sequence_length)
-                decoder_input_ids=decoder_input_ids,
-                decoder_attention_mask=decoder_attention_mask,
-                labels=labels,
-            )
-        else:
-            raise ValueError(f"Unknown backbone name: {self.config.backbone_name}")
+        if inputs_embeds is None:
+            inputs_embeds = self.feature_extractor(input_frames)
+            if self.vl_mapper is not None:
+                inputs_embeds = self.vl_mapper(inputs_embeds)
+        inputs_embeds, attention_mask =  self.forward_special_tokens(inputs_embeds, attention_mask, src_langtoks)
+
+        outputs = self.backbone(
+            input_ids = input_ids,
+            attention_mask = attention_mask,
+            decoder_input_ids = decoder_input_ids,
+            decoder_attention_mask = decoder_attention_mask,
+            head_mask = head_mask,
+            decoder_head_mask = decoder_head_mask,
+            cross_attn_head_mask = cross_attn_head_mask,
+            encoder_outputs = encoder_outputs,
+            past_key_values = past_key_values,
+            inputs_embeds = inputs_embeds if encoder_outputs is None else None,
+            decoder_inputs_embeds = decoder_inputs_embeds,
+            labels = labels,
+            use_cache = use_cache,
+            output_attentions = output_attentions,
+            output_hidden_states = output_hidden_states,
+            return_dict = return_dict,
+        )
 
         return outputs
+
+    def input_to_encoder_outputs(
+        self,
+        input_frames: Optional[torch.LongTensor] = None,
+        src_langtoks: Optional[torch.LongTensor] = None,
+        input_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        head_mask: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+    ):
+        """
+        INPUTS:
+            - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
+            - input_frames (also known as 'src_tokens'): B x N_frames x C x W x H <- Multimodal input minibatch
+            - src_langtoks: B x 1 <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
+            - attention_mask (also known as 'encoder_padding_mask'): B x N_frames <- 0 indicates padding elements
+        """
+        
+        if inputs_embeds is None:
+            inputs_embeds = self.feature_extractor(input_frames)
+            if self.vl_mapper is not None:
+                inputs_embeds = self.vl_mapper(inputs_embeds)
+            inputs_embeds, attention_mask =  self.forward_special_tokens(inputs_embeds, attention_mask, src_langtoks)
+
+        return self.language_encoder(
+            input_ids=None,
+            attention_mask=attention_mask,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+    def prepare_inputs_for_generation(self, *args, **kwargs):
+        if kwargs.get('past_key_values', ()) == ():
+            kwargs['past_key_values'] = None
+        model_inputs = self.backbone.prepare_inputs_for_generation(*args, **kwargs)
+        model_inputs["input_frames"] = kwargs['input_frames']
+        model_inputs["src_langtoks"] = kwargs['src_langtoks']
+        return model_inputs
+
+    def get_encoder(self):
+        return EncoderWrapper(self)
+
+    @staticmethod
+    def _reorder_cache(past_key_values, beam_idx):
+        reordered_past = ()
+        for layer_past in past_key_values:
+            reordered_past += (
+                tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past),
+            )
+        return reordered_past
