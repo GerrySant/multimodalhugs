@@ -9,6 +9,8 @@ readme = "README.md"
 dependencies = [
     "datasets",
     "torch",
+    "torchvision",
+    "torchaudio",
     "transformers",
     "opencv-python",
     "librosa",
@@ -22,6 +24,8 @@ dependencies = [
     "wandb",
     "nltk",
     "jiwer",
+    "Pillow",
+    "signwriting = { git = 'https://github.com/sign-language-processing/signwriting', branch = 'master' }",
 ]
 
 [project.optional-dependencies]
