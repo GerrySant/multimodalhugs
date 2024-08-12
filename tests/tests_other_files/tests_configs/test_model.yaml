@@ -1,0 +1,135 @@
+# model:
+#   name: "multimodal_embedder"
+#   feature_extractor_type: "clip"
+#   pretrained_feature_extractor: null #"openai/clip-vit-base-patch32"
+#   vl_mapper_type: "linear"
+#   vl_mapper_layer_norm_before: true
+#   vl_mapper_layer_norm: false
+#   vl_mapper_activation: false
+#   vl_factor: 2
+#   vl_mapper_dropout: 0.1
+#   backbone_name: "m2m100"
+#   backbone_cfg:
+#       backbone_argumnets: "whatever"
+#       vocab_size: 8039
+#       d_model: 32
+#       encoder_layers: 2
+#       encoder_attention_heads: 1
+#       decoder_layers: 2
+#       decoder_attention_heads: 1
+#       decoder_ffn_dim: 256
+#       encoder_ffn_dim: 256
+#   pretrained_backbone: null #"facebook/m2m100_418M"
+#   encoder_embed_dim: 32
+#   feat_dim: 32
+#   num_labels: 2
+#   no_scale_embedding: False
+#   init_lang_abbr: avg
+#   freeze_feature_extractor: False
+#   freeze_vl_mapper: False
+#   freeze_lang_embeddings: False
+#   freeze_backbone: False
+#   feature_extractor_cfg: # Specify args to be changes in the feature extractor arquitecture
+#     feature_extractor_argumnets: "whatever"
+#     projection_dim: 32
+#     vision_config:
+#         hidden_size: 32
+#         num_hidden_layers: 3
+#         num_attention_heads: 1
+#         intermediate_size: 256
+#         projection_dim: 32
+
+model:
+  name: "small_multimodal_embedder"
+  feature_extractor_type: "clip"
+  pretrained_feature_extractor: null
+  vl_mapper_type: "linear"
+  vl_mapper_layer_norm_before: true
+  vl_mapper_layer_norm: false
+  vl_mapper_activation: false
+  vl_factor: 1  # Reduce the vl_factor to decrease complexity
+  vl_mapper_dropout: 0.0  # Remove dropout for fast overfitting
+  backbone_name: "m2m100"
+  backbone_cfg:
+      vocab_size: 8039
+      backbone_argumnets: "whatever"
+      d_model: 32  # Reduce model dimension for smaller model
+      encoder_layers: 1  # Fewer layers for simplicity
+      encoder_attention_heads: 1
+      decoder_layers: 1  # Fewer layers for simplicity
+      decoder_attention_heads: 1
+      decoder_ffn_dim: 64  # Smaller feed-forward network
+      encoder_ffn_dim: 64
+  pretrained_backbone: null
+  encoder_embed_dim: 32  # Smaller embedding dimension
+  feat_dim: 32  # Smaller feature dimension
+  num_labels: 2
+  no_scale_embedding: False
+  init_lang_abbr: avg
+  freeze_feature_extractor: False
+  freeze_vl_mapper: False
+  freeze_lang_embeddings: False
+  freeze_backbone: False
+  feature_extractor_cfg:
+    feature_extractor_argumnets: "whatever"
+    projection_dim: 32  # Smaller projection dimension
+    vision_config:
+        hidden_size: 32  # Reduce hidden size
+        num_hidden_layers: 1  # Fewer hidden layers
+        num_attention_heads: 1
+        intermediate_size: 64  # Smaller intermediate size
+        projection_dim: 32  # Reduce projection dimension
+        image_size: 32
+
+
+# common:
+#   wandb_name: debug_model
+#   wandb_project: debug_wandb
+
+# training:
+#   output_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline"
+#   num_train_epochs: 3
+#   per_device_train_batch_size: 32
+#   gradient_accumulation_steps: 2
+#   per_device_eval_batch_size: 8
+#   eval_steps: 20
+#   warmup_steps: 500
+#   weight_decay: 0.01
+#   logging_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline/logs"
+#   logging_steps: 10
+#   evaluation_strategy: "steps"
+#   save_steps: 10_000
+#   save_total_limit: 2
+#   remove_unused_columns: True
+#   fp16: True
+
+# training:
+#   output_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline"
+#   logging_dir: "/home/gsantm/scripts/notebooks/results/huggingface_pipeline/logs"
+#   overwrite_output_dir: false
+#   evaluation_strategy: "steps"
+#   eval_steps: 20
+#   per_device_train_batch_size: 8
+#   gradient_accumulation_steps: 2
+#   learning_rate: 2.0
+#   weight_decay: 0
+#   adam_beta1: 0.9
+#   adam_beta2: 0.998
+#   max_grad_norm: 0.0
+#   num_train_epochs: 1
+#   max_steps: 200
+#   lr_scheduler_type: "constant_with_warmup"
+#   warmup_steps: 8000
+#   logging_steps: 20
+#   save_steps: 128
+#   save_total_limit: 10
+#   seed: 3435
+#   label_smoothing_factor: 0.1
+#   dataloader_drop_last: false
+#   dataloader_num_workers: 2
+#   remove_unused_columns: True
+#   fp16: True
+
+data:
+  src_lang_tokenizer_path: "tests/tests_other_files/new_languages.txt"
+  text_tokenizer_path: "tests/tests_other_files/tiny_tokenizer" # /home/gsantm/store/other/tiny_tokenizer.json #facebook/m2m100_418M

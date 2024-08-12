@@ -1,0 +1,32 @@
+name: Test
+
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - uses: actions/checkout@v2
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        # Use the Python version that matches your development environment
+
+    - name: Install dependencies
+      run: pip install .[dev]
+
+    - name: Run tests
+      run: |
+        python -m unittest discover -s tests/
+        # This assumes you are using unittest framework and your tests are discoverable from the tests directory.

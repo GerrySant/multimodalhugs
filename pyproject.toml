@@ -19,7 +19,9 @@ dependencies = [
     "sentencepiece",
     "sacremoses",
     "sacrebleu",
-    "wandb"
+    "wandb",
+    "nltk",
+    "jiwer",
 ]
 
 [project.optional-dependencies]
@@ -62,4 +64,4 @@ where = ["."]
 
 [tool.pytest.ini_options]
 addopts = "-v"
-where = ["."]
+testpaths = ["tests"]  # This specifies the directory to look for tests
