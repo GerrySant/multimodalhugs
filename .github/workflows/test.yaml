@@ -28,5 +28,4 @@ jobs:
 
     - name: Run tests
       run: |
-        python -m unittest discover -s tests/
-        # This assumes you are using unittest framework and your tests are discoverable from the tests directory.
+        python pytest
