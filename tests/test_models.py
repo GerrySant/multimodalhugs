@@ -10,7 +10,7 @@ from transformers import PreTrainedTokenizerFast
 from multimodal_embedder.data import load_tokenizer_from_vocab_file
 from multimodal_embedder.models import MultiModalEmbedderModel
 
-from .global_variables import DEVICE, SAMPLES, INPUTS, LABELS
+from tests.global_variables import DEVICE, SAMPLES, INPUTS, LABELS
 
 # Declare global variables
 model = None
