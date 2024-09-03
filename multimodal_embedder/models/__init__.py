@@ -1,2 +1,2 @@
 from .utils import *
-from .multimodal_embedder import MultiModalEmbedderModel
+from .multimodal_embedder import MultiModalEmbedderModel, MultiModalEmbedderConfig

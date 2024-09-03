@@ -66,9 +66,6 @@ def get_backbone_model_class(backbone_name):
 
 @dataclass
 class MultiModalEmbedderConfig(PretrainedConfig):
-    name: str = field(
-        default="multimodal_embedder", metadata={"help": "Name of the model to be used."}
-    )
     model_type: str = field(
         default="multimodal_embedder", metadata={"help": "Name of the model to be used."}
     )
@@ -108,6 +105,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     )
     freeze_vl_mapper: bool = field(
         default=False, metadata={"help": "if True, the vl_mapper parameters are frozen during training."}
+    )
+    lang_embeddings_vocab_size: Optional[int] = field(
+        default=None, metadata={"help": "vocab_size of the source language embeddings"}
     )
     init_lang_abbr: Optional[str] = field(
         default=None,
@@ -197,7 +197,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
             freeze_module_parameters(self.vl_mapper)
 
         # Lang Embedings
-        self.lang_embeddings = lang_embeddings
+        if lang_embeddings is not None:
+            self.lang_embeddings = lang_embeddings
+        else:
+            self.lang_embeddings = nn.Embedding(num_embeddings=config.lang_embeddings_vocab_size, embedding_dim=config.encoder_embed_dim)
         if config.freeze_lang_embeddings:
             freeze_module_parameters(self.lang_embeddings)
 
@@ -216,6 +219,17 @@ class MultiModalEmbedderModel(PreTrainedModel):
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
         self.padding_token = encoder.embed_tokens(torch.tensor([pad_index], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else pad_index
         self.eos_token = encoder.embed_tokens(torch.tensor([eos_indx], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else eos_indx
+
+    def get_input_embeddings(self):
+        return self.backbone.model.shared
+
+    def set_input_embeddings(self, value):
+        self.backbone.model.shared = value
+        self.backbone.model.encoder.embed_tokens = self.backbone.model.shared
+        self.backbone.model.decoder.embed_tokens = self.backbone.model.shared
+
+    def get_output_embeddings(self):
+        return self.backbone.lm_head
 
     @property
     def lm_head(self):
@@ -352,7 +366,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - labels (also known as 'source_text'): B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
             - decoder_attention_mask: B x T_text <- 0 indicates padding elements
         """
-        
+
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
             if self.vl_mapper is not None:
@@ -417,8 +431,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
 
     def prepare_inputs_for_generation(self, *args, **kwargs):
+        # Added a condition to handle empty `past_key_values` which occurred unpredictably in the final autoregression step, causing errors during generation. This ensures stability across all steps.
         if kwargs.get('past_key_values', ()) == ():
             kwargs['past_key_values'] = None
+
         model_inputs = self.backbone.prepare_inputs_for_generation(*args, **kwargs)
         model_inputs["input_frames"] = kwargs['input_frames']
         model_inputs["src_langtoks"] = kwargs['src_langtoks']
@@ -429,9 +445,4 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
-        reordered_past = ()
-        for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past),
-            )
-        return reordered_past
+        return M2M100ForConditionalGeneration._reorder_cache(past_key_values, beam_idx)

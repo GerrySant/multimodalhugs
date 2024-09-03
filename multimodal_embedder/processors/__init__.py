@@ -1,0 +1,1 @@
+from .signwriting_preprocessor import SignwritingPreprocessor
