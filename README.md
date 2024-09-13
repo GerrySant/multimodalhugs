@@ -1,43 +1,24 @@
-# Bridging Modalities: Leveraging LLM Knowledge with a General Encoding Framework.
+# Multimodal HuggingFace
 
-This code is a simplified implementation of this [repository](https://github.com/GerrySant/slt_how2sign_wicv2023/tree/signwritting), originally implemented in [fairseq](https://github.com/facebookresearch/fairseq).
+This framework aims to standardize the training/inference pipelines of multimodality models using [Hugging Face](https://huggingface.co/) as a backbone.
 
 ## Intallation
 
-1. **Create a virtual environment named `multimodal-encoder`**:
-    ```bash
-    python -m venv multimodal-encoder
-    ```
+1. **Clone the repository**.
+2. **Navigate to the repository and Install the package**.
 
-2. **Activate the virtual environment**:
-    ```bash
-    source multimodal-encoder/bin/activate
-    ```
+    - Standard installation:
 
-3. **Upgrade pip and setuptools**:
-    ```bash
-    pip install --upgrade pip setuptools
-    ```
 
-4. **Install other dependecniess**:
-    ```bash
-    pip install git+https://github.com/sign-language-processing/signwriting
-    ```
+        ```bash
+        pip install .
+        ```
 
-5. **Install PyTorch with CUDA support**:
-    ```bash
-    pip3 install torch torchvision torchaudio
-    ```
+    - Developer installation:
+        ```bash
+        pip install .[dev]
+        ```
 
-6. **Install the framework dependencies**:
-    ```bash
-    cd /multimodal-mt
-    pip install .
-    ```
+## Usage
 
-7. **Verify CUDa for the torch installation**:
-    ```bash
-    python -c "import torch; print(torch.cuda.is_available())"
-    ```
-
-   This should print `True` if CUDA support is properly enabled.
+[Here](/examples/multimodal_translation/) you can find an example for Multimodal Translation.

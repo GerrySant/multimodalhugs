@@ -43,9 +43,7 @@ class SignwritingPreprocessor(ProcessorMixin):  # FeatureExtractionMixin
         self.invert_frame = invert_frame
         self.dataset_mean = dataset_mean
         self.dataset_std = dataset_std
-        # self.frame_preprocessor = frame_preprocessor
-        # self.lang_tokenizer = lang_tokenizer
-        # self.tokenizer = tokenizer
+        
         super().__init__(frame_preprocessor=frame_preprocessor, lang_tokenizer=lang_tokenizer, tokenizer=tokenizer, **kwargs)
 
     def get_langtok(self, langtok, tokenizer):
@@ -130,77 +128,3 @@ class SignwritingPreprocessor(ProcessorMixin):  # FeatureExtractionMixin
             "labels": tgt_tensor,                                  # torch.Size([batch_size, n_tgt_tokens])
             "decoder_attention_mask": decoder_attention_mask,      # torch.Size([batch_size, n_tokens]) 0 indicates padding elements   
         })
-    
-
-
-# from multimodal_embedder.feature_extractors import SignwritingFeatureExtractor
-# from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
-
-# class SignwritingPreprocessor(ProcessorMixin):
-
-#     attributes = ["feature_extractor", "lang_tokenizer", "tokenizer"]
-
-#     model_input_names = ["input_frames", "attention_mask"]
-#     feature_extractor_class = "SignwritingFeatureExtractor"
-#     lang_tokenizer_class = "PreTrainedTokenizerFast"
-#     tokenizer_class = "PreTrainedTokenizerFast"
-
-#     def __init__(
-#         self,
-#         feature_extractor=None,
-#         lang_tokenizer=None,
-#         tokenizer=None,
-#         **kwargs,
-#     ):
-#         self.lang_tokenizer = lang_tokenizer
-#         super().__init__(feature_extractor, lang_tokenizer, tokenizer)
-
-#     def get_langtok(self, langtok, tokenizer):
-#         langtok_idx = None
-#         if tokenizer is not None:
-#             langtok_idx = tokenizer.convert_tokens_to_ids(langtok)
-#         return langtok_idx
-
-#     def __call__(
-#         self,
-#         batch: List[Dict[str, Any]],
-#         **kwargs,
-#     ) -> BatchFeature:
-        
-#         batch = self.feature_extractor(batch)
-
-#         src_langtoks = torch.stack(
-#             [torch.LongTensor([self.get_langtok(f"__{sample["src_lang"]}__", self.lang_tokenizer)]) for sample in batch]
-#         )
-
-#         tgt_langtoks = torch.stack(
-#             [torch.LongTensor([self.get_langtok(f"__{sample['tgt_lang']}__", self.tokenizer)]) for sample in batch]
-#         )
-
-#         tokenization = self.tokenizer(
-#             text=[sample["tgt_sentence"] for sample in batch],
-#             return_tensors='pt', 
-#             padding=True, 
-#             truncation=True,
-#             return_attention_mask=True,
-#             add_special_tokens=True,
-#         )
-        
-#         tgt_tensor = tokenization['input_ids']                              # ['<token_a>', '<token_b>', '<token_c>', '</s>']
-#         tgt_tensor = torch.cat((tgt_langtoks, tgt_tensor[:, 1:]), dim=1)    # ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-
-#         decoder_attention_mask = tokenization['attention_mask']
-#         decoder_attention_mask = torch.cat((torch.full((decoder_attention_mask.size(0), 1), 1), decoder_attention_mask), dim=1)
-#         decoder_attention_mask = decoder_attention_mask[..., :-1].contiguous()
-        
-#         # Prepare final output for model consumption
-#         decoder_input_ids = torch.full((tgt_tensor.size(0), 1), self.tokenizer.convert_tokens_to_ids(self.tokenizer.eos_token))
-#         decoder_input_ids = torch.cat((decoder_input_ids, tgt_tensor), dim=1)   # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-#         decoder_input_ids = decoder_input_ids[..., :-1].contiguous()            # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>']
-        
-#         batch["src_langtoks"] = src_langtoks                          # torch.Size([batch_size, 1])
-#         batch["decoder_input_ids"] = decoder_input_ids                # torch.Size([batch_size, n_tokens]) (before: tgt_tensor)
-#         batch["labels"] = tgt_tensor                                  # torch.Size([batch_size, n_tgt_tokens])
-#         batch["decoder_attention_mask"] = decoder_attention_mask      # torch.Size([batch_size, n_tokens]) 0 indicates padding elements   
-
-#         return batch
