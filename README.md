@@ -1,6 +1,6 @@
-# Multimodal HuggingFace
+# MultimodalHugs
 
-This framework aims to standardize the training/inference pipelines of multimodality models using [Hugging Face](https://huggingface.co/) as a backbone.
+MultimodalHugs is an extension of [Hugging Face](https://huggingface.co/) that offers a generalized framework for training, evaluating, and using multimodal AI models with minimal code differences, ensuring seamless compatibility with [Hugging Face](https://huggingface.co/) pipelines.
 
 ## Intallation
 
@@ -22,3 +22,15 @@ This framework aims to standardize the training/inference pipelines of multimoda
 ## Usage
 
 [Here](/examples/multimodal_translation/) you can find an example for Multimodal Translation.
+
+
+## Citing this work
+
+```
+@misc{multimodalhugs2024, 
+    title={MultimodalHugs: Extending HuggingFace for Generalized Multimodal AI Model Training and Evaluation},
+    author={Sant, Gerard},
+    howpublished={\url{https://github.com/GerrySant/multimodal_embedder}},
+    year={2024}
+}
+```
