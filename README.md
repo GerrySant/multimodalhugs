@@ -11,11 +11,13 @@ MultimodalHugs is an extension of [Hugging Face](https://huggingface.co/) that o
 
 
         ```bash
+        cd /multimodalhugs
         pip install .
         ```
 
     - Developer installation:
         ```bash
+        cd /multimodalhugs
         pip install .[dev]
         ```
 
@@ -30,7 +32,7 @@ MultimodalHugs is an extension of [Hugging Face](https://huggingface.co/) that o
 @misc{multimodalhugs2024, 
     title={MultimodalHugs: Extending HuggingFace for Generalized Multimodal AI Model Training and Evaluation},
     author={Sant, Gerard},
-    howpublished={\url{https://github.com/GerrySant/multimodal_embedder}},
+    howpublished={\url{https://github.com/GerrySant/multimodalhugs}},
     year={2024}
 }
 ```
