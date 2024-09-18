@@ -1,5 +1,6 @@
 checkpoints
 *.log
+*.lock
 .env
 processed/
 wandb/
