@@ -16,9 +16,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Tuple, Union
 
 # Local application libraries
-from multimodal_embedder.models import EncoderWrapper, freeze_module_parameters
-from multimodal_embedder.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
-from multimodal_embedder.utils import serialize_config
+from multimodalhugs.models import EncoderWrapper, freeze_module_parameters
+from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
+from multimodalhugs.utils import serialize_config
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from transformers.feature_extraction_utils import BatchFeature, FeatureExtractio
 from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
 from transformers.processing_utils import ProcessorMixin
 
-from multimodal_embedder.data import (
+from multimodalhugs.data import (
     pad_and_create_mask,
     center_image_on_white_background,
 )

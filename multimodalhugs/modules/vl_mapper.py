@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from multimodal_embedder.modules import Adapter
+from multimodalhugs.modules import Adapter
 
 class VLMapper(nn.Module):
     def __init__(self, feat_dim, output_dim, mapping_layer_type, layer_norm_before,

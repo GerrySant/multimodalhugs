@@ -7,8 +7,8 @@ import random
 from jiwer import wer
 from omegaconf import OmegaConf
 from transformers import PreTrainedTokenizerFast
-from multimodal_embedder.data import load_tokenizer_from_vocab_file
-from multimodal_embedder.models import MultiModalEmbedderModel
+from multimodalhugs.data import load_tokenizer_from_vocab_file
+from multimodalhugs.models import MultiModalEmbedderModel
 
 from tests.global_variables import DEVICE, SAMPLES, INPUTS, LABELS
 

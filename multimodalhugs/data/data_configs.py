@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Union, Dict, Optional
 from dataclasses import dataclass, field
 from typing import Optional
-from multimodal_embedder.data.utils import string_to_list
+from multimodalhugs.data.utils import string_to_list
 
 @dataclass
 class PreprocessArguments:

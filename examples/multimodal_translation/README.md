@@ -13,7 +13,7 @@ This framework is designed to maximize the use of existing Hugging Face pipeline
     ```python
     import torch
     from omegaconf import OmegaConf
-    from multimodal_embedder.data import SignWritingDataset, MultimodalMTDataConfig
+    from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig
 
     config_path = "/examples/multimodal_translation/configs/example_config.yaml"
 
@@ -37,11 +37,11 @@ This framework is designed to maximize the use of existing Hugging Face pipeline
     ```python
     import torch
     from omegaconf import OmegaConf
-    from multimodal_embedder.data import MultimodalMTDataConfig
-    from multimodal_embedder.processors import SignwritingPreprocessor
+    from multimodalhugs.data import MultimodalMTDataConfig
+    from multimodalhugs.processors import SignwritingPreprocessor
     from transformers.models.clip.image_processing_clip import CLIPImageProcessor
     from transformers import M2M100Tokenizer
-    from multimodal_embedder.data import load_tokenizer_from_vocab_file
+    from multimodalhugs.data import load_tokenizer_from_vocab_file
 
     config_path = "/examples/multimodal_translation/configs/example_config.yaml"
 
@@ -83,8 +83,8 @@ This framework is designed to maximize the use of existing Hugging Face pipeline
     ```python
     from omegaconf import OmegaConf
     from transformers import M2M100Tokenizer
-    from multimodal_embedder.data import load_tokenizer_from_vocab_file
-    from multimodal_embedder.models import MultiModalEmbedderModel
+    from multimodalhugs.data import load_tokenizer_from_vocab_file
+    from multimodalhugs.models import MultiModalEmbedderModel
 
     config_path = "/examples/multimodal_translation/configs/example_config.yaml"
 
@@ -103,8 +103,8 @@ This framework is designed to maximize the use of existing Hugging Face pipeline
 
     ```python
     from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoProcessor
-    from multimodal_embedder.processors import SignwritingPreprocessor
-    from multimodal_embedder.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
+    from multimodalhugs.processors import SignwritingPreprocessor
+    from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
 
     AutoConfig.register("multimodal_embedder", MultiModalEmbedderConfig)
     AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel)

@@ -19,8 +19,8 @@ Fine-tuning the library models for sequence to sequence.
 # You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoProcessor, AutoTokenizer
-from multimodal_embedder.processors import SignwritingPreprocessor
-from multimodal_embedder.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
+from multimodalhugs.processors import SignwritingPreprocessor
+from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
 
 AutoConfig.register("multimodal_embedder", MultiModalEmbedderConfig)
 AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel)
@@ -58,7 +58,7 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
-from multimodal_embedder.data import DataCollatorMultimodalSeq2Seq
+from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.

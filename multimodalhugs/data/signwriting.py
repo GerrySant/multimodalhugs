@@ -11,7 +11,7 @@ from transformers import M2M100Tokenizer, PreTrainedTokenizerFast
 
 from signwriting.tokenizer import normalize_signwriting
 from signwriting.visualizer.visualize import signwriting_to_image
-from multimodal_embedder.data import (
+from multimodalhugs.data import (
     MultimodalMTDataConfig,
     check_columns,
     load_tokenizer_from_vocab_file,
@@ -19,8 +19,8 @@ from multimodal_embedder.data import (
     center_image_on_white_background,
     contains_empty,
 )
-from multimodal_embedder.custom_datasets import properly_format_signbank_plus
-from multimodal_embedder.data.utils import _transform
+from multimodalhugs.custom_datasets import properly_format_signbank_plus
+from multimodalhugs.data.utils import _transform
 
 import argparse
 from pathlib import Path
