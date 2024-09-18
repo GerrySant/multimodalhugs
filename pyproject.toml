@@ -12,6 +12,7 @@ dependencies = [
     "torchvision",
     "torchaudio",
     "transformers",
+    "accelerate",
     "opencv-python",
     "librosa",
     "numpy",
