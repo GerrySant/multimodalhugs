@@ -18,7 +18,7 @@ MultimodalHugs is an extension of [Hugging Face](https://huggingface.co/) that o
     - Developer installation:
         ```bash
         cd /multimodalhugs
-        pip install .[dev]
+        pip install -e .[dev]
         ```
 
 ## Usage
