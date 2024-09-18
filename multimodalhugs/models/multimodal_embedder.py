@@ -282,6 +282,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         # Create an instance of the model
         model = cls(config=cfg, lang_embeddings=lang_embeddings, eos_indx=eos_index, pad_index=pad_index)
+
+        # Converts all tensors in the model to contiguous
+        for param in model.parameters():
+            if not param.is_contiguous():
+                param.data = param.data.contiguous()
+
         return model
  
         
