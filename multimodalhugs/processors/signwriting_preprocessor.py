@@ -92,7 +92,7 @@ class SignwritingPreprocessor(ProcessorMixin):  # FeatureExtractionMixin
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_secuences)
 
         src_langtoks = torch.stack(
-            [torch.LongTensor([self.get_langtok(f"__{sample["src_lang"]}__", self.lang_tokenizer)]) for sample in batch]
+            [torch.LongTensor([self.get_langtok(f"__{sample['src_lang']}__", self.lang_tokenizer)]) for sample in batch]
         )
 
         tgt_langtoks = torch.stack(

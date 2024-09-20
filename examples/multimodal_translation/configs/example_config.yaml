@@ -20,7 +20,7 @@ model:
   freeze_lang_embeddings: False
   freeze_backbone: True
   freeze_lm_head: True
-  lang_embeddings_vocab_size: 79
+  lang_embeddings_vocab_size: 79 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
   feature_extractor_cfg: # Specify args to be modified in the feature extractor architecture
     feature_extractor_arguments: "<config-arguments>"
 

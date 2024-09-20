@@ -1,1 +1,2 @@
 from .signwriting_preprocessor import SignwritingPreprocessor
+from .pose2text_preprocessor import Pose2TextTranslationPreprocessor

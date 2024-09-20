@@ -1,3 +1,4 @@
+import os
 import ast
 import json
 import torch
@@ -78,22 +79,26 @@ def string_to_list(s):
         return None
 
 def pad_and_create_mask(tensor_list):
-    # Determine the maximum number of frames
+    # Determine the maximum number of frames (t_max)
     max_frames = max(tensor.size(0) for tensor in tensor_list)
     
-    # Extract other dimensions from the first tensor
-    BATCH_SIZE = len(tensor_list)
-    _, Channels, W, H = tensor_list[0].shape
+    # Get the shape of other dimensions (starting from dimension 1)
+    other_dimensions = tensor_list[0].shape[1:]
     
     # Create the output tensor with padding
-    padded_tensor = torch.zeros((BATCH_SIZE, max_frames, Channels, W, H))
+    BATCH_SIZE = len(tensor_list)
+    padded_shape = (BATCH_SIZE, max_frames) + other_dimensions
+    padded_tensor = torch.zeros(padded_shape)
+    
+    # Create the mask
     mask = torch.zeros((BATCH_SIZE, max_frames), dtype=torch.int)
-
+    
+    # Fill the padded tensor and mask
     for i, tensor in enumerate(tensor_list):
         num_frames = tensor.size(0)
-        padded_tensor[i, :num_frames, :, :, :] = tensor
+        padded_tensor[i, :num_frames] = tensor
         mask[i, :num_frames] = 1
-
+        
     return padded_tensor, mask
 
 
@@ -168,3 +173,12 @@ def check_columns(dataset, required_columns):
 
 def contains_empty(sample):
     return any(v == "" or v is None for v in sample.values())
+
+def sample_source_exists(sample):
+    return any(v == "" or v is None for v in sample.values())
+
+def file_exists_filter(column_name, sample):
+    """
+    Checks if the file specified in sample[column_name] exists.
+    """
+    return os.path.exists(sample[column_name])

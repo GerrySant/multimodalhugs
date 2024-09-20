@@ -1,33 +1,24 @@
 import os
+import torch
+import datasets
+
 from pathlib import Path
 from typing import Any, Union, Dict, Optional
-import logging
-
-import torch
-from PIL import ImageOps
-from datasets import load_dataset, Dataset
-from torchvision.transforms import Compose
-from transformers import M2M100Tokenizer, PreTrainedTokenizerFast
+from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 
 from signwriting.tokenizer import normalize_signwriting
-from signwriting.visualizer.visualize import signwriting_to_image
+from multimodalhugs.data import (
+    SignLanguageMTDataConfig,
+    contains_empty,
+)
+
+from signwriting.tokenizer import normalize_signwriting
 from multimodalhugs.data import (
     MultimodalMTDataConfig,
     check_columns,
-    load_tokenizer_from_vocab_file,
-    pad_and_create_mask,
-    center_image_on_white_background,
     contains_empty,
 )
 from multimodalhugs.custom_datasets import properly_format_signbank_plus
-from multimodalhugs.data.utils import _transform
-
-import argparse
-from pathlib import Path
-from PIL import Image
-
-import datasets
-from datasets import DatasetBuilder, DatasetInfo
 
 REQUIRED_COLUMNS = ['source', 'target', 'tgt_lang', 'src_lang']
 

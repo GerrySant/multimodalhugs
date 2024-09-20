@@ -60,3 +60,17 @@ class MultimodalMTDataConfig(BuilderConfig):
         self.text_tokenizer_path = getattr(cfg.data, 'text_tokenizer_path', self.text_tokenizer_path)
         self.max_seq_length = getattr(cfg.data, 'max_seq_length', self.max_seq_length)
         self.preprocess = PreprocessArguments(getattr(cfg.data, 'preprocess', None))
+
+
+@dataclass
+class SignLanguageMTDataConfig(MultimodalMTDataConfig):
+    is_numpy_video: Optional[bool] = field(default=False, metadata={"help": "sample['source'] will point to preprocessed .npy video files."})
+    is_pose: Optional[bool] = field(default=True, metadata={"help": "sample['source'] will point to .pose files."})
+    def __init__(self, cfg=None, **kwargs):
+        super().__init__(cfg=cfg, **kwargs)
+        # Assign new arguments from config if available
+        print(f"cfg.data: {cfg.data}")
+        self.is_numpy_video = getattr(cfg.data, 'is_numpy_video', self.is_numpy_video)
+        self.is_pose = getattr(cfg.data, 'is_pose', self.is_pose)
+        assert self.is_numpy_video != self.is_pose, "is_numpy_video and is_pose cannot have the same value"
+        assert self.is_numpy_video or self.is_pose, "At least one of is_numpy_video or is_pose must be True"
