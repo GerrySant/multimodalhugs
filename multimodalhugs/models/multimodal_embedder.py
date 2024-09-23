@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any, Tuple, Union
 
 # Local application libraries
 from multimodalhugs.models import EncoderWrapper, freeze_module_parameters
-from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
+from multimodalhugs.modules import VLMapper, FeatureExtractor, SpecialTokensEmbeddings, get_feature_extractor_class
 from multimodalhugs.utils import serialize_config
 
 logger = logging.getLogger(__name__)
@@ -140,10 +140,10 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         default=True,
     )
     pad_index: Optional[int] = field(
-        default=1,
+        default=1, metadata={"help": "Allows to specify the vocabulary index of the <pad> token to be added to the multimodal sequences."}
     )
     eos_indx: Optional[int] = field(
-        default=2,
+        default=2, metadata={"help": "Allows to specify the vocabulary index of the <eos> token to be added to the multimodal sequences."}
     )
 
     def __init__(self, **kwargs):
@@ -176,7 +176,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     config_class = MultiModalEmbedderConfig
     base_model_prefix = "multimodal_embedder"
 
-    def __init__(self, config, lang_embeddings = None):
+    def __init__(self, config):
         super().__init__(config)
         
         # Feature Extractor
@@ -203,12 +203,16 @@ class MultiModalEmbedderModel(PreTrainedModel):
             freeze_module_parameters(self.vl_mapper)
 
         # Lang Embedings
-        if lang_embeddings is not None:
-            self.lang_embeddings = lang_embeddings
-        else:
-            self.lang_embeddings = nn.Embedding(num_embeddings=config.lang_embeddings_vocab_size, embedding_dim=config.encoder_embed_dim)
+        self.special_tokens_embeddings = SpecialTokensEmbeddings(
+            vocab_size=config.lang_embeddings_vocab_size,
+            embed_dim=config.encoder_embed_dim,
+            scale_embeddings=False if config.no_scale_embedding else True,
+            pad_idx=config.pad_index,
+            eos_idx=config.eos_indx,
+        )
+
         if config.freeze_lang_embeddings:
-            freeze_module_parameters(self.lang_embeddings)
+            freeze_module_parameters(self.special_tokens_embeddings)
 
         # Backbone
         BackboneModelClass = get_backbone_model_class(config.backbone_name)
@@ -287,7 +291,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         cfg.eos_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.eos_token)
 
         # Create an instance of the model
-        model = cls(config=cfg, lang_embeddings=lang_embeddings)
+        model = cls(config=cfg)
+
+        model.special_tokens_embeddings.special_tokens_embeddings.weight.data = lang_embeddings.weight.data.clone()
 
         # Converts all tensors in the model to contiguous
         for param in model.parameters():
@@ -295,53 +301,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 param.data = param.data.contiguous()
 
         return model
- 
-        
-    def forward_special_tokens(self, x, encoder_padding_mask, src_langtoks):
-        """
-        It adds and/or corrects the special tokens from the input secuence:
-            # '<src_lang>', ...,  '</s>', '<pad>', '<pad>'
-        
-        INPUTS:
-            - x: B x N_tokens x Embed_dim
-            - encoder_padding_mask: B x N_tokens <- 0 indicates padding elements
-            - src_langtoks: B x 1     
-        """
-        # Append <src_lang>:
-        if src_langtoks is not None:
-            src_langtoks = self.lang_embeddings(src_langtoks)
-            x = torch.cat((src_langtoks, x), dim=1)
-
-            # Correct Padding Mask
-            new_mask_entry = torch.full((encoder_padding_mask.size(0), 1), 1, dtype=encoder_padding_mask.dtype, device=encoder_padding_mask.device)
-            encoder_padding_mask = torch.cat([new_mask_entry, encoder_padding_mask], dim=1)
-        
-        # Adjust <pad> tokens and add <eos> token to every secuence in the batch:
-        if self.padding_token is not None and self.eos_token is not None:
-            # Adjust <pad> tokens according the exped ones by the pretrained LM.
-            bool_padding_mask = encoder_padding_mask == 0
-            
-            x[bool_padding_mask] = torch.from_numpy(self.padding_token).to(encoder_padding_mask.device)
-            # Add <eos> token to every secuence in the batch
-        
-            # Adjust Padding Mask to reflect the addition of the <eos> token
-            new_mask_entry = torch.full((encoder_padding_mask.size(0), 1), 1, dtype=encoder_padding_mask.dtype, device=encoder_padding_mask.device)
-            encoder_padding_mask = torch.cat([new_mask_entry, encoder_padding_mask], dim=1)
-            
-            # Create a mask indicating the position where the <eos> vector should be inserted in each minibatch sequence.
-            eos_inster_mask = torch.zeros_like(encoder_padding_mask)
-            last_indices = encoder_padding_mask.size(1) - torch.argmax(encoder_padding_mask.flip(dims=[1]), dim=1) - 1
-            rows = torch.arange(encoder_padding_mask.size(0))
-            eos_inster_mask[rows, last_indices] = 1
-            eos_inster_mask = eos_inster_mask != 0
-            
-            # Add a padding token to each of the minibatch sequences to prepare it for the allocation of the <eos> tokens. Then append them.
-            new_padding_column = torch.from_numpy(self.padding_token).to(encoder_padding_mask.device).repeat(x.size(0), 1).unsqueeze(1)
-            x = torch.cat([x, new_padding_column], dim=1)
-            x[eos_inster_mask] = torch.from_numpy(self.eos_token).to(encoder_padding_mask.device)
-        x = self.embed_scale * x
-            
-        return x, encoder_padding_mask
 
     def forward(
         self,
@@ -383,7 +342,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             inputs_embeds = self.feature_extractor(input_frames)
             if self.vl_mapper is not None:
                 inputs_embeds = self.vl_mapper(inputs_embeds)
-        inputs_embeds, attention_mask =  self.forward_special_tokens(inputs_embeds, attention_mask, src_langtoks)
+        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_langtoks)
 
         outputs = self.backbone(
             input_ids = input_ids,
