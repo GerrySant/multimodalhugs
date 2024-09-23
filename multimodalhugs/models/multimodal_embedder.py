@@ -139,6 +139,12 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     is_encoder_decoder: bool = field(
         default=True,
     )
+    pad_index: Optional[int] = field(
+        default=1,
+    )
+    eos_indx: Optional[int] = field(
+        default=2,
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -170,7 +176,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     config_class = MultiModalEmbedderConfig
     base_model_prefix = "multimodal_embedder"
 
-    def __init__(self, config, lang_embeddings = None, eos_indx = None, pad_index = None):
+    def __init__(self, config, lang_embeddings = None):
         super().__init__(config)
         
         # Feature Extractor
@@ -217,8 +223,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Others
         self.embed_scale = 1.0 if config.no_scale_embedding else math.sqrt(config.encoder_embed_dim)
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
-        self.padding_token = encoder.embed_tokens(torch.tensor([pad_index], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else pad_index
-        self.eos_token = encoder.embed_tokens(torch.tensor([eos_indx], dtype=torch.long, device=self.backbone.device)).detach().numpy() if pad_index is not None else eos_indx
+        self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_index], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_index is not None else config.pad_index
+        self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_indx], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_index is not None else config.eos_indx
 
     def get_input_embeddings(self):
         return self.backbone.model.shared
@@ -277,11 +283,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
 
         # EOS and PAD token indices
-        eos_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.eos_token)
-        pad_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
+        cfg.pad_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
+        cfg.eos_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.eos_token)
 
         # Create an instance of the model
-        model = cls(config=cfg, lang_embeddings=lang_embeddings, eos_indx=eos_index, pad_index=pad_index)
+        model = cls(config=cfg, lang_embeddings=lang_embeddings)
 
         # Converts all tensors in the model to contiguous
         for param in model.parameters():
