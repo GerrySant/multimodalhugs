@@ -72,7 +72,7 @@ class Pose2TextTranslationPreprocessor(ProcessorMixin):  # FeatureExtractionMixi
         tensor_secuences = [self._pose_file_to_tensor(sample["source"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_secuences)
         return {
-            "input_frames": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])
+            "inputs_embeds": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])
             "attention_mask": padded_input_masks                   # torch.Size([batch_size, n_frames]) 0 indicates padding elements
         }, kwargs
 

@@ -184,8 +184,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
             feature_extractor_type=config.feature_extractor_type, 
             pretrained_module=config.pretrained_feature_extractor, 
             config=config.feature_extractor_config, 
-        )
-        if config.freeze_feature_extractor:
+        ) if config.feature_extractor_type is not None else None
+
+        if config.freeze_feature_extractor and self.feature_extractor is not None:
             freeze_module_parameters(self.feature_extractor)
             
         # VL Mapper
@@ -340,8 +341,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
-            if self.vl_mapper is not None:
-                inputs_embeds = self.vl_mapper(inputs_embeds)
+
+        if self.vl_mapper is not None:
+            inputs_embeds = self.vl_mapper(inputs_embeds)
+
         inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_langtoks)
 
         outputs = self.backbone(

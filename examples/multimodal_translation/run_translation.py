@@ -19,11 +19,15 @@ Fine-tuning the library models for sequence to sequence.
 # You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
 
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoProcessor, AutoTokenizer
-from multimodalhugs.processors import SignwritingPreprocessor
+from multimodalhugs.processors import SignwritingPreprocessor, Pose2TextTranslationPreprocessor
 from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
 
 AutoConfig.register("multimodal_embedder", MultiModalEmbedderConfig)
 AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel)
+
+Pose2TextTranslationPreprocessor.register_for_auto_class()
+AutoProcessor.register("pose2text_translation_preprocessor", Pose2TextTranslationPreprocessor)
+
 SignwritingPreprocessor.register_for_auto_class()
 AutoProcessor.register("signwritting_processor", SignwritingPreprocessor)
 
