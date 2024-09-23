@@ -390,9 +390,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
-            if self.vl_mapper is not None:
-                inputs_embeds = self.vl_mapper(inputs_embeds)
-            inputs_embeds, attention_mask =  self.forward_special_tokens(inputs_embeds, attention_mask, src_langtoks)
+        if self.vl_mapper is not None:
+            inputs_embeds = self.vl_mapper(inputs_embeds)
+        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_langtoks)
 
         return self.language_encoder(
             input_ids=None,

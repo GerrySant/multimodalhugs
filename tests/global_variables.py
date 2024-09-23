@@ -1,6 +1,6 @@
 import torch
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu" #torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 SAMPLES = [
     {"target": "ranch", "tgt_lang": "fr", "source": "M551x570S14448450x539S14444451x511S14432468x431S14440529x460S26800457x457S26806475x455S26804512x473", "src_lang": "fcs"},

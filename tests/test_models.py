@@ -76,7 +76,7 @@ def test_training(model_setup):
         optimizer.step()
     
     # Check if model successfully overfitted
-    assert loss.item() < 0.11, "Model failed to overfit: loss too high"
+    assert loss.item() < 0.11, f"Model failed to overfit: loss too high ({loss.item()})"
     
 
 # Test function for model prediction accuracy

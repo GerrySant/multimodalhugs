@@ -23,6 +23,8 @@ model:
   encoder_embed_dim: 32  # Smaller embedding dimension
   feat_dim: 32  # Smaller feature dimension
   num_labels: 2
+  pad_index: 1
+  eos_indx: 2
   no_scale_embedding: False
   init_lang_abbr: avg
   freeze_feature_extractor: False
@@ -39,6 +41,7 @@ model:
         intermediate_size: 64  # Smaller intermediate size
         projection_dim: 32  # Reduce projection dimension
         image_size: 32
+  lang_embeddings_vocab_size: 79
 
 data:
   src_lang_tokenizer_path: "tests/tests_other_files/new_languages.txt"
