@@ -36,7 +36,7 @@ def model_setup():
     config_path = 'tests/tests_other_files/tests_configs/test_model.yaml'
     cfg = OmegaConf.load(config_path)
 
-    src_tokenizer = load_tokenizer_from_vocab_file(cfg.data.src_lang_tokenizer_path)
+    src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.data.src_lang_tokenizer_path)
     tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(cfg.data.text_tokenizer_path)
 
     model = MultiModalEmbedderModel.build_model(

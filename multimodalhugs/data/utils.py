@@ -19,37 +19,39 @@ except ImportError:
     BICUBIC = Image.BICUBIC
 
 
-def load_tokenizer_from_vocab_file(vocab_file):
+def load_tokenizer_from_vocab_file(vocab_file, special_tokens_dict = None, output_dir = None):
     vocab = {}
-    with open(vocab_file, 'r') as f:
-        for line in f:
-            token, _ = line.strip().split()
-            vocab[token] = len(vocab) + 4  # Start indexing from 4
-
     special_tokens = {
         '<s>': 0,   # bos_token
         '</s>': 2,  # eos_token, sep_token
         '<unk>': 3, # unk_token
         '<pad>': 1  # pad_token
-    }
+    } if special_tokens_dict is None else special_tokens_dict
+    
+    with open(vocab_file, 'r') as f:
+        for line in f:
+            token, _ = line.strip().split()
+            vocab[token] = len(vocab) + len(special_tokens)  # Start indexing from the last index of the special tokens dict
 
-    combined_vocab = {**special_tokens, **vocab}
+    combined_vocab = dict(sorted({**special_tokens, **vocab}.items(), key=lambda item: item[1]))
 
     # Save vocab to JSON file
     vocab_json_path = vocab_file.replace('.txt', '.json')
+    vocab_json_path = output_dir + f"/{vocab_json_path.split('/')[-1]}" if output_dir is not None else vocab_json_path
     with open(vocab_json_path, 'w') as f:
-        json.dump(combined_vocab, f)
+        json.dump(combined_vocab, f, indent=4)
 
     # Initialize a tokenizer
     tokenizer = Tokenizer(WordLevel(vocab=combined_vocab, unk_token="<unk>"))
     tokenizer.pre_tokenizer = Whitespace()
 
     # Save the tokenizer
-    tokenizer_path = vocab_file.replace('.txt', '_tokenizer.json')
+    tokenizer_path = vocab_json_path.replace('.json', '_tokenizer.json')
     tokenizer.save(tokenizer_path)
 
     # Load the tokenizer with HuggingFace transformers
-    fast_tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_path)
+    fast_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer, additional_special_tokens=list(vocab.keys()))
+    
     fast_tokenizer.add_special_tokens({
         'bos_token': '<s>',
         'eos_token': '</s>',
