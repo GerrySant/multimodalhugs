@@ -23,8 +23,9 @@ model:
   encoder_embed_dim: 32  # Smaller embedding dimension
   feat_dim: 32  # Smaller feature dimension
   num_labels: 2
-  pad_index: 1
-  eos_indx: 2
+  pad_token_id: 1
+  eos_token_id: 2
+  bos_token_id: 2
   no_scale_embedding: False
   init_lang_abbr: avg
   freeze_feature_extractor: False

@@ -184,3 +184,9 @@ def file_exists_filter(column_name, sample):
     Checks if the file specified in sample[column_name] exists.
     """
     return os.path.exists(sample[column_name])
+
+def duration_filter(max_frames, sample):
+    """
+    Checks if the file specified in sample[column_name] exists.
+    """
+    return sample["DURATION"] <= max_frames

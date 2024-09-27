@@ -1,4 +1,5 @@
 import os
+import math
 import torch
 import datasets
 
@@ -6,11 +7,11 @@ from pathlib import Path
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 
-from signwriting.tokenizer import normalize_signwriting
 from multimodalhugs.data import (
     SignLanguageMTDataConfig,
     contains_empty,
     file_exists_filter,
+    duration_filter,
 )
 
 class How2SignDataset(datasets.GeneratorBasedBuilder):
@@ -25,6 +26,8 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
 
         self.name = "how2sign_poses" if config.is_pose else "how2sign"
         self.config = config
+        self.fps = config.fps if config.fps is not None else 24
+        self.max_frames = config.max_frames
         
         self.data_dir = Path(config.data_dir) if type(config.data_dir) != Path else config.data_dir
         self.data_dir = self.data_dir / 'sentence_level' if self.data_dir.name != "sentence_level" else self.data_dir
@@ -77,6 +80,7 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
 
         # Update VIDEO_NAME column with the full file path
         def update_file_name(sample):
+            sample['DURATION'] = math.ceil((sample['END'] - sample['START']) * self.fps)
             if self.config.is_numpy_video:
                 sample['SENTENCE_NAME'] = f"{self.data_dir}/{split}/rgb_front/numpy_videos/{sample['SENTENCE_NAME']}.npy"
             elif self.config.is_pose:
@@ -87,15 +91,13 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
 
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(update_file_name)
-        print(f"before_filter: {len(dataset)}")
 
         # Filter out samples where the updated file path does not exist
         dataset = dataset = dataset.filter(lambda sample: not contains_empty(sample))
-        print(f"filter_1: {len(dataset)}")
-
         
         dataset = dataset.filter(lambda sample: file_exists_filter('SENTENCE_NAME', sample))
-        print(f"filter_2: {len(dataset)}")
+
+        dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample))
 
         # Yield examples
         for idx, item in enumerate(dataset):

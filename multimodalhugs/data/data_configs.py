@@ -47,6 +47,8 @@ class MultimodalMTDataConfig(BuilderConfig):
     text_tokenizer_path: Optional[str] = field(default=None, metadata={"help": "Path to the text tokenizer."})
     max_seq_length: int = field(default=512, metadata={"help": "Max length for tokenization purposes"})
     remove_unused_columns: bool = field(default=True, metadata={"help": "If True, it adapts the get_item() to work with remove_unused_columns=True."})
+    fps: Optional[int] = field(default=None, metadata={"help": "In case the dataset contains videos, specify the number of frames per second of the videos"})
+    max_frames: Optional[int] = field(default=None, metadata={"help": "Video related samples larger than this value will be filtered"})
 
     def __init__(self, cfg=None, **kwargs):
         super().__init__(**kwargs)
@@ -59,6 +61,8 @@ class MultimodalMTDataConfig(BuilderConfig):
         self.src_lang_tokenizer_path = getattr(cfg.data, 'src_lang_tokenizer_path', self.src_lang_tokenizer_path)
         self.text_tokenizer_path = getattr(cfg.data, 'text_tokenizer_path', self.text_tokenizer_path)
         self.max_seq_length = getattr(cfg.data, 'max_seq_length', self.max_seq_length)
+        self.fps = getattr(cfg.data, 'fps', self.fps)
+        self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
         self.preprocess = PreprocessArguments(getattr(cfg.data, 'preprocess', None))
 
 
