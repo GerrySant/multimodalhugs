@@ -1,0 +1,79 @@
+model:
+  name: "multimodal_embedder"
+  feature_extractor_type: "<feature_extractor_type>" # CLIP example: "clip"
+  pretrained_feature_extractor: "<pretrained-clip-model>" # CLIP example: "openai/clip-vit-base-patch32"
+  vl_mapper_type: "linear"
+  vl_mapper_layer_norm_before: true
+  vl_mapper_layer_norm: false
+  vl_mapper_activation: false
+  vl_factor: 2
+  vl_mapper_dropout: 0.1
+  backbone_name: "<pretrained-backbone-model>" # M2M example: "m2m100"
+  pretrained_backbone: "<pretrained-backbone-weights>" # M2M example: "facebook/m2m100_418M"
+  encoder_embed_dim: 1024
+  feat_dim: 512
+  num_labels: 2
+  pad_token_id: 1
+  eos_token_id: 2
+  bos_token_id: 2
+  no_scale_embedding: False
+  init_lang_abbr: avg
+  freeze_feature_extractor: False
+  freeze_vl_mapper: False
+  freeze_lang_embeddings: False
+  freeze_backbone: True
+  freeze_lm_head: True
+  lang_embeddings_vocab_size: 79 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
+  feature_extractor_cfg: # Specify args to be modified in the feature extractor architecture
+    feature_extractor_arguments: "<config-arguments>"
+
+common:
+  wandb_name: experiment_model
+  wandb_project: experiment_project
+
+training:
+  output_dir: "/path/to/output/results"
+  logging_dir: "/path/to/output/logs"
+  overwrite_output_dir: false
+  evaluation_strategy: "steps"
+  eval_steps: 20
+  per_device_train_batch_size: 32
+  gradient_accumulation_steps: 2
+  learning_rate: 2.0
+  weight_decay: 0
+  adam_beta1: 0.9
+  adam_beta2: 0.998
+  max_grad_norm: 0.0
+  num_train_epochs: 1
+  max_steps: 200
+  lr_scheduler_type: "constant_with_warmup"
+  warmup_steps: 8000
+  logging_steps: 20
+  save_steps: 128
+  save_total_limit: 10
+  seed: 1234
+  label_smoothing_factor: 0.1
+  dataloader_drop_last: false
+  dataloader_num_workers: 2
+  remove_unused_columns: True
+  fp16: True
+
+data:
+  data_dir: "/path/to/data/directory"
+  train_file_name: "<train_filw>"
+  dev_file_name: "<dev_file>"
+  test_file_name: "<test_file>"
+  filter_empty_samples: True
+  shuffle: True
+  src_lang_tokenizer_path: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"
+  text_tokenizer_path: "<pretrained-tokenizer>" # M2M example: "facebook/m2m100_418M"
+  max_seq_length: 512
+  max_frames: 300
+  preprocess:
+    scale_frame: false
+    width: 224
+    height: 224
+    invert_frame: False
+    channels: 3
+    dataset_mean: "<[mean_values]>" # For SignBank+: "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]"
+    dataset_std: "<[std_values]>" # For SignBank+: "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]"

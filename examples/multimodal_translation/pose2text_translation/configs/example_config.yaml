@@ -1,7 +1,5 @@
 model:
-  name: "multimodal_embedder"
-  feature_extractor_type: "<feature_extractor_type>" # CLIP example: "clip"
-  pretrained_feature_extractor: "<pretrained-clip-model>" # CLIP example: "openai/clip-vit-base-patch32"
+  name: "how2sign_pose_2_text_model"
   vl_mapper_type: "linear"
   vl_mapper_layer_norm_before: true
   vl_mapper_layer_norm: false
@@ -11,7 +9,7 @@ model:
   backbone_name: "<pretrained-backbone-model>" # M2M example: "m2m100"
   pretrained_backbone: "<pretrained-backbone-weights>" # M2M example: "facebook/m2m100_418M"
   encoder_embed_dim: 1024
-  feat_dim: 512
+  feat_dim: 534
   num_labels: 2
   pad_token_id: 1
   eos_token_id: 2
@@ -23,9 +21,7 @@ model:
   freeze_lang_embeddings: False
   freeze_backbone: True
   freeze_lm_head: True
-  lang_embeddings_vocab_size: 79 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
-  feature_extractor_cfg: # Specify args to be modified in the feature extractor architecture
-    feature_extractor_arguments: "<config-arguments>"
+  lang_embeddings_vocab_size: 5 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
 
 common:
   wandb_name: experiment_model
@@ -36,39 +32,39 @@ training:
   logging_dir: "/path/to/output/logs"
   overwrite_output_dir: false
   evaluation_strategy: "steps"
-  eval_steps: 20
-  per_device_train_batch_size: 32
-  gradient_accumulation_steps: 2
+  eval_steps: 128
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 3
   learning_rate: 2.0
   weight_decay: 0
   adam_beta1: 0.9
   adam_beta2: 0.998
   max_grad_norm: 0.0
   num_train_epochs: 1
-  max_steps: 200
+  max_steps: 500000
   lr_scheduler_type: "constant_with_warmup"
   warmup_steps: 8000
-  logging_steps: 20
+  logging_steps: 128
   save_steps: 128
   save_total_limit: 10
-  seed: 1234
+  seed: 3435
   label_smoothing_factor: 0.1
   dataloader_drop_last: false
-  dataloader_num_workers: 2
+  dataloader_num_workers: 8
   remove_unused_columns: True
   fp16: True
 
 data:
   data_dir: "/path/to/data/directory"
-  train_file_name: "<train_filw>"
-  dev_file_name: "<dev_file>"
-  test_file_name: "<test_file>"
   filter_empty_samples: True
   shuffle: True
-  src_lang_tokenizer_path: "/examples/multimodal_translation/other/new_languages_sign_bank_plus.txt"
+  src_lang_tokenizer_path: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"
   text_tokenizer_path: "<pretrained-tokenizer>" # M2M example: "facebook/m2m100_418M"
+  is_numpy_video: false
+  is_pose: true
   max_seq_length: 512
   max_frames: 300
+  fps: 24
   preprocess:
     scale_frame: false
     width: 224
