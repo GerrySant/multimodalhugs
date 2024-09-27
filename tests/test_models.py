@@ -101,7 +101,7 @@ def test_overfitting_accuracy(model_setup):
                 attention_mask=INPUTS['attention_mask'][i].unsqueeze(0),
                 src_langtoks=INPUTS['src_langtoks'][i].unsqueeze(0),
                 max_length=50,  # Maximum length of the output sequence
-                num_beams=5,   # Use beam search with specified beam widthÇ
+                num_beams=5,   # Use beam search with specified beam width
                 no_repeat_ngram_size=2,  # Prevent repeating ngrams
                 early_stopping=True,  # Stop generating as soon as all beams are finished
                 )

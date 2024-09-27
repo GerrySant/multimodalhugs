@@ -21,6 +21,7 @@ Fine-tuning the library models for sequence to sequence.
 from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoProcessor, AutoTokenizer
 from multimodalhugs.processors import SignwritingPreprocessor, Pose2TextTranslationPreprocessor
 from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
+from multimodalhugs import MultiLingualSeq2SeqTrainer
 
 AutoConfig.register("multimodal_embedder", MultiModalEmbedderConfig)
 AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel)
@@ -58,11 +59,13 @@ from transformers import (
     Seq2SeqTrainingArguments,
     default_data_collator,
     set_seed,
+    GenerationConfig,
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
+from multimodalhugs.utils import print_module_details
 
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
@@ -407,6 +410,8 @@ def main():
         trust_remote_code=model_args.trust_remote_code,
     )
 
+    generation_config = GenerationConfig.from_model_config(config) if training_args.predict_with_generate else None
+
     tokenizer = None
     processor= None
     if not model_args.processor_name_or_path:
@@ -605,6 +610,12 @@ def main():
     # Metric
     metric = evaluate.load("sacrebleu", cache_dir=model_args.cache_dir)
 
+    # Define torch_empty_cache_steps to optimize memory utilization
+    training_args.torch_empty_cache_steps = training_args.gradient_accumulation_steps
+
+    # Add the generation_config in case generation is performed during training
+    training_args.generation_config = generation_config if generation_config is not None else None
+
     def postprocess_text(preds, labels):
         preds = [pred.strip() for pred in preds]
         labels = [[label.strip()] for label in labels]
@@ -612,14 +623,15 @@ def main():
         return preds, labels
 
     def compute_metrics(eval_preds):
+        compute_metrics_tokenizer = tokenizer if tokenizer is not None else processor.tokenizer
         preds, labels = eval_preds
         if isinstance(preds, tuple):
             preds = preds[0]
         # Replace -100s used for padding as we can't decode them
-        preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
-        decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        preds = np.where(preds != -100, preds, compute_metrics_tokenizer.pad_token_id)
+        decoded_preds = compute_metrics_tokenizer.batch_decode(preds, skip_special_tokens=True)
+        labels = np.where(labels != -100, labels, compute_metrics_tokenizer.pad_token_id)
+        decoded_labels = compute_metrics_tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         # Some simple post-processing
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
@@ -627,13 +639,13 @@ def main():
         result = metric.compute(predictions=decoded_preds, references=decoded_labels)
         result = {"bleu": result["score"]}
 
-        prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
+        prediction_lens = [np.count_nonzero(pred != compute_metrics_tokenizer.pad_token_id) for pred in preds]
         result["gen_len"] = np.mean(prediction_lens)
         result = {k: round(v, 4) for k, v in result.items()}
         return result
 
     # Initialize our Trainer
-    trainer = Seq2SeqTrainer(
+    trainer = MultiLingualSeq2SeqTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
@@ -642,6 +654,9 @@ def main():
         data_collator=data_collator,
         compute_metrics=compute_metrics if training_args.predict_with_generate else None,
     )
+
+    logger.info(f"\n{model}\n")
+    logger.info(f"\n{print_module_details(model)}\n")
 
     # Training
     if training_args.do_train:

@@ -139,12 +139,16 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     is_encoder_decoder: bool = field(
         default=True,
     )
-    pad_index: Optional[int] = field(
-        default=1, metadata={"help": "Allows to specify the vocabulary index of the <pad> token to be added to the multimodal sequences."}
+    pad_token_id: Optional[int] = field(
+        default=None, metadata={"help": "Allows to specify the vocabulary index of the <pad> token to be added to the multimodal sequences."}
     )
-    eos_indx: Optional[int] = field(
-        default=2, metadata={"help": "Allows to specify the vocabulary index of the <eos> token to be added to the multimodal sequences."}
+    bos_token_id: Optional[int] = field(
+        default=None, metadata={"help": "Allows to specify the vocabulary index of the <bos> token to be added to the multimodal sequences."}
     )
+    eos_token_id: Optional[int] = field(
+        default=None, metadata={"help": "Allows to specify the vocabulary index of the <eos> token to be added to the multimodal sequences."}
+    )
+
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -208,8 +212,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
             vocab_size=config.lang_embeddings_vocab_size,
             embed_dim=config.encoder_embed_dim,
             scale_embeddings=False if config.no_scale_embedding else True,
-            pad_idx=config.pad_index,
-            eos_idx=config.eos_indx,
+            pad_idx=config.pad_token_id,
+            eos_idx=config.eos_token_id,
         )
 
         if config.freeze_lang_embeddings:
@@ -228,8 +232,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Others
         self.embed_scale = 1.0 if config.no_scale_embedding else math.sqrt(config.encoder_embed_dim)
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
-        self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_index], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_index is not None else config.pad_index
-        self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_indx], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_index is not None else config.eos_indx
+        self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_token_id is not None else config.pad_token_id
+        self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_token_id is not None else config.eos_token_id
 
     def get_input_embeddings(self):
         return self.backbone.model.shared
@@ -288,7 +292,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
 
         # EOS and PAD token indices
-        cfg.pad_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
+        cfg.pad_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
         cfg.eos_index = src_tokenizer.convert_tokens_to_ids(src_tokenizer.eos_token)
 
         # Create an instance of the model
@@ -410,8 +414,19 @@ class MultiModalEmbedderModel(PreTrainedModel):
             kwargs['past_key_values'] = None
 
         model_inputs = self.backbone.prepare_inputs_for_generation(*args, **kwargs)
-        model_inputs["input_frames"] = kwargs['input_frames']
-        model_inputs["src_langtoks"] = kwargs['src_langtoks']
+
+        input_frames = kwargs.get('input_frames', None)
+        if input_frames is not None:
+            model_inputs["input_frames"] = input_frames
+
+        inputs_embeds = kwargs.get('inputs_embeds', None)
+        if inputs_embeds is not None:
+            model_inputs["inputs_embeds"] = inputs_embeds
+
+        src_langtoks = kwargs.get('src_langtoks', None)
+        if src_langtoks is not None:
+            model_inputs["src_langtoks"] = src_langtoks
+
         return model_inputs
 
     def get_encoder(self):
