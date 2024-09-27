@@ -4,9 +4,9 @@ This framework focuses on translating sign language into written language using 
 
 Here are the current implemented examples:
 
-- [SignWriting2Text](/signwriting2text_translation/)
+- [SignWriting2Text](/examples/multimodal_translation/signwriting2text_translation/)
 - Image2Text (Not available)
-- [Pose2Text](/pose2text_translation/)
+- [Pose2Text](/examples/multimodal_translation/pose2text_translation/)
 - Video2Text (Not available)
 
 

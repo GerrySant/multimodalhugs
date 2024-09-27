@@ -168,7 +168,7 @@ python ./examples/multimodal_translation/run_translation.py \
 
 ## Implemented Example:
 
-[Here](/example_scripts/) you will find the templates to run the training. With them, you only have to enter the following commandline in order to train the model:
+[Here](/examples/multimodal_translation/signwriting2text_translation/example_scripts/) you will find the templates to run the training. With them, you only have to enter the following commandline in order to train the model:
 
 ```bash
 cd /path/to/multimodalhugs/
