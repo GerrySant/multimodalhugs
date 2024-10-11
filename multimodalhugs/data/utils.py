@@ -64,6 +64,19 @@ def load_tokenizer_from_vocab_file(vocab_file, special_tokens_dict = None, outpu
     fast_tokenizer.save_pretrained(tokenizer_path.replace('_tokenizer.json', '_tokenizer'))
     return fast_tokenizer
 
+def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=None):
+    new_special_tokens = []
+    with open(vocab_file, 'r') as f:
+        for line in f:
+            new_special_tokens.append(line.strip().split()[0])
+    tokenizer.add_special_tokens(
+        special_tokens_dict={'additional_special_tokens': new_special_tokens}, 
+        replace_additional_special_tokens=False
+        )
+    if output_dir is not None:
+        output_dir + "/tokenizer"
+    return tokenizer
+
 def _transform(n_px, mean: List[float] = [0.48145466, 0.4578275, 0.40821073], std: List[float] = [0.26862954, 0.26130258, 0.27577711]):
     mean = tuple(mean)
     std = tuple(std)

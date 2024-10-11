@@ -1,13 +1,14 @@
 ### Usage: python training_setup.py --config_path path_to_your_config.yaml
 
 import os
+import copy
 import torch
 import argparse
 from omegaconf import OmegaConf
 from pathlib import Path
 
-from multimodalhugs.data import How2SignDataset, SignLanguageMTDataConfig, load_tokenizer_from_vocab_file
-from multimodalhugs.processors import Pose2TextTranslationPreprocessor
+from multimodalhugs.data import How2SignDataset, SignLanguageMTDataConfig, add_new_special_tokens_from_vocab_file
+from multimodalhugs.processors import Pose2TextTranslationProcessor
 from multimodalhugs.models import MultiModalEmbedderModel
 
 from transformers import AutoTokenizer
@@ -23,15 +24,15 @@ def main(config_path):
     dataset.download_and_prepare(data_path)
     dataset.as_dataset().save_to_disk(data_path)
 
-    tokenizer_m2m = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
-    src_tokenizer = load_tokenizer_from_vocab_file(
-        vocab_file=dataset_config.src_lang_tokenizer_path, 
-        output_dir=config.training.output_dir + "/" + config.model.name
+    m2m_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
+    tokenizer = add_new_special_tokens_from_vocab_file(
+        tokenizer=copy.deepcopy(m2m_tokenizer), 
+        vocab_file=dataset_config.src_lang_tokenizer_path,
+        output_dir=config.training.output_dir + "/" + config.model.name,
     )
 
-    input_processor = Pose2TextTranslationPreprocessor(
-            tokenizer=tokenizer_m2m,
-            lang_tokenizer=src_tokenizer,
+    input_processor = Pose2TextTranslationProcessor(
+            tokenizer=tokenizer,
             reduce_holistic_poses=True,
     )
 
@@ -42,8 +43,8 @@ def main(config_path):
     # Build and save the model, then set MODEL_PATH environment variable
     model = MultiModalEmbedderModel.build_model(
         cfg=config.model, 
-        src_tokenizer=src_tokenizer, 
-        tgt_tokenizer=tokenizer_m2m
+        src_tokenizer=tokenizer, 
+        tgt_tokenizer=m2m_tokenizer
     )
 
     model_path = f"{config.training.output_dir}/{config.model.name}/trained_model"

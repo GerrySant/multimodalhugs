@@ -1,12 +1,17 @@
-from typing import List, Dict, Any, Optional, Callable
-import logging
 import torch
+import logging
+
+from pathlib import Path
+from PIL import Image, ImageOps
+from typing import List, Dict, Any, Optional, Callable, Union
 
 from signwriting.tokenizer import normalize_signwriting
 from signwriting.visualizer.visualize import signwriting_to_image
+
 from transformers.feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
 from transformers.processing_utils import ProcessorMixin
+from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
 
 from multimodalhugs.data import (
     pad_and_create_mask,
@@ -16,41 +21,35 @@ from multimodalhugs.data import (
 logger = logging.getLogger(__name__)
 
 
-class SignwritingPreprocessor(ProcessorMixin):  # FeatureExtractionMixin
-    attributes = ["frame_preprocessor", "lang_tokenizer", "tokenizer"]
+
+class SignwritingProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+    
+    attributes = ["frame_preprocessor", "tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     frame_preprocessor_class = "CLIPImageProcessor"
-    tokenizer_class = "M2M100Tokenizer"
-    lang_tokenizer_class = "PreTrainedTokenizerFast"
+    tokenizer_class = "AutoTokenizer"
 
     def __init__(
         self,
         frame_preprocessor: Optional[Callable] = None,
-        lang_tokenizer: Optional[Any] = None,
         tokenizer: Optional[Any] = None,
-        width: int = 224,
-        height: int = 224,
-        channels: int = 3,
-        invert_frame: bool = True,
-        dataset_mean: Optional[List[float]] = None,
-        dataset_std: Optional[List[float]] = None,
+        width: int = 224, #
+        height: int = 224, #
+        channels: int = 3, #
+        invert_frame: bool = True, #
+        dataset_mean: Optional[List[float]] = None, #
+        dataset_std: Optional[List[float]] = None, #
         **kwargs,
     ):
 
-        self.width = width
-        self.height = height
-        self.channels = channels
-        self.invert_frame = invert_frame
-        self.dataset_mean = dataset_mean
-        self.dataset_std = dataset_std
+        self.width = width #
+        self.height = height #
+        self.channels = channels #
+        self.invert_frame = invert_frame #
+        self.dataset_mean = dataset_mean #
+        self.dataset_std = dataset_std #
         
-        super().__init__(frame_preprocessor=frame_preprocessor, lang_tokenizer=lang_tokenizer, tokenizer=tokenizer, **kwargs)
-
-    def get_langtok(self, langtok, tokenizer):
-        langtok_idx = None
-        if tokenizer is not None:
-            langtok_idx = tokenizer.convert_tokens_to_ids(langtok)
-        return langtok_idx
+        super().__init__(frame_preprocessor=frame_preprocessor, tokenizer=tokenizer, **kwargs)
 
     def _ascii_to_tensor(self, sign):
         """
@@ -81,50 +80,10 @@ class SignwritingPreprocessor(ProcessorMixin):  # FeatureExtractionMixin
         signs_concatenated = torch.stack(sign_arrays, dim=0)
         return signs_concatenated
 
-
-    def __call__(
-        self,
-        batch: List[Dict[str, Any]],
-        **kwargs,
-    ) -> BatchFeature:
-
-        tensor_secuences = [self._ascii_to_tensor(ascii_secuence["source"]) for ascii_secuence in batch]
+    def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
+        tensor_secuences = [self._ascii_to_tensor(sample["source"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_secuences)
-
-        src_langtoks = torch.stack(
-            [torch.LongTensor([self.get_langtok(f"__{sample['src_lang']}__", self.lang_tokenizer)]) for sample in batch]
-        )
-
-        tgt_langtoks = torch.stack(
-            [torch.LongTensor([self.get_langtok(f"__{sample['tgt_lang']}__", self.tokenizer)]) for sample in batch]
-        )
-
-        tokenization = self.tokenizer(
-            text=[sample["tgt_sentence"] for sample in batch],
-            return_tensors='pt', 
-            padding=True, 
-            truncation=True,
-            return_attention_mask=True,
-            add_special_tokens=True,
-        )
-        
-        tgt_tensor = tokenization['input_ids']                              # ['<token_a>', '<token_b>', '<token_c>', '</s>']
-        tgt_tensor = torch.cat((tgt_langtoks, tgt_tensor[:, 1:]), dim=1)    # ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-
-        decoder_attention_mask = tokenization['attention_mask']
-        decoder_attention_mask = torch.cat((torch.full((decoder_attention_mask.size(0), 1), 1), decoder_attention_mask), dim=1)
-        decoder_attention_mask = decoder_attention_mask[..., :-1].contiguous()
-        
-        # Prepare final output for model consumption
-        decoder_input_ids = torch.full((tgt_tensor.size(0), 1), self.tokenizer.convert_tokens_to_ids(self.tokenizer.eos_token))
-        decoder_input_ids = torch.cat((decoder_input_ids, tgt_tensor), dim=1)   # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-        decoder_input_ids = decoder_input_ids[..., :-1].contiguous()            # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>']
-        
-        return BatchFeature({
+        return {
             "input_frames": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])
-            "attention_mask": padded_input_masks,                  # torch.Size([batch_size, n_frames]) 0 indicates padding elements
-            "src_langtoks": src_langtoks,                          # torch.Size([batch_size, 1])
-            "decoder_input_ids": decoder_input_ids,                # torch.Size([batch_size, n_tokens])
-            "labels": tgt_tensor,                                  # torch.Size([batch_size, n_tgt_tokens])
-            "decoder_attention_mask": decoder_attention_mask,      # torch.Size([batch_size, n_tokens]) 0 indicates padding elements   
-        })
+            "attention_mask": padded_input_masks                   # torch.Size([batch_size, n_frames]) 0 indicates padding elements
+        }, kwargs     

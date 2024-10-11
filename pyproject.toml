@@ -28,6 +28,7 @@ dependencies = [
     "Pillow",
     "evaluate",
     "signwriting @ git+https://github.com/sign-language-processing/signwriting",
+    "pose_format",
 ]
 
 [project.optional-dependencies]

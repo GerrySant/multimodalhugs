@@ -1,16 +1,17 @@
 ### Usage: python training_setup.py --config_path path_to_your_config.yaml
 
 import os
+import copy
 import torch
 import argparse
 from omegaconf import OmegaConf
 from pathlib import Path
 
-from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig, load_tokenizer_from_vocab_file
-from multimodalhugs.processors import SignwritingPreprocessor
+from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig, add_new_special_tokens_from_vocab_file
+from multimodalhugs.processors import SignwritingProcessor
 from multimodalhugs.models import MultiModalEmbedderModel
 
-from transformers import M2M100Tokenizer
+from transformers import M2M100Tokenizer, AutoTokenizer
 from transformers.models.clip.image_processing_clip import CLIPImageProcessor
 
 def main(config_path):
@@ -34,13 +35,14 @@ def main(config_path):
                 image_std=dataset_config.preprocess.dataset_std,
             )
 
-    tokenizer_m2m = M2M100Tokenizer.from_pretrained(config.data.text_tokenizer_path)
-    src_tokenizer = load_tokenizer_from_vocab_file(
-        vocab_file=dataset_config.src_lang_tokenizer_path, 
-        output_dir=config.training.output_dir + "/" + config.model.name
+    m2m_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
+    tokenizer = add_new_special_tokens_from_vocab_file(
+        tokenizer=copy.deepcopy(m2m_tokenizer), 
+        vocab_file=dataset_config.src_lang_tokenizer_path,
+        output_dir=config.training.output_dir + "/" + config.model.name,
     )
 
-    input_processor = SignwritingPreprocessor(
+    input_processor = SignwritingProcessor(
             width=dataset_config.preprocess.width,
             height=dataset_config.preprocess.height,
             channels=dataset_config.preprocess.channels,
@@ -48,8 +50,7 @@ def main(config_path):
             dataset_mean=dataset_config.preprocess.dataset_mean,
             dataset_std=dataset_config.preprocess.dataset_std,
             frame_preprocessor=frame_preprocessor,
-            tokenizer=tokenizer_m2m,
-            lang_tokenizer=src_tokenizer,
+            tokenizer=tokenizer,
     )
 
     # Save processor and set PROCESSOR_PATH environment variable
@@ -59,8 +60,8 @@ def main(config_path):
     # Build and save the model, then set MODEL_PATH environment variable
     model = MultiModalEmbedderModel.build_model(
         cfg=config.model, 
-        src_tokenizer=src_tokenizer, 
-        tgt_tokenizer=tokenizer_m2m
+        src_tokenizer=tokenizer, 
+        tgt_tokenizer=m2m_tokenizer
     )
 
     model_path = f"{config.training.output_dir}/{config.model.name}/trained_model"

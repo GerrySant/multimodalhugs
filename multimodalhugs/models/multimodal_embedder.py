@@ -148,6 +148,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     eos_token_id: Optional[int] = field(
         default=None, metadata={"help": "Allows to specify the vocabulary index of the <eos> token to be added to the multimodal sequences."}
     )
+    max_length: int = field(
+        default=1024, metadata={"help": "The maximum target length to use when predicting with the generate method."}
+    )
 
 
     def __init__(self, **kwargs):
@@ -230,6 +233,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             freeze_module_parameters(self.backbone)
 
         # Others
+        self.max_length = config.max_length
         self.embed_scale = 1.0 if config.no_scale_embedding else math.sqrt(config.encoder_embed_dim)
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
         self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_token_id is not None else config.pad_token_id
@@ -282,7 +286,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Handling pretrained and language-specific embeddings
         pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens
 
-        lang_embeddings = nn.Embedding(num_embeddings=src_tokenizer.vocab_size, embedding_dim=cfg.encoder_embed_dim)
+        lang_embeddings = nn.Embedding(num_embeddings=len(src_tokenizer), embedding_dim=cfg.encoder_embed_dim)
 
         lang_embeddings = init_encoder_lang_embeddings(
             cfg=cfg, 
