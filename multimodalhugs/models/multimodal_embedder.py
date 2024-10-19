@@ -346,7 +346,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - labels (also known as 'source_text'): B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
             - decoder_attention_mask: B x T_text <- 0 indicates padding elements
         """
-
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
 

@@ -50,9 +50,9 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
 
         self.config = config
         self.data_dir = config.data_dir
-        self.train_file_name = config.train_file_name.split('.')[0] if config.train_file_name is not None else "corrected_train"
-        self.dev_file_name = config.dev_file_name.split('.')[0] if config.dev_file_name is not None else "corrected_dev"
-        self.test_file_name = config.test_file_name.split('.')[0] if config.test_file_name is not None else "corrected_all"
+        self.train_split_name = config.train_split_name.split('.')[0] if config.train_split_name is not None else "corrected_train"
+        self.dev_split_name = config.dev_split_name.split('.')[0] if config.dev_split_name is not None else "corrected_dev"
+        self.test_split_name = config.test_split_name.split('.')[0] if config.test_split_name is not None else "corrected_all"
         
     def _info(self):
         return DatasetInfo(
@@ -71,21 +71,21 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
             datasets.SplitGenerator(
                 name=datasets.Split.TRAIN,
                 gen_kwargs={
-                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/cleaned/{self.train_file_name}.csv"), 
+                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/cleaned/{self.train_split_name}.csv"), 
                     "split": "train"
                 }
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
-                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/cleaned/{self.dev_file_name}.csv"), 
+                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/cleaned/{self.dev_split_name}.csv"), 
                     "split": "validation"
                 }
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.TEST,
                 gen_kwargs={
-                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/test/{self.test_file_name}.csv"), 
+                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/test/{self.test_split_name}.csv"), 
                     "split": "test"
                 }
             ),

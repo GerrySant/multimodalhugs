@@ -1,5 +1,5 @@
 model:
-  name: "multimodal_embedder"
+  name: "hebrew_multimodalhugs"
   feature_extractor_type: "<feature_extractor_type>" # CLIP example: "clip"
   pretrained_feature_extractor: "<pretrained-clip-model>" # CLIP example: "openai/clip-vit-base-patch32"
   vl_mapper_type: "linear"
@@ -23,7 +23,7 @@ model:
   freeze_lang_embeddings: False
   freeze_backbone: True
   freeze_lm_head: True
-  lang_embeddings_vocab_size: 79 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
+  lang_embeddings_vocab_size: 128105 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
   feature_extractor_cfg: # Specify args to be modified in the feature extractor architecture
     feature_extractor_arguments: "<config-arguments>"
 
@@ -36,36 +36,39 @@ training:
   logging_dir: "/path/to/output/logs"
   overwrite_output_dir: false
   evaluation_strategy: "steps"
-  eval_steps: 20
-  per_device_train_batch_size: 32
-  gradient_accumulation_steps: 2
+  eval_steps: 128
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 3
   learning_rate: 2.0
   weight_decay: 0
   adam_beta1: 0.9
   adam_beta2: 0.998
   max_grad_norm: 0.0
   num_train_epochs: 1
-  max_steps: 200
+  max_steps: 500000
   lr_scheduler_type: "constant_with_warmup"
   warmup_steps: 8000
-  logging_steps: 20
+  logging_steps: 128
   save_steps: 128
   save_total_limit: 10
-  seed: 1234
+  seed: 3435
   label_smoothing_factor: 0.1
   dataloader_drop_last: false
-  dataloader_num_workers: 2
+  dataloader_num_workers: 8
   remove_unused_columns: True
   fp16: True
 
 data:
   data_dir: "/path/to/data/directory"
-  train_split_name: "<train_file>"
-  dev_split_name: "<dev_file>"
-  test_split_name: "<test_file>"
-  filter_empty_samples: True
+  train_split_name: "train"
+  dev_split_name: "dev"
+  test_split_name: "devtest"
+  src_lang: "he"
+  tgt_lang: "en"
+  font_path: "/examples/multimodal_translation/Image2text_translation/other/Arial.ttf"
+  as_numpy: false
   shuffle: True
-  src_lang_tokenizer_path: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"
+  src_lang_tokenizer_path: "/examples/multimodal_translation/Image2text_translation/other/new_languages_hebrew.txt"
   text_tokenizer_path: "<pretrained-tokenizer>" # M2M example: "facebook/m2m100_418M"
   max_seq_length: 512
   max_frames: 300

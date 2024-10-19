@@ -1,11 +1,14 @@
+import re
 import os
 import ast
 import json
 import torch
+import pyarrow
+import numpy as np
 import pandas as pd
 
 from typing import List
-from PIL import Image
+from PIL import Image, ImageOps, ImageDraw, ImageFont
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
@@ -203,3 +206,40 @@ def duration_filter(max_frames, sample):
     Checks if the file specified in sample[column_name] exists.
     """
     return sample["DURATION"] <= max_frames
+
+def split_sentence(sentence):
+    if isinstance(sentence, pyarrow.lib.StringScalar):
+        sentence = sentence.as_py()
+    tokens = re.split(r'(\s+|[.,?\!”":;]+)', sentence)
+    return [token for token in tokens if len(token.strip()) > 0]
+
+def create_image(word, font_path, img_size=(224, 224), font_size=48):
+    img = Image.new('RGB', img_size, color='white')
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype(font_path, font_size)
+    bbox = draw.textbbox((0, 0), word, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    x = (img_size[0] - text_width) / 2
+    y = (img_size[1] - text_height) / 2
+    draw.text((x, y), word, fill="black", font=font)
+    return np.array(img)
+
+def normalize_images(images, mean, std):
+    normalized_images = []
+    for image in images:
+        normalized_image = (image / 255.0 - mean) / std
+        normalized_images.append(normalized_image)
+    return np.array(normalized_images)
+
+def make_image_array(words, font_path, width, height, normalize_image, mean, std):
+    images = [create_image(word=word, font_path=font_path, img_size=(width, height)) for word in words]
+    images = np.array(images)  # Shape: (T, H, W, C)
+    if normalize_image:
+        return normalize_images(images, mean, std)
+    return images
+
+def get_images(src_text, font_path, width, height, normalize_image, mean, std):
+    words = split_sentence(src_text)
+    images = make_image_array(words=words, font_path=font_path, width=width, height=height, normalize_image=normalize_image, mean=mean, std=std)
+    return np.transpose(images, (0, 3, 1, 2)).astype(np.float32)  # Shape: (T, C, H, W)

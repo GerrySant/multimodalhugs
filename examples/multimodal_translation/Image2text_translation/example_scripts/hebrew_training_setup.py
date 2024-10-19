@@ -7,8 +7,8 @@ import argparse
 from omegaconf import OmegaConf
 from pathlib import Path
 
-from multimodalhugs.data import How2SignDataset, SignLanguageMTDataConfig, add_new_special_tokens_from_vocab_file
-from multimodalhugs.processors import Pose2TextTranslationProcessor
+from multimodalhugs.data import BilingualImage2textMTDataConfig, BilingualImage2TextDataset, add_new_special_tokens_from_vocab_file
+from multimodalhugs.processors import Image2TextTranslationProcessor
 from multimodalhugs.models import MultiModalEmbedderModel
 
 from transformers import AutoTokenizer
@@ -16,8 +16,8 @@ from transformers import AutoTokenizer
 def main(config_path):
     # Load config and initialize dataset
     config = OmegaConf.load(config_path)
-    dataset_config = SignLanguageMTDataConfig(config)
-    dataset = How2SignDataset(config=dataset_config)
+    dataset_config = BilingualImage2textMTDataConfig(config)
+    dataset = BilingualImage2TextDataset(config=dataset_config)
 
     # Download, prepare, and save dataset
     data_path = Path(config.training.output_dir) / config.model.name / "datasets" / dataset.name
@@ -31,13 +31,18 @@ def main(config_path):
         output_dir=config.training.output_dir + "/" + config.model.name,
     )
 
-    input_processor = Pose2TextTranslationProcessor(
-            tokenizer=tokenizer,
-            reduce_holistic_poses=True,
+    input_processor = Image2TextTranslationProcessor(
+        tokenizer=tokenizer,
+        font_path=dataset_config.font_path,
+        width=dataset_config.preprocess.width,
+        height=dataset_config.preprocess.height,
+        normalize_image=dataset_config.preprocess.do_normalize,
+        mean=dataset_config.preprocess.dataset_mean,
+        std=dataset_config.preprocess.dataset_std,   
     )
 
     # Save processor and set PROCESSOR_PATH environment variable
-    processor_path = config.training.output_dir + f"/{config.model.name}" + f"/pose2text_translation_processor"
+    processor_path = config.training.output_dir + f"/{config.model.name}" + f"/image2text_translation_processor"
     input_processor.save_pretrained(save_directory=processor_path, push_to_hub=False)
 
     # Build and save the model, then set MODEL_PATH environment variable

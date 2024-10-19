@@ -38,9 +38,9 @@ class PreprocessArguments:
 class MultimodalMTDataConfig(BuilderConfig):
     name: str = "MultimodalMTDataConfig"
     data_dir: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the signsbank_plus repository."})
-    train_file_name: Optional[str] = field(default=None, metadata={"help": "Name of the train metadata file."})
-    dev_file_name: Optional[str] = field(default=None, metadata={"help": "Name of the dev metadata file."})
-    test_file_name: Optional[str] = field(default=None, metadata={"help": "Name of the test metadata file."})
+    train_split_name: Optional[str] = field(default=None, metadata={"help": "Name of the training split partition."})
+    dev_split_name: Optional[str] = field(default=None, metadata={"help": "Name of the validation split partition."})
+    test_split_name: Optional[str] = field(default=None, metadata={"help": "Name of the testing split partition."})
     filter_empty_samples: bool = field(default=True, metadata={"help": "If True, it filters samples with an empty field."})
     shuffle: bool = field(default=True, metadata={"help": "If True, it shuffles samples in the dataset."})
     src_lang_tokenizer_path: Optional[str] = field(default=None, metadata={"help": "Path to the tokenizer of the new source languages."})
@@ -53,9 +53,9 @@ class MultimodalMTDataConfig(BuilderConfig):
     def __init__(self, cfg=None, **kwargs):
         super().__init__(**kwargs)
         self.data_dir = getattr(cfg.data, 'data_dir', self.data_dir)
-        self.train_file_name = getattr(cfg.data, 'train_file_name', self.train_file_name)
-        self.dev_file_name = getattr(cfg.data, 'dev_file_name', self.dev_file_name)
-        self.test_file_name = getattr(cfg.data, 'test_file_name', self.test_file_name)
+        self.train_split_name = getattr(cfg.data, 'train_split_name', self.train_split_name)
+        self.dev_split_name = getattr(cfg.data, 'dev_split_name', self.dev_split_name)
+        self.test_split_name = getattr(cfg.data, 'test_split_name', self.test_split_name)
         self.filter_empty_samples = getattr(cfg.data, 'filter_empty_samples', self.filter_empty_samples)
         self.shuffle = getattr(cfg.data, 'shuffle', self.shuffle)
         self.src_lang_tokenizer_path = getattr(cfg.data, 'src_lang_tokenizer_path', self.src_lang_tokenizer_path)
@@ -78,3 +78,24 @@ class SignLanguageMTDataConfig(MultimodalMTDataConfig):
         self.is_pose = getattr(cfg.data, 'is_pose', self.is_pose)
         assert self.is_numpy_video != self.is_pose, "is_numpy_video and is_pose cannot have the same value"
         assert self.is_numpy_video or self.is_pose, "At least one of is_numpy_video or is_pose must be True"
+
+@dataclass
+class BilingualMTDataConfig(MultimodalMTDataConfig):
+    src_lang: Optional[str] = field(default=None, metadata={"help": "Language tag for the source language."})
+    tgt_lang: Optional[str] = field(default=None, metadata={"help": "Language tag for the target language."})
+    def __init__(self, cfg=None, **kwargs):
+        super().__init__(cfg=cfg, **kwargs)
+        # Assign new arguments from config if available
+        print(f"cfg.data: {cfg.data}")
+        self.src_lang = getattr(cfg.data, 'src_lang', self.src_lang)
+        self.tgt_lang = getattr(cfg.data, 'tgt_lang', self.tgt_lang)
+
+@dataclass
+class BilingualImage2textMTDataConfig(BilingualMTDataConfig):
+    font_path: Optional[str] = field(default=None, metadata={"help": "Path to the '.ttf' file that determines the Path to the .tff file which determines the typography used in the image generation"})
+    as_numpy: Optional[bool] = field(default=False, metadata={"help": "If True, it creates the images when creating the dataset. If False, the image are created in an online manner."})
+    def __init__(self, cfg=None, **kwargs):
+        super().__init__(cfg=cfg, **kwargs)
+        # Assign new arguments from config if available
+        self.font_path = getattr(cfg.data, 'font_path', self.font_path)
+        self.as_numpy = getattr(cfg.data, 'as_numpy', self.as_numpy)
