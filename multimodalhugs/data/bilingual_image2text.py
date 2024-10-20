@@ -75,8 +75,8 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "src_lang": self.config.src_lang,
-                "source": 'v' + item['source'] if isinstance(item['source'], str) else item['source'],
+                "src_lang": 'v' + self.config.src_lang,
+                "source": item['source'],
                 "tgt_lang": self.config.tgt_lang,
                 "tgt_sentence": item['target'],
             }
