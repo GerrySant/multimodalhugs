@@ -73,8 +73,8 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
 
         for i in range(len(T)):
             print(f"\nT - {T[i]}")
-            print(f"P - {P[i]}")
             print(f"L - {L[i]}")
+            print(f"P - {P[i]}")
             print(f"H - {H[i]}")
 
     def prediction_step(

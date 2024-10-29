@@ -79,44 +79,13 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
     def _obtain_others(self, batch, **kwargs):
         return self._obtain_src_langtoks(batch, **kwargs)
         
-    def _obtain_text_inputs_and_labels(self, batch, **kwargs):
-        tgt_langtoks = torch.stack(
-            [torch.LongTensor([self.get_langtok(f"__{sample['tgt_lang']}__")]) for sample in batch]
-        )
-
-        tokenization = self.tokenizer(
-            text=[sample["tgt_sentence"] for sample in batch],
-            return_tensors='pt', 
-            padding=True, 
-            truncation=True,
-            return_attention_mask=True,
-            add_special_tokens=True,
-        )
-        
-        tgt_tensor = tokenization['input_ids']                              # ['<token_a>', '<token_b>', '<token_c>', '</s>']
-        tgt_tensor = torch.cat((tgt_langtoks, tgt_tensor[:, 1:]), dim=1)    # ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-
-        decoder_attention_mask = tokenization['attention_mask']
-        decoder_attention_mask = torch.cat((torch.full((decoder_attention_mask.size(0), 1), 1), decoder_attention_mask), dim=1)
-        decoder_attention_mask = decoder_attention_mask[..., :-1].contiguous()
-        
-        # Prepare final output for model consumption
-        decoder_input_ids = torch.full((tgt_tensor.size(0), 1), self.tokenizer.convert_tokens_to_ids(self.tokenizer.eos_token))
-        decoder_input_ids = torch.cat((decoder_input_ids, tgt_tensor), dim=1)   # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-        decoder_input_ids = decoder_input_ids[..., :-1].contiguous()            # ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>']
-        return {
-            "decoder_input_ids": decoder_input_ids,                # torch.Size([batch_size, n_tokens])
-            "labels": tgt_tensor,                                  # torch.Size([batch_size, n_tgt_tokens])
-            "decoder_attention_mask": decoder_attention_mask,      # torch.Size([batch_size, n_tokens]) 0 indicates padding elements   
-        }, kwargs
-        
     def __call__(
         self,
         batch: List[Dict[str, Any]],
+        batch_dict: Optional[Dict[str, Any]] = {},
         **kwargs,
     ) -> BatchFeature:
-        
-        batch_dict = {}
+
         for obtain_method in self.get_obtainables():
             obgained_dict, kwargs = obtain_method(batch, **kwargs)
             batch_dict.update(obgained_dict)

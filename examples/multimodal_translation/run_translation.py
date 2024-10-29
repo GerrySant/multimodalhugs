@@ -599,7 +599,13 @@ def main():
     label_pad_token_id = -100 if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
 
     if processor is not None:
-        data_collator = DataCollatorMultimodalSeq2Seq(processor)
+        data_collator = DataCollatorMultimodalSeq2Seq(
+            processor=processor,
+            tokenizer=tokenizer,
+            model=model,
+            pad_to_multiple_of=8 if training_args.fp16 else None,
+            label_pad_token_id=label_pad_token_id,
+            )
     elif data_args.pad_to_max_length:
         data_collator = default_data_collator
     else:
