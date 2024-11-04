@@ -48,7 +48,7 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         
         pose = pose.normalize(pose_normalization_info(pose.header))
         tensor = pose.torch().body.data.zero_filled()
-        return tensor.view(pose.size(0), -1)
+        return tensor.contiguous().view(tensor.size(0), -1)
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         tensor_secuences = [self._pose_file_to_tensor(sample["source"]) for sample in batch]
