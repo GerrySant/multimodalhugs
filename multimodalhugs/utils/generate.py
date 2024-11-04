@@ -348,7 +348,6 @@ def main():
     #### Modules
 
     # Load the configuration
-3
 
     # Load the processor and tokenizer
     if model_args.processor_name_or_path:
@@ -370,6 +369,14 @@ def main():
             trust_remote_code=model_args.trust_remote_code,
         )
         processor = None  # Ensure 'processor' is defined
+        
+    config = AutoConfig.from_pretrained(
+        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        token=model_args.token,
+        trust_remote_code=model_args.trust_remote_code,
+    )
 
     # Load the model
     model = AutoModelForSeq2SeqLM.from_pretrained(
