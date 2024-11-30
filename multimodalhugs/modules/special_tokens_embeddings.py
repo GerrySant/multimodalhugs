@@ -20,7 +20,7 @@ class SpecialTokensEmbeddings(nn.Module):
         self.pad_idx = pad_idx if pad_idx is not None else 1
         self.eos_idx = eos_idx if eos_idx is not None else 2
         
-    def forward(self, x, encoder_padding_mask, src_langtoks):
+    def forward(self, x, encoder_padding_mask, src_prompt):
         """
         It adds and/or corrects the special tokens from the input secuence:
             # '<src_lang>', ...,  '</s>', '<pad>', '<pad>'
@@ -28,17 +28,18 @@ class SpecialTokensEmbeddings(nn.Module):
         INPUTS:
             - x: B x N_tokens x Embed_dim
             - encoder_padding_mask: B x N_tokens <- 0 indicates padding elements
-            - src_langtoks: B x 1     
+            - src_prompt: B x 1     
         """
-        # Append <src_lang>:
-        if src_langtoks is not None:
-            src_langtoks = self.special_tokens_embeddings(src_langtoks)
+        print(f"encoder_padding_mask_before: {encoder_padding_mask.shape}")
+        # Append <src_prompt>:
+        if src_prompt is not None:
+            src_prompt = self.special_tokens_embeddings(src_prompt)
             
-            x = torch.cat((src_langtoks, x), dim=1)
+            x = torch.cat((src_prompt, x), dim=1)
 
             # Correct Padding Mask
-            new_mask_entry = torch.full((encoder_padding_mask.size(0), 1), 1, dtype=encoder_padding_mask.dtype, device=encoder_padding_mask.device)
-            encoder_padding_mask = torch.cat([new_mask_entry, encoder_padding_mask], dim=1)
+            new_mask_entry = torch.full((encoder_padding_mask.size(0), x.size(1) - encoder_padding_mask.size(1)), 1, dtype=encoder_padding_mask.dtype, device=encoder_padding_mask.device) # torch.Size([B, 1])
+            encoder_padding_mask = torch.cat([new_mask_entry, encoder_padding_mask], dim=1) # torch.Size([B, 1]) + torch.Size([B, N_tokens]) = torch.Size([B, N_tokens + 1])
         
         # Adjust <pad> tokens and add <eos> token to every secuence in the batch:
         if self.pad_idx is not None and self.eos_idx is not None:
