@@ -32,7 +32,7 @@ class EncoderWrapper(nn.Module):
     def forward(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        src_langtoks: Optional[torch.LongTensor] = None,
+        src_prompt: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         head_mask: Optional[torch.Tensor] = None,
@@ -43,7 +43,7 @@ class EncoderWrapper(nn.Module):
     ):
         return self.model.input_to_encoder_outputs(
             input_frames = input_frames,
-            src_langtoks = src_langtoks,
+            src_prompt = src_prompt,
             input_ids = input_ids,
             attention_mask = attention_mask,
             head_mask = head_mask,

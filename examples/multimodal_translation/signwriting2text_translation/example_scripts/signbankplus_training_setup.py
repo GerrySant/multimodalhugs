@@ -51,6 +51,8 @@ def main(config_path):
             dataset_std=dataset_config.preprocess.dataset_std,
             frame_preprocessor=frame_preprocessor,
             tokenizer=tokenizer,
+            target_lang_on_source=True,
+            task_prefixes=[],
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

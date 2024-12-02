@@ -23,7 +23,6 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
     ):
         info = DatasetInfo(description="General Dataset class for bilingual translation datasets.") if info is None else info
         super().__init__(info=info, *args, **kwargs)
-
         self.config = config
 
     def _get_dataframe(self, split_directory, src_lang, tgt_lang):
@@ -37,16 +36,19 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         # Create a DataFrame for this split
         df = pd.DataFrame({"source": src_text, "target": tgt_text})
         return Dataset.from_pandas(df)
-        
+    
     def _info(self):
-        return DatasetInfo(
-            description="General class for bilingual translation datasets",
-            features=datasets.Features({
+        dataset_features = {
                 "src_lang": str,
                 "source": str,
                 "tgt_lang": str,
                 "tgt_sentence": str,
-            }),
+                "task": Optional[str],
+            }
+        dataset_features = datasets.Features(dataset_features)
+        return DatasetInfo(
+            description="General class for bilingual translation datasets",
+            features=dataset_features,
             supervised_keys=None,
         )
 
@@ -89,4 +91,5 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
                 "source": item['source'],
                 "tgt_lang": self.config.tgt_lang,
                 "tgt_sentence": item['target'],
+                "task": self.config.task,
             }

@@ -16,6 +16,7 @@ class DataCollatorMultimodalSeq2Seq:
     pad_to_multiple_of: Optional[int] = None
     label_pad_token_id: int = -100
     return_tensors: str = "pt"
+    insert_langtok_on_target: bool = True
 
     def __init__(
         self,
@@ -26,7 +27,8 @@ class DataCollatorMultimodalSeq2Seq:
         max_length: Optional[int] = None,
         pad_to_multiple_of: Optional[int] = None,
         label_pad_token_id: int = -100,
-        return_tensors: str = "pt"
+        return_tensors: str = "pt",
+        insert_langtok_on_target: bool = True
     ):
         self.processor = processor
         self.tokenizer = tokenizer if tokenizer is not None else processor.tokenizer
@@ -36,6 +38,7 @@ class DataCollatorMultimodalSeq2Seq:
         self.pad_to_multiple_of = pad_to_multiple_of
         self.label_pad_token_id = label_pad_token_id
         self.return_tensors = return_tensors
+        self.insert_langtok_on_target = insert_langtok_on_target
 
     def _obtain_text_related_inputs_outputs(self, samples, return_tensors=None):
         batch = {}
@@ -44,11 +47,17 @@ class DataCollatorMultimodalSeq2Seq:
 
         no_padding = self.padding is False or self.padding == PaddingStrategy.DO_NOT_PAD
 
-        labels = [
-            [self.tokenizer.convert_tokens_to_ids(f"__{sample['tgt_lang']}__")]
-            + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['tgt_sentence']))
-            + [self.tokenizer.eos_token_id]
-            for sample in samples]
+        if self.insert_langtok_on_target:
+            labels = [
+                [self.tokenizer.convert_tokens_to_ids(f"__{sample['tgt_lang']}__")]
+                + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['tgt_sentence']))
+                + [self.tokenizer.eos_token_id]
+                for sample in samples]
+        else:
+            labels = [
+                self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['tgt_sentence']))
+                + [self.tokenizer.eos_token_id]
+                for sample in samples]
 
         if labels is not None:
             if no_padding:
@@ -95,7 +104,6 @@ class DataCollatorMultimodalSeq2Seq:
         ):
             decoder_input_ids = self.model.prepare_decoder_input_ids_from_labels(labels=batch["labels"])
             batch["decoder_input_ids"] = decoder_input_ids
-
         return batch
 
     def __call__(

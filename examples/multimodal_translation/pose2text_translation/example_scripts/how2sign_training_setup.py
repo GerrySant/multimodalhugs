@@ -34,6 +34,8 @@ def main(config_path):
     input_processor = Pose2TextTranslationProcessor(
             tokenizer=tokenizer,
             reduce_holistic_poses=True,
+            target_lang_on_source=True,
+            task_prefixes=[],
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

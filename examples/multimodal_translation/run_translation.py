@@ -38,7 +38,8 @@ AutoProcessor.register("image2text_translation_processor", Image2TextTranslation
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
+import dataclasses
+from dataclasses import dataclass, field, asdict, fields
 from typing import Optional
 
 import datasets
@@ -82,6 +83,24 @@ logger = logging.getLogger(__name__)
 MULTILINGUAL_TOKENIZERS = [MBartTokenizer, MBartTokenizerFast, MBart50Tokenizer, MBart50TokenizerFast, M2M100Tokenizer]
 
 
+def construct_kwargs(obj, not_used_keys = []):
+    kwargs = {}
+    obj_dict = asdict(obj)
+
+    for field_info in fields(obj):
+        if field_info.name in not_used_keys:
+            continue
+        # Check if the field has a default factory
+        if field_info.default_factory is not dataclasses.MISSING:  # Handle fields with default_factory
+            default_value = field_info.default_factory()
+        else:
+            default_value = field_info.default
+        # Compare current value with default value
+        if obj_dict[field_info.name] != default_value:
+            kwargs[field_info.name] = obj_dict[field_info.name]
+    
+    return kwargs
+
 @dataclass
 class ModelArguments:
     """
@@ -90,9 +109,6 @@ class ModelArguments:
 
     model_name_or_path: str = field(
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
-    )
-    processor_name_or_path: Optional[str] = field(
-        default=None, metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
@@ -122,6 +138,28 @@ class ModelArguments:
         },
     )
     trust_remote_code: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "Whether to trust the execution of code from datasets/models defined on the Hub."
+                " This option should only be set to `True` for repositories you trust and in which you have read the"
+                " code, as it will execute code present on the Hub on your local machine."
+            )
+        },
+    )
+
+@dataclass
+class ProcessorArguments:
+    processor_name_or_path: Optional[str] = field(
+        default=None, metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
+    )
+    task_prefixes: List[str] = field(
+        default_factory=list,
+        metadata={
+            "help": "A list of prefixes to prepend to input text for each task."
+        }
+    )
+    target_lang_on_source: bool = field(
         default=False,
         metadata={
             "help": (
@@ -261,6 +299,12 @@ class DataTrainingArguments:
             )
         },
     )
+    insert_langtok_on_target: bool = field(
+        default=True,
+        metadata={
+            "help": "Whether to insert tgt_lang_token to the labels in the loss computation or not."
+        },
+    )
 
     def __post_init__(self):
         if self.dataset_name is None and self.dataset_dir is None and self.train_file is None and self.validation_file is None:
@@ -287,13 +331,13 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
+    parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, processor_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -417,7 +461,7 @@ def main():
 
     tokenizer = None
     processor= None
-    if not model_args.processor_name_or_path:
+    if not processor_args.processor_name_or_path:
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
             cache_dir=model_args.cache_dir,
@@ -427,9 +471,14 @@ def main():
             trust_remote_code=model_args.trust_remote_code,
         )
     else:
+        processor_kwargs = construct_kwargs(processor_args, ["processor_name_or_path"])
         processor = AutoProcessor.from_pretrained(
-            model_args.processor_name_or_path,
+            processor_args.processor_name_or_path,
+            **processor_kwargs
         )
+        for key in set(processor_kwargs.keys()):
+            if hasattr(processor, key):
+                setattr(processor, key, processor_kwargs.pop(key))
         tokenizer = processor.tokenizer
 
     model = AutoModelForSeq2SeqLM.from_pretrained(
@@ -605,6 +654,7 @@ def main():
             model=model,
             pad_to_multiple_of=8 if training_args.fp16 else None,
             label_pad_token_id=label_pad_token_id,
+            insert_langtok_on_target=data_args.insert_langtok_on_target
             )
     elif data_args.pad_to_max_length:
         data_collator = default_data_collator

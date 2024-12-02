@@ -55,14 +55,17 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         self.test_split_name = config.test_split_name.split('.')[0] if config.test_split_name is not None else "corrected_all"
         
     def _info(self):
-        return DatasetInfo(
-            description="SignWriting Multimodal Machine Translation Dataset",
-            features=datasets.Features({
+        dataset_features = {
                 "src_lang": str,
                 "source": str,
                 "tgt_lang": str,
                 "tgt_sentence": str,
-            }),
+                "task": Optional[str],
+            }
+        dataset_features = datasets.Features(dataset_features)
+        return DatasetInfo(
+            description="SignWriting Multimodal Machine Translation Dataset",
+            features=dataset_features,
             supervised_keys=None,
         )
 
@@ -115,4 +118,5 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
                 "source": item['source'],
                 "tgt_lang": item['tgt_lang'],
                 "tgt_sentence": item['target'],
+                "task": self.config.task,
             }

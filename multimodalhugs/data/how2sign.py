@@ -32,16 +32,19 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
         self.data_dir = Path(config.data_dir) if type(config.data_dir) != Path else config.data_dir
         self.data_dir = self.data_dir / 'sentence_level' if self.data_dir.name != "sentence_level" else self.data_dir
         assert self.data_dir.is_dir(), f"Error: The {str(self.data_dir.name)} directory not found at {str(self.data_dir.parent)}."
-        
+
     def _info(self):
-        return DatasetInfo(
-            description="How2Sign sign language related task dataset",
-            features=datasets.Features({
+        dataset_features = {
                 "src_lang": str,
                 "source": str,
                 "tgt_lang": str,
                 "tgt_sentence": str,
-            }),
+                "task": Optional[str],
+            }
+        dataset_features = datasets.Features(dataset_features)
+        return DatasetInfo(
+            description="How2Sign sign language related task dataset",
+            features=dataset_features,
             supervised_keys=None,
         )
 
@@ -106,4 +109,5 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
                 "source": item['SENTENCE_NAME'],
                 "tgt_lang": 'en',
                 "tgt_sentence": item['SENTENCE'],
+                "task": self.config.task,
             }

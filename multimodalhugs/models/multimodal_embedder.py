@@ -8,7 +8,7 @@ import torch.nn as nn
 from omegaconf import OmegaConf, DictConfig
 from transformers import (
     BertConfig, BertModel, CLIPConfig, CLIPModel, M2M100Config, M2M100ForConditionalGeneration, 
-    PreTrainedModel, PretrainedConfig
+    PreTrainedModel, PretrainedConfig, T5ForConditionalGeneration, T5Config
 )
 from transformers.modeling_outputs import Seq2SeqLMOutput
 
@@ -46,6 +46,7 @@ def init_encoder_lang_embeddings(cfg, lang_embeddings, pretrained_embeddings, to
     # Ensure that the special tokens (excluding Languages) of the new language embedding have the same weight from the original embedding layer
     special_tokens = [tokenizer.special_tokens_map[key] for key in tokenizer.special_tokens_map.keys() if key != "additional_special_tokens"]
     special_tokens = [tokenizer.convert_tokens_to_ids(special_token) for special_token in special_tokens]
+
     for token_index in special_tokens:
         lang_embeddings.weight.data[token_index] = pretrained_embeddings.weight.data[token_index]
     return lang_embeddings
@@ -54,6 +55,8 @@ def init_encoder_lang_embeddings(cfg, lang_embeddings, pretrained_embeddings, to
 def get_backbone_config_class(backbone_name):
     if backbone_name == "m2m100": # The actual version only supports M2M as backbone
         return M2M100Config
+    elif backbone_name == "byt5": # The actual version only supports M2M as backbone
+        return T5Config
     else:
         raise ValueError(f"Unknown backbone name: {backbone_name}")
 
@@ -61,6 +64,8 @@ def get_backbone_config_class(backbone_name):
 def get_backbone_model_class(backbone_name):
     if backbone_name == "m2m100": # The actual version only supports M2M as backbone
         return M2M100ForConditionalGeneration
+    elif backbone_name == "byt5": # The actual version only supports M2M as backbone
+        return T5ForConditionalGeneration
     else:
         raise ValueError(f"Unknown backbone name: {backbone_name}")
 
@@ -240,12 +245,41 @@ class MultiModalEmbedderModel(PreTrainedModel):
         self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_token_id is not None else config.eos_token_id
 
     def get_input_embeddings(self):
-        return self.backbone.model.shared
+        if hasattr(self.backbone, 'shared'):
+            return self.backbone.shared
+        elif hasattr(self.backbone, 'model'):
+            if hasattr(self.backbone.model, 'shared'):
+                return getattr(self.backbone.model, 'shared', None) 
+        else:
+            return None
+
 
     def set_input_embeddings(self, value):
-        self.backbone.model.shared = value
-        self.backbone.model.encoder.embed_tokens = self.backbone.model.shared
-        self.backbone.model.decoder.embed_tokens = self.backbone.model.shared
+        # Set 'shared' attribute
+        if hasattr(self.backbone, 'shared'):
+            self.backbone.shared = value
+        elif hasattr(self.backbone, 'model') and hasattr(self.backbone.model, 'shared'):
+            self.backbone.model.shared = value
+        else:
+            raise AttributeError("Neither 'shared' nor 'model.shared' exists in the backbone.")
+        
+        # Set 'encoder.embed_tokens'
+        encoder = (
+            getattr(self.backbone, 'encoder', None) or
+            getattr(self.backbone.model, 'encoder', None)
+        )
+        if encoder and hasattr(encoder, 'embed_tokens'):
+            encoder.embed_tokens = value
+
+        # Set 'decoder.embed_tokens'
+        decoder = (
+            getattr(self.backbone, 'decoder', None) or
+            getattr(self.backbone.model, 'decoder', None)
+        )
+        if decoder and hasattr(decoder, 'embed_tokens'):
+            decoder.embed_tokens = value
+
+
 
     def get_output_embeddings(self):
         return self.backbone.lm_head
@@ -286,7 +320,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Handling pretrained and language-specific embeddings
         pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens
 
-        lang_embeddings = nn.Embedding(num_embeddings=len(src_tokenizer), embedding_dim=cfg.encoder_embed_dim)
+        lang_embeddings = nn.Embedding(num_embeddings=len(src_tokenizer), embedding_dim=cfg.encoder_embed_dim) 
 
         lang_embeddings = init_encoder_lang_embeddings(
             cfg=cfg, 
@@ -314,7 +348,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     def forward(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        src_langtoks: Optional[torch.LongTensor] = None,
+        src_prompt: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         decoder_input_ids: Optional[torch.LongTensor] = None,
@@ -340,7 +374,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         INPUTS:
             - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
             - input_frames (also known as 'src_tokens'): B x N_frames x C x W x H <- Multimodal input minibatch
-            - src_langtoks: B x 1 <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
+            - src_prompt: B x 1 <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
             - attention_mask (also known as 'encoder_padding_mask'): B x N_frames <- 0 indicates padding elements
             - decoder_input_ids (also known as 'source_text'): B x T_text <- Should look as ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>'] if teacher forcing, otherwise None. In Generation: ['<s>', '<tgt_lang>']
             - labels (also known as 'source_text'): B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
@@ -352,7 +386,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if self.vl_mapper is not None:
             inputs_embeds = self.vl_mapper(inputs_embeds)
 
-        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_langtoks)
+        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_prompt)
 
         outputs = self.backbone(
             input_ids = input_ids,
@@ -378,7 +412,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     def input_to_encoder_outputs(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        src_langtoks: Optional[torch.LongTensor] = None,
+        src_prompt: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         head_mask: Optional[torch.Tensor] = None,
@@ -391,7 +425,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         INPUTS:
             - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
             - input_frames (also known as 'src_tokens'): B x N_frames x C x W x H <- Multimodal input minibatch
-            - src_langtoks: B x 1 <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
+            - src_prompt: B x 1 <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
             - attention_mask (also known as 'encoder_padding_mask'): B x N_frames <- 0 indicates padding elements
         """
         
@@ -399,7 +433,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             inputs_embeds = self.feature_extractor(input_frames)
         if self.vl_mapper is not None:
             inputs_embeds = self.vl_mapper(inputs_embeds)
-        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_langtoks)
+        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_prompt)
 
         return self.language_encoder(
             input_ids=None,
@@ -426,9 +460,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if inputs_embeds is not None:
             model_inputs["inputs_embeds"] = inputs_embeds
 
-        src_langtoks = kwargs.get('src_langtoks', None)
-        if src_langtoks is not None:
-            model_inputs["src_langtoks"] = src_langtoks
+        src_prompt = kwargs.get('src_prompt', None)
+        if src_prompt is not None:
+            model_inputs["src_prompt"] = src_prompt
 
         return model_inputs
 

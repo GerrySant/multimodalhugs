@@ -1,5 +1,6 @@
 import os
 import torch
+import random
 import logging
 
 from pathlib import Path
@@ -34,14 +35,25 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
         self,
         frame_preprocessor: Optional[Callable] = None,
         tokenizer: Optional[Any] = None,
+        target_lang_on_source: bool = False,
+        task_prefixes: list = [],
         **kwargs,
     ):
         obtainables_list = kwargs.pop('obtainables_list', None)
+        self.target_lang_on_source = target_lang_on_source
         self.obtainables_list = obtainables_list
+        self.task_prefixes = task_prefixes
+    
         if frame_preprocessor is None:
-            super().__init__(tokenizer=tokenizer, **kwargs)
+            super().__init__(
+                tokenizer=tokenizer, 
+                **kwargs)
         else:
-            super().__init__(frame_preprocessor=frame_preprocessor, tokenizer=tokenizer, **kwargs)
+            super().__init__(
+                frame_preprocessor=frame_preprocessor, 
+                tokenizer=tokenizer, 
+                **kwargs
+            )
 
     def get_obtainables(self):
         if self.obtainables_list is not None:
@@ -62,22 +74,44 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
             langtok_idx = self.tokenizer.convert_tokens_to_ids(langtok)
         return langtok_idx
 
+    def create_prompt_strings(self, sample):
+        if len(self.task_prefixes) > 0:
+            batch_keys = ["task"]
+            task = sample.get('task', None)
+            sample["task"] = random.choice(self.task_prefixes) if task is None else task
+        else:
+            batch_keys = []
+            sample["task"] = None
+        batch_keys.append("src_lang")
+        if self.target_lang_on_source:
+            batch_keys.append("tgt_lang")
+        prompt = " ".join(f"__{sample[key]}__" for key in batch_keys if key in sample and sample[key] is not None)
+        return prompt if prompt else None
+
     def _obtain_whatever(self, batch, **kwargs):
         raise NotImplementedError("_obtain_<whatever> methods must be implemented by the child class.")
         
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         raise NotImplementedError("_obtain_multimodal_input_and_masks method must be implemented by the child class.")
 
-    def _obtain_src_langtoks(self, batch, **kwargs):
-        src_langtoks = torch.stack(
-            [torch.LongTensor([self.get_langtok(f"__{sample['src_lang']}__")]) for sample in batch]
-        ) if self.tokenizer is not None else None
+    def _obtain_src_prompt(self, batch, **kwargs):
+        src_prompt_list = [self.create_prompt_strings(sample) for sample in batch]
+        src_prompt = torch.stack([torch.LongTensor(
+            self.tokenizer.encode(
+                text=sample, 
+                add_special_tokens=False, 
+                padding=False, 
+                truncation=None, 
+                max_length=None, 
+                stride=0, 
+                return_tensors=None,
+            )) for sample in src_prompt_list]) if self.tokenizer is not None else None
         return {
-            "src_langtoks": src_langtoks,                          # torch.Size([batch_size, 1])
+            "src_prompt": src_prompt,                          # torch.Size([batch_size, 1])
         }, kwargs
 
     def _obtain_others(self, batch, **kwargs):
-        return self._obtain_src_langtoks(batch, **kwargs)
+        return self._obtain_src_prompt(batch, **kwargs)
         
     def __call__(
         self,

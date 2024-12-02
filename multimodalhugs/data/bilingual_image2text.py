@@ -27,20 +27,17 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         super().__init__(config=config, info=info, *args, **kwargs)
     
     def _info(self):
+        dataset_features = {
+                "src_lang": str,
+                "tgt_lang": str,
+                "tgt_sentence": str,
+                "task": Optional[str],
+            }
         if self.as_numpy:
-            dataset_features = datasets.Features({
-                "src_lang": str,
-                "source": np.ndarray,
-                "tgt_lang": str,
-                "tgt_sentence": str,
-            })
+            dataset_features["source"] = np.ndarray
         else:
-            dataset_features = datasets.Features({
-                "src_lang": str,
-                "source": str,
-                "tgt_lang": str,
-                "tgt_sentence": str,
-            })
+            dataset_features["source"] = str
+        dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
             description="General class for bilingual image2Text translation datasets",
             features=dataset_features,
@@ -79,4 +76,5 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
                 "source": item['source'],
                 "tgt_lang": self.config.tgt_lang,
                 "tgt_sentence": item['target'],
+                "task": self.config.task,
             }

@@ -25,11 +25,24 @@ def main(config_path):
     dataset.as_dataset().save_to_disk(data_path)
 
     m2m_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
-    tokenizer = add_new_special_tokens_from_vocab_file(
-        tokenizer=copy.deepcopy(m2m_tokenizer), 
-        vocab_file=dataset_config.src_lang_tokenizer_path,
-        output_dir=config.training.output_dir + "/" + config.model.name,
-    )
+
+    tokenizer = m2m_tokenizer
+
+    vocab_files = []
+    if dataset_config.src_lang_tokenizer_path:
+        vocab_files.append(dataset_config.src_lang_tokenizer_path)
+    if dataset_config.new_task_tokens_dictionary_path:
+        vocab_files.append(dataset_config.new_task_tokens_dictionary_path)
+
+    for i, vocab_file in enumerate(vocab_files):
+        output_dir = None
+        if i == len(vocab_files) - 1:
+            output_dir = f"{config.training.output_dir}/{config.model.name}"
+        tokenizer = add_new_special_tokens_from_vocab_file(
+            tokenizer=copy.deepcopy(tokenizer),
+            vocab_file=vocab_file,
+            output_dir=output_dir,
+        )
 
     input_processor = Image2TextTranslationProcessor(
         tokenizer=tokenizer,
@@ -39,6 +52,8 @@ def main(config_path):
         normalize_image=dataset_config.preprocess.do_normalize,
         mean=dataset_config.preprocess.dataset_mean,
         std=dataset_config.preprocess.dataset_std,   
+        target_lang_on_source=True,
+        task_prefixes=[],
     )
 
     # Save processor and set PROCESSOR_PATH environment variable
