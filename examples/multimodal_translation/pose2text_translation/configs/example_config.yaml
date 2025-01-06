@@ -55,7 +55,9 @@ training:
   fp16: True
 
 data:
-  data_dir: "/path/to/data/directory"
+  train_metadata_dir: "/path/to/train/metadata_file.tsv"
+  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"
+  test_metadata_dir: "/path/to/test/metadata_file.tsv"
   filter_empty_samples: True
   shuffle: True
   src_lang_tokenizer_path: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"

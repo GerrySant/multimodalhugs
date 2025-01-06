@@ -4,6 +4,7 @@ import random
 import logging
 
 from pathlib import Path
+from torch.nn.utils.rnn import pad_sequence
 from typing import List, Dict, Any, Optional, Callable, Union
 
 from signwriting.tokenizer import normalize_signwriting
@@ -20,6 +21,7 @@ from multimodalhugs.data import (
 from pose_format import Pose
 from pose_format.utils.generic import reduce_holistic, pose_hide_legs
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,14 +37,10 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
         self,
         frame_preprocessor: Optional[Callable] = None,
         tokenizer: Optional[Any] = None,
-        target_lang_on_source: bool = False,
-        task_prefixes: list = [],
         **kwargs,
     ):
         obtainables_list = kwargs.pop('obtainables_list', None)
-        self.target_lang_on_source = target_lang_on_source
         self.obtainables_list = obtainables_list
-        self.task_prefixes = task_prefixes
     
         if frame_preprocessor is None:
             super().__init__(
@@ -54,6 +52,33 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
                 tokenizer=tokenizer, 
                 **kwargs
             )
+
+    def process_prompts(self, prompts):
+        """
+        Procesa las prompts para tener en cuenta diferentes longitudes de tokens entre muestras.
+
+        Args:
+            prompts (list of str): Lista de prompts.
+
+        Returns:
+            torch.Tensor: Tensores de prompts con padding.
+            torch.Tensor: Máscara indicando las posiciones de padding (1 para tokens reales, 0 para padding).
+        """
+
+        # Tokenizar las prompts con padding
+        tokenized_output = self.tokenizer(
+            prompts,
+            add_special_tokens=False,
+            padding=True,  # Añadir padding automáticamente
+            truncation=False,  # No truncar las secuencias
+            return_tensors="pt",  # Devolver tensores de PyTorch
+        )
+
+        # Obtener tensores de prompts y la máscara
+        padded_prompts = tokenized_output["input_ids"]
+        source_prompt_length_padding_mask = tokenized_output["attention_mask"]
+
+        return padded_prompts, source_prompt_length_padding_mask
 
     def get_obtainables(self):
         if self.obtainables_list is not None:
@@ -74,20 +99,6 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
             langtok_idx = self.tokenizer.convert_tokens_to_ids(langtok)
         return langtok_idx
 
-    def create_prompt_strings(self, sample):
-        if len(self.task_prefixes) > 0:
-            batch_keys = ["task"]
-            task = sample.get('task', None)
-            sample["task"] = random.choice(self.task_prefixes) if task is None else task
-        else:
-            batch_keys = []
-            sample["task"] = None
-        batch_keys.append("src_lang")
-        if self.target_lang_on_source:
-            batch_keys.append("tgt_lang")
-        prompt = " ".join(f"__{sample[key]}__" for key in batch_keys if key in sample and sample[key] is not None)
-        return prompt if prompt else None
-
     def _obtain_whatever(self, batch, **kwargs):
         raise NotImplementedError("_obtain_<whatever> methods must be implemented by the child class.")
         
@@ -95,19 +106,12 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
         raise NotImplementedError("_obtain_multimodal_input_and_masks method must be implemented by the child class.")
 
     def _obtain_src_prompt(self, batch, **kwargs):
-        src_prompt_list = [self.create_prompt_strings(sample) for sample in batch]
-        src_prompt = torch.stack([torch.LongTensor(
-            self.tokenizer.encode(
-                text=sample, 
-                add_special_tokens=False, 
-                padding=False, 
-                truncation=None, 
-                max_length=None, 
-                stride=0, 
-                return_tensors=None,
-            )) for sample in src_prompt_list]) if self.tokenizer is not None else None
+
+        padded_prompts, source_prompt_length_padding_mask = self.process_prompts([sample['source_prompt'] for sample in batch])
+
         return {
-            "src_prompt": src_prompt,                          # torch.Size([batch_size, 1])
+            "src_prompt": padded_prompts,                                               # torch.Size([batch_size, prompt_length])
+            "source_prompt_length_padding_mask": source_prompt_length_padding_mask,     # torch.Size([batch_size, prompt_length])
         }, kwargs
 
     def _obtain_others(self, batch, **kwargs):

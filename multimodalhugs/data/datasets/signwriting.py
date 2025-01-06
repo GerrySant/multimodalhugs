@@ -20,24 +20,6 @@ from multimodalhugs.data import (
 )
 from multimodalhugs.custom_datasets import properly_format_signbank_plus
 
-REQUIRED_COLUMNS = ['source', 'target', 'tgt_lang', 'src_lang']
-
-def ensure_manifest_format(metafile_path):
-    metafile_path = Path(metafile_path)
-    if "corrected_" in metafile_path.name:
-        return metafile_path
-    else:
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train")
-        if not check_columns(dataset, REQUIRED_COLUMNS):
-            dir_name, file_name = os.path.split(metafile_path)
-            new_file_name = "corrected_" + file_name
-            out_path = Path(dir_name) / new_file_name
-            if not out_path.exists():
-                properly_format_signbank_plus(metafile_path)
-            return out_path
-        else:
-            return metafile_path
-
 class SignWritingDataset(datasets.GeneratorBasedBuilder):
     def __init__(
         self,
@@ -49,18 +31,15 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         super().__init__(info=dataset_info, *args, **kwargs)
 
         self.config = config
-        self.data_dir = config.data_dir
-        self.train_split_name = config.train_split_name.split('.')[0] if config.train_split_name is not None else "corrected_train"
-        self.dev_split_name = config.dev_split_name.split('.')[0] if config.dev_split_name is not None else "corrected_dev"
-        self.test_split_name = config.test_split_name.split('.')[0] if config.test_split_name is not None else "corrected_all"
         
     def _info(self):
         dataset_features = {
-                "src_lang": str,
                 "source": str,
-                "tgt_lang": str,
-                "tgt_sentence": str,
-                "task": Optional[str],
+                "source_start": Optional[float],
+                "source_end": Optional[float],
+                "source_prompt": Optional[str],
+                "generation_prompt": Optional[str],
+                "output_text": Optional[str],
             }
         dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
@@ -74,22 +53,22 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
             datasets.SplitGenerator(
                 name=datasets.Split.TRAIN,
                 gen_kwargs={
-                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/cleaned/{self.train_split_name}.csv"), 
-                    "split": "train"
+                    "metafile_path": self.config.train_metadata_dir, 
+                    "split": f"{datasets.Split.TRAIN}"
                 }
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
-                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/cleaned/{self.dev_split_name}.csv"), 
-                    "split": "validation"
+                    "metafile_path": self.config.validation_metadata_dir, 
+                    "split": "val"
                 }
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.TEST,
                 gen_kwargs={
-                    "metafile_path": os.path.join(self.data_dir, f"data/parallel/test/{self.test_split_name}.csv"), 
-                    "split": "test"
+                    "metafile_path": self.config.test_metadata_dir, 
+                    "split": f"{datasets.Split.TEST}"
                 }
             ),
         ]
@@ -100,23 +79,16 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         """
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train")
-        if not check_columns(dataset, REQUIRED_COLUMNS):
-            dir_name, file_name = os.path.split(metafile_path)
-            new_file_name = "corrected_" + file_name
-            out_path = Path(dir_name) / new_file_name
-            if not out_path.exists():
-                properly_format_signbank_plus(metafile_path)
-            dataset = load_dataset('csv', data_files=[str(out_path)], split="train")
-
+        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
         dataset = dataset.filter(lambda sample: not contains_empty(sample))
 
+        # Yield examples
         for idx, item in enumerate(dataset):
-
             yield idx, {
-                "src_lang": item['src_lang'],
-                "source": item['source'],
-                "tgt_lang": item['tgt_lang'],
-                "tgt_sentence": item['target'],
-                "task": self.config.task,
+                "source": item.get('source_sequence', ''),
+                "source_start": item.get('start_time', 0),
+                "source_end": item.get('end_time', 0),
+                "source_prompt": item.get('source_prompt', ""),
+                "generation_prompt": item.get('generation_prompt', ""),
+                "output_text": item['output_text'],
             }

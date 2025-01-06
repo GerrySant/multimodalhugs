@@ -11,17 +11,11 @@ from typing import Union
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-def properly_format_signbank_plus(path: Union[str, Path]) -> pd.DataFrame:
+def properly_format_signbank_plus(path: Union[str, Path], save_corrected: bool = True) -> pd.DataFrame:
 
     '''
     Inputs:
-        - path: Path to the .csv file storing the data.
-        - language_pairs: langs supported by the LLM.
-        - lang_mapping: Python dictionary containing the mapping of unsupported language pairs to supported language pairs.
-        - drop_samples_with_unsupported_lang: If True, it drops samples that contains unsupported language tokens by the LLM.
-        - sign_to_remove: List of Signs that will be removed from the source ascii_signs.
-        - verbose: if True, it provides extra information.
-
+        - path: Path to the .csv file storing the data.n.
     '''
     def load_sign_writting_file(name: str, array_fields: list[str] = ["texts", "annotated_texts"]):
         with open(name, "r", encoding="utf-8") as f:
@@ -70,6 +64,7 @@ def properly_format_signbank_plus(path: Union[str, Path]) -> pd.DataFrame:
     new_file_name = "corrected_" + file_name
     out_path = os.path.join(dir_name, new_file_name)
     df = df.fillna('')
-    df.to_csv(out_path, index=False)
+    if save_corrected:
+        df.to_csv(out_path, index=False)
     logger.info(f"Saving correctly formated data on: {out_path}")
     return df

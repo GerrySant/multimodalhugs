@@ -23,7 +23,7 @@ model:
   freeze_lang_embeddings: False
   freeze_backbone: True
   freeze_lm_head: True
-  lang_embeddings_vocab_size: 79 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
+  lang_embeddings_vocab_size: 128182 # N_new_languages + N_special_tokens. N_special_tokens is normally 4: <bos>, <eos>, <unk>, <pad>
   feature_extractor_cfg: # Specify args to be modified in the feature extractor architecture
     feature_extractor_arguments: "<config-arguments>"
 
@@ -59,10 +59,9 @@ training:
   fp16: True
 
 data:
-  data_dir: "/path/to/data/directory"
-  train_split_name: "<train_file>"
-  dev_split_name: "<dev_file>"
-  test_split_name: "<test_file>"
+  train_metadata_dir: "/path/to/train/metadata_file.tsv"
+  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"
+  test_metadata_dir: "/path/to/test/metadata_file.tsv"
   filter_empty_samples: True
   shuffle: True
   src_lang_tokenizer_path: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"

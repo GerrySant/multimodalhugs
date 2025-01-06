@@ -28,10 +28,12 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
     
     def _info(self):
         dataset_features = {
-                "src_lang": str,
-                "tgt_lang": str,
-                "tgt_sentence": str,
-                "task": Optional[str],
+                "source": str,
+                "source_start": Optional[float],
+                "source_end": Optional[float],
+                "source_prompt": Optional[str],
+                "generation_prompt": Optional[str],
+                "output_text": Optional[str],
             }
         if self.as_numpy:
             dataset_features["source"] = np.ndarray
@@ -60,11 +62,9 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
             )
             return sample
 
-        dataset = self._get_dataframe(
-            split_directory=kwargs['split_directory'],
-            src_lang=self.config.src_lang,
-            tgt_lang=self.config.tgt_lang
-            )
+        metafile_path = kwargs['metafile_path']
+        split = kwargs['split']
+        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
 
         if self.as_numpy:
             dataset = dataset.map(create_image_secuences)
@@ -72,9 +72,10 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "src_lang": 'v' + self.config.src_lang,
-                "source": item['source'],
-                "tgt_lang": self.config.tgt_lang,
-                "tgt_sentence": item['target'],
-                "task": self.config.task,
+                "source": item.get('source', item['source_text']),
+                "source_start": item.get('start_time', 0),
+                "source_end": item.get('end_time', 0),
+                "source_prompt": item.get('source_prompt', ""),
+                "generation_prompt": item.get('generation_prompt', ""),
+                "output_text": item['output_text'],
             }

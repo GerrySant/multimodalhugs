@@ -153,12 +153,6 @@ class ProcessorArguments:
     processor_name_or_path: Optional[str] = field(
         default=None, metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
-    task_prefixes: List[str] = field(
-        default_factory=list,
-        metadata={
-            "help": "A list of prefixes to prepend to input text for each task."
-        }
-    )
     target_lang_on_source: bool = field(
         default=False,
         metadata={
@@ -297,12 +291,6 @@ class DataTrainingArguments:
                 " multilingual models like :doc:`mBART <../model_doc/mbart>` where the first generated token needs to"
                 " be the target language token.(Usually it is the target language token)"
             )
-        },
-    )
-    insert_langtok_on_target: bool = field(
-        default=True,
-        metadata={
-            "help": "Whether to insert tgt_lang_token to the labels in the loss computation or not."
         },
     )
 
@@ -654,7 +642,6 @@ def main():
             model=model,
             pad_to_multiple_of=8 if training_args.fp16 else None,
             label_pad_token_id=label_pad_token_id,
-            insert_langtok_on_target=data_args.insert_langtok_on_target
             )
     elif data_args.pad_to_max_length:
         data_collator = default_data_collator

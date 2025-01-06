@@ -100,6 +100,7 @@ def test_overfitting_accuracy(model_setup):
                 forced_bos_token_id=tgt_tokenizer.convert_tokens_to_ids(f"__{lang}__"),
                 attention_mask=INPUTS['attention_mask'][i].unsqueeze(0),
                 src_prompt=INPUTS['src_prompt'][i].unsqueeze(0),
+                source_prompt_length_padding_mask=INPUTS['source_prompt_length_padding_mask'][i].unsqueeze(0),
                 max_length=50,  # Maximum length of the output sequence
                 num_beams=5,   # Use beam search with specified beam width
                 no_repeat_ngram_size=2,  # Prevent repeating ngrams

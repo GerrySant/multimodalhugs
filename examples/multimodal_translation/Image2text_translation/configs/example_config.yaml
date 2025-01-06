@@ -59,12 +59,9 @@ training:
   fp16: True
 
 data:
-  data_dir: "/path/to/data/directory"
-  train_split_name: "train"
-  dev_split_name: "dev"
-  test_split_name: "devtest"
-  src_lang: "he"
-  tgt_lang: "en"
+  train_metadata_dir: "/path/to/train/metadata_file.tsv"
+  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"
+  test_metadata_dir: "/path/to/test/metadata_file.tsv"
   font_path: "/examples/multimodal_translation/Image2text_translation/other/Arial.ttf"
   as_numpy: false
   shuffle: True

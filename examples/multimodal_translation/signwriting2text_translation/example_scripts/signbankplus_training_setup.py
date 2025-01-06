@@ -36,11 +36,24 @@ def main(config_path):
             )
 
     m2m_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
-    tokenizer = add_new_special_tokens_from_vocab_file(
-        tokenizer=copy.deepcopy(m2m_tokenizer), 
-        vocab_file=dataset_config.src_lang_tokenizer_path,
-        output_dir=config.training.output_dir + "/" + config.model.name,
-    )
+
+    tokenizer = m2m_tokenizer
+
+    vocab_files = []
+    if dataset_config.src_lang_tokenizer_path:
+        vocab_files.append(dataset_config.src_lang_tokenizer_path)
+    if dataset_config.new_task_tokens_dictionary_path:
+        vocab_files.append(dataset_config.new_task_tokens_dictionary_path)
+
+    for i, vocab_file in enumerate(vocab_files):
+        output_dir = None
+        if i == len(vocab_files) - 1:
+            output_dir = f"{config.training.output_dir}/{config.model.name}"
+        tokenizer = add_new_special_tokens_from_vocab_file(
+            tokenizer=copy.deepcopy(tokenizer),
+            vocab_file=vocab_file,
+            output_dir=output_dir,
+        )
 
     input_processor = SignwritingProcessor(
             width=dataset_config.preprocess.width,
@@ -51,8 +64,6 @@ def main(config_path):
             dataset_std=dataset_config.preprocess.dataset_std,
             frame_preprocessor=frame_preprocessor,
             tokenizer=tokenizer,
-            target_lang_on_source=True,
-            task_prefixes=[],
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

@@ -51,9 +51,7 @@ def main(config_path):
         height=dataset_config.preprocess.height,
         normalize_image=dataset_config.preprocess.do_normalize,
         mean=dataset_config.preprocess.dataset_mean,
-        std=dataset_config.preprocess.dataset_std,   
-        target_lang_on_source=True,
-        task_prefixes=[],
+        std=dataset_config.preprocess.dataset_std,
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

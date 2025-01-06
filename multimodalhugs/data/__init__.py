@@ -3,7 +3,6 @@ from .dataset_configs.data_configs import (
     PreprocessArguments, 
     MultimodalMTDataConfig, 
     SignLanguageMTDataConfig, 
-    BilingualMTDataConfig,
     BilingualImage2textMTDataConfig,
 )
 from .datasets.signwriting import SignWritingDataset
