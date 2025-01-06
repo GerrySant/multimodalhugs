@@ -85,9 +85,9 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
             if 'input_clip' in sample and sample['input_clip']:
                 if not os.path.exists(sample['input_clip']):
                     if self.config.is_numpy_video:
-                        sample['source'] = f"{metafile_path.split("text")[0].rstrip("/")}/rgb_front/numpy_videos/{sample['input_clip']}.npy"
+                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/numpy_videos/{sample['input_clip']}.npy"
                     elif self.config.is_pose:
-                        sample['source'] = f"{metafile_path.split("text")[0].rstrip("/")}/rgb_front/pose_estimation/{sample['input_clip']}.pose"
+                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/pose_estimation/{sample['input_clip']}.pose"
                     else:
                         raise ValueError("At least one of is_numpy_video or is_pose must be True")
                 else:
