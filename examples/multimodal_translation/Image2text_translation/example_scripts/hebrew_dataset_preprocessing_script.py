@@ -73,8 +73,3 @@ else:
     data[output_columns].to_csv(args.output_file, index=False)
 
 print(f"Transformed dataset saved to {args.output_file}")
-
-
-
-
-# He de acabar el script que preprocessa les dades de hebrew, despres acabar de comprobar les classes datasets, i els experiments setup de la carpeta de examples

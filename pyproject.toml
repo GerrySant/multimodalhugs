@@ -3,7 +3,8 @@ name = "multimodalhugs"
 description = "MultimodalHugs is an extension of Hugging Face that offers a generalized framework for training, evaluating, and using multimodal AI models with minimal code differences, ensuring seamless compatibility with Hugging Face pipelines."
 version = "0.0.1"
 authors = [
-    { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" }
+    { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" },
+    { name = "Amit Moryossef" }
 ]
 readme = "README.md"
 dependencies = [
@@ -29,6 +30,7 @@ dependencies = [
     "evaluate",
     "signwriting @ git+https://github.com/sign-language-processing/signwriting",
     "pose_format",
+    "ruamel.yaml",
 ]
 
 [project.optional-dependencies]

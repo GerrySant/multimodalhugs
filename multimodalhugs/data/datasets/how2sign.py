@@ -95,15 +95,15 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
                 sample['source_start'] = 0
                 sample['source_end'] = 0
             else:
-                if not os.path.exists(sample['input_pose']):
+                if not os.path.exists(sample['input']):
                     if self.config.is_numpy_video:
-                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/numpy_videos/{sample['input_pose']}.npy"
+                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/numpy_videos/{sample['input']}.npy"
                     elif self.config.is_pose:
-                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/pose_estimation/{sample['input_pose']}.pose"
+                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/pose_estimation/{sample['input']}.pose"
                     else:
                         raise ValueError("At least one of is_numpy_video or is_pose must be True")
                 else:
-                    sample['source'] = sample['input_pose']
+                    sample['source'] = sample['input']
             return sample
 
         # Apply the update to the VIDEO_NAME column

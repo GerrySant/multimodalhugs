@@ -9,7 +9,7 @@ parser.add_argument("output_file", type=str, help="Path to the output CSV file."
 args = parser.parse_args()
 
 # Placeholder functions for constructing new fields
-def construct_input_pose(row):
+def construct_input(row):
     return ""  # Replace with the actual implementation or keep empty
 
 def construct_source_start(row):
@@ -43,7 +43,7 @@ def map_column_to_new_field(original_column, new_column_name, data):
 data = pd.read_csv(args.input_file, delimiter="\t")
 
 # Create new columns using the placeholder functions
-data['input_pose'] = data.apply(construct_input_pose, axis=1)
+data['input'] = data.apply(construct_input, axis=1)
 data['source_start'] = data.apply(construct_source_start, axis=1)
 data['source_end'] = data.apply(construct_source_end, axis=1)
 data['input_clip'] = data.apply(construct_input_clip, axis=1)
@@ -53,7 +53,7 @@ data['generation_prompt'] = data.apply(construct_generation_prompts, axis=1)
 data['output_text'] = data.apply(construct_output_text, axis=1)
 
 # Example of mapping original columns to new ones
-map_column_to_new_field('VIDEO_NAME', 'input_pose', data)
+map_column_to_new_field('VIDEO_NAME', 'input', data)
 map_column_to_new_field('START', 'source_start', data)
 map_column_to_new_field('END', 'source_end', data)
 map_column_to_new_field('SENTENCE', 'output_text', data)
@@ -62,7 +62,7 @@ map_column_to_new_field('SENTENCE_NAME', 'input_clip', data)
 
 # Select the desired columns for the new dataset
 output_columns = [
-    'input_pose',
+    'input',
     'source_start',
     'source_end',
     'input_clip',

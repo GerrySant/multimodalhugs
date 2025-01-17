@@ -29,8 +29,8 @@ def main(config_path):
     tokenizer = m2m_tokenizer
 
     vocab_files = []
-    if dataset_config.src_lang_tokenizer_path:
-        vocab_files.append(dataset_config.src_lang_tokenizer_path)
+    if dataset_config.tokenizer_src_langs_path:
+        vocab_files.append(dataset_config.tokenizer_src_langs_path)
     if dataset_config.new_task_tokens_dictionary_path:
         vocab_files.append(dataset_config.new_task_tokens_dictionary_path)
 
@@ -62,7 +62,8 @@ def main(config_path):
     model = MultiModalEmbedderModel.build_model(
         cfg=config.model, 
         src_tokenizer=tokenizer, 
-        tgt_tokenizer=m2m_tokenizer
+        tgt_tokenizer=m2m_tokenizer,
+        config_path=config_path,
     )
 
     model_path = f"{config.training.output_dir}/{config.model.name}/trained_model"
