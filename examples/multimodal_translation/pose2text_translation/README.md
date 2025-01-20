@@ -27,12 +27,12 @@ python how2sign_dataset_preprocessing_script.py /path/to/input.csv /path/to/outp
 The `metadata.tsv` files for each partition must include the following fields:
 
 - `input`: Path to the input pose.
-- `source_start`: Start timestamp (commonly in milliseconds) of the input segment.
-- `source_end`: End timestamp (commonly in milliseconds) of the input segment.
+- `source_start`: Start timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
+- `source_end`: End timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
 - `input_clip`: (optional) Path to the input pose clip.
-- `input_text`: Original text transcription.
-- `source_prompt`: Source prompt for input conditioning.
-- `generation_prompt`: Prompt to guide text generation.
+- `input_text`: (optional) In case another text input is needed. (e.g., Siamese networks)
+- `source_prompt`: A text string (e.g., `__pose__ __en__`) that helps the model distinguish the modality or language. Can be empty if not used.
+- `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
 - `output_text`: Target text for translation.
   
 If `input_clip` is provided, fields `input`, `source_start` and `source_end` are not required. If `source_prompt` and `generation_prompt` are nout needed, can be let empty.
