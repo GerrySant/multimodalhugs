@@ -38,7 +38,7 @@ def create_dataframe(sources_file, targets_file, source_prompts, generation_prom
 
     # Create the DataFrame
     dataframe = pd.DataFrame({
-        'source_text': sources,
+        'input': sources,
         'source_prompt': source_prompt,
         'generation_prompt': generation_prompts,
         'output_text': targets
@@ -60,7 +60,7 @@ except Exception as e:
 
 # Select the desired columns for the new dataset
 output_columns = [
-    'source_text',
+    'input',
     'source_prompt',
     'generation_prompt',
     'output_text'

@@ -74,7 +74,7 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
 
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item['source_text'],
+                "source": item['input'],
                 "source_prompt": item['source_prompt'],
                 "generation_prompt": item['generation_prompt'],
                 "output_text": item['output_text'],
