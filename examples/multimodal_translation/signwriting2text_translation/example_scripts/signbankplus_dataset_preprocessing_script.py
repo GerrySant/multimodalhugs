@@ -11,7 +11,7 @@ parser.add_argument("output_file", type=str, help="Path to the output TSV file."
 args = parser.parse_args()
 
 # Placeholder functions for constructing new fields
-def construct_source_sequence(row):
+def construct_input(row):
     return ""  # Replace with the actual implementation or keep empty
 
 def construct_source_prompt(row):
@@ -35,12 +35,12 @@ data['source_prompt'] = data.apply(construct_source_prompt, axis=1)
 data['generation_prompt'] = data.apply(construct_generation_prompt, axis=1)
 
 # Example of mapping original columns to new ones
-map_column_to_new_field('source', 'source_sequence', data)
+map_column_to_new_field('source', 'input', data)
 map_column_to_new_field('target', 'output_text', data)
 
 # Select the desired columns for the new dataset
 output_columns = [
-    'source_sequence',
+    'input',
     'source_prompt',
     'generation_prompt',
     'output_text'
