@@ -26,7 +26,7 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
 
         self.name = "how2sign_poses" if config.is_pose else "how2sign"
         self.config = config
-        self.fps = config.fps if config.fps is not None else 24
+        self.fps = config.fps if  is not None else 24
         self.max_frames = config.max_frames
 
     def _info(self):
@@ -81,19 +81,7 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
 
         # Update VIDEO_NAME column with the full file path
         def update_file_name(sample):
-            sample['DURATION'] = math.ceil((sample['source_end'] - sample['source_start']) * self.fps)
-            if 'input_clip' in sample and sample['input_clip']:
-                if not os.path.exists(sample['input_clip']):
-                    if self.config.is_numpy_video:
-                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/numpy_videos/{sample['input_clip']}.npy"
-                    elif self.config.is_pose:
-                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/pose_estimation/{sample['input_clip']}.pose"
-                    else:
-                        raise ValueError("At least one of is_numpy_video or is_pose must be True")
-                else:
-                    sample['source'] = sample['input_clip']
-                sample['source_start'] = 0
-                sample['source_end'] = 0
+            sample['DURATION'] = math.ceil((sample['source_end'] - sample['source_start']))
             else:
                 if not os.path.exists(sample['input']):
                     if self.config.is_numpy_video:

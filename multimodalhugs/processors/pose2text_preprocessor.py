@@ -36,9 +36,29 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         self.reduce_holistic_poses = reduce_holistic_poses
         super().__init__(tokenizer=tokenizer, **kwargs)
 
-    def _pose_file_to_tensor(self, pose_file: Union[str, Path]):
+    def _pose_file_to_tensor(
+        self, 
+        pose_file: Union[str, Path], 
+        source_start: int = 0, 
+        source_end: int = 0
+    ) -> torch.Tensor:
+        """
+        Converts a pose file to a tensor representation.
+        
+        Args:
+            pose_file (Union[str, Path]): Path to the pose file.
+            source_start (int): Starting index or frame (default is 0).
+            source_end (int): Ending index or frame (default is 0).
+
+        Returns:
+            torch.Tensor: Tensor representation of the pose file.
+        """
+        
         with open(pose_file, "rb") as pose_file:
-            pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
+            if (source_end - source_start) == 0:
+                pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
+            else:
+                pose = Pose.read(pose_file.read(), start_frame=0, end_frame=2) # [t, people, d, xyz]
         
         pose_hide_legs(pose)
     
@@ -51,7 +71,7 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         return tensor.contiguous().view(tensor.size(0), -1)
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
-        tensor_secuences = [self._pose_file_to_tensor(sample["source"]) for sample in batch]
+        tensor_secuences = [self._pose_file_to_tensor(sample["source"], sample["source_start"], sample["source_end"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_secuences)
         return {
             "inputs_embeds": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])
