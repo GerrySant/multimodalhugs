@@ -66,6 +66,9 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
 
     def visualize_generation(self, preds, labels):
 
+        pad_id = self.tokenizer.pad_token_id
+        labels[labels == -100] = pad_id
+
         T = self.tokenizer.batch_decode(labels, skip_special_tokens=False)
         P = self.tokenizer.batch_decode(preds, skip_special_tokens=False)
         L = self.tokenizer.batch_decode(labels, skip_special_tokens=True)

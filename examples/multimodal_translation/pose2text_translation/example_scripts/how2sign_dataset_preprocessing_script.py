@@ -20,7 +20,10 @@ def set_as_0(row):
     return 0
 
 def construct_source_prompt(row):
-    return "__slt__ __asl__ __en__"
+    return "__asl__"
+
+def construct_generation_prompt(row):
+    return "__en__"
 
 def map_column_to_new_field(original_column, new_column_name, data):
     if original_column in data.columns:
@@ -45,7 +48,7 @@ def main():
     data['source_end'] = data.apply(set_as_0, axis=1)
     data['source_prompt'] = data.apply(construct_source_prompt, axis=1)
     data['input_text'] = data.apply(leave_blank, axis=1)
-    data['generation_prompt'] = data.apply(leave_blank, axis=1)
+    data['generation_prompt'] = data.apply(construct_generation_prompt, axis=1)
     data['output_text'] = data.apply(leave_blank, axis=1)
     
     # Example of mapping original columns to new ones

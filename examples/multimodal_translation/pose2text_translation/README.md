@@ -63,21 +63,66 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 ## 3. Launching the Training Process
 **Goal**: Start the full Pose2Text training routine using Hugging Face’s Trainer.
 
-- **Script**: [how2sign_training.sh](https://github.com/GerrySant/multimodalhugs/blob/master/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_training_setup.py)
 - **Process**:
   1. (Optional) Activate a virtual environment or conda environment.
-  2. Define environment variables (e.g., `MODEL_NAME`, `REPO_PATH`, `CONFIG_PATH`, `OUTPUT_PATH`).
-  3. Preprocess the dataset (calling how2sign_dataset_preprocessing_script.py).
-  4. Run `how2sign_training_setup.py` to configure and retrieve paths.
-  5. Invoke `run_translation.py` with the correct arguments.
+  2. Define environment variables (e.g., `MODEL_NAME`, `REPO_PATH`, `CONFIG_PATH`, `OUTPUT_PATH`, etc).
+  3. Run `run_translation.py` with the correct arguments.
+
+- **Training Command Lines:**:
+
+```bash
+# ----------------------------------------------------------
+# 1. Specify global variables
+# ----------------------------------------------------------
+export MODEL_NAME="pose2text_example"
+export REPO_PATH="/path/to/your/multimodalhugs"
+export CONFIG_PATH="/path/to/pose2text_config.yaml"
+export OUTPUT_PATH="/path/to/your/output_directory"
+export MODEL_PATH="/obtained/by/how2sign_training_setup.py"
+export PROCESSOR_PATH="/obtained/by/how2sign_training_setup.py"
+export DATA_PATH="/obtained/by/how2sign_training_setup.py"
+
+# ----------------------------------------------------------
+# 2. Train the Model
+# ----------------------------------------------------------
+python ${REPO_PATH}/examples/multimodal_translation/run_translation.py \
+    --model_name_or_path $MODEL_PATH \
+    --processor_name_or_path $PROCESSOR_PATH \
+    --run_name $MODEL_NAME \
+    --dataset_dir $DATA_PATH \
+    --output_dir $OUTPUT_PATH \
+    --do_train True \
+    --do_eval True \
+    --fp16 \
+    --label_smoothing_factor 0.1 \
+    --remove_unused_columns False \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 8 \
+    --evaluation_strategy "steps" \
+    --eval_steps 2000 \
+    --save_strategy "steps" \
+    --save_steps 2000 \
+    --save_total_limit 3 \
+    --load_best_model_at_end true \
+    --metric_for_best_model 'bleu' \
+    --overwrite_output_dir \
+    --per_device_eval_batch_size 8 \
+    --gradient_accumulation_steps 4 \
+    --learning_rate 5e-05 \
+    --warmup_steps 20000 \
+    --max_steps 200000 \
+    --predict_with_generate True \
+```
+>**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 
 
-Example usage:
+## Full Pipeline Example
+
+The script [how2sign_training_pipeline.sh](https://github.com/GerrySant/multimodalhugs/blob/master/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_training_pipeline.py) performs the entire pipeline, taking care of both the preprocessing of the dataset, the setup of the training modules and finally launches a training example. Simply run the following command:
 
 ```bash
 bash how2sign_training.sh
 ```
->**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 
 ## Directory Overview
 ```kotlin
