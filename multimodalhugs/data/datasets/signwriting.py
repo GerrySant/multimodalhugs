@@ -85,7 +85,7 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item.get('input', ''),
+                "source": item.get('source_signal', ''),
                 "source_start": item.get('start_time', 0),
                 "source_end": item.get('end_time', 0),
                 "source_prompt": item.get('source_prompt', ""),

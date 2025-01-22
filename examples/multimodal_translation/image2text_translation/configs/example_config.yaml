@@ -46,10 +46,10 @@ data:
   train_metadata_dir: "/path/to/train/metadata_file.tsv"
   validation_metadata_dir: "/path/to/validation/metadata_file.tsv"
   test_metadata_dir: "/path/to/test/metadata_file.tsv"
-  font_path: "/examples/multimodal_translation/Image2text_translation/other/Arial.ttf"
+  font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"
   as_numpy: false
   shuffle: True
-  tokenizer_src_langs_path: "/examples/multimodal_translation/Image2text_translation/other/new_languages_hebrew.txt"
+  tokenizer_src_langs_path: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"
   text_tokenizer_path: "<pretrained-tokenizer>" # M2M example: "facebook/m2m100_418M"
   max_seq_length: 512
   max_frames: 300

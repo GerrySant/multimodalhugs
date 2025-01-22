@@ -25,14 +25,17 @@ export CUDA_VISIBLE_DEVICES=0
 # ----------------------------------------------------------
 python ${REPO_PATH}/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_dataset_preprocessing_script.py \
     /path/to/how2sign_test.csv \
+    /path/to/test_pose_files_directory \
     /path/to/how2sign_test_processed.tsv
 
 python ${REPO_PATH}/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_dataset_preprocessing_script.py \
     /path/to/how2sign_val.csv \
+    /path/to/val_pose_files_directory \
     /path/to/how2sign_val_processed.tsv
 
 python ${REPO_PATH}/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_dataset_preprocessing_script.py \
     /path/to/how2sign_train.csv \
+    /path/to/train_pose_files_directory \
     /path/to/how2sign_train_processed.tsv
 
 

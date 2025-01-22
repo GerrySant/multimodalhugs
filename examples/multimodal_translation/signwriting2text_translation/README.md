@@ -28,7 +28,7 @@ python signbankplus_dataset_preprocessing_script.py /path/to/input.csv /path/to/
 
 The `metadata.tsv` files must contain the following fields:
 
-- `input`: The SignWriting source sequence.
+- `source_signal`: The SignWriting source sequence.
 - `source_prompt`: A text string (e.g., `__signwriting__ __en__`) to guide modality and language processing.
 - `generation_prompt`: A prompt for the target language.
 - `output_text`: The corresponding text translation.

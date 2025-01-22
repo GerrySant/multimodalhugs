@@ -58,7 +58,7 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
             if (source_end - source_start) == 0:
                 pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
             else:
-                pose = Pose.read(pose_file.read(), start_frame=0, end_frame=2) # [t, people, d, xyz]
+                pose = Pose.read(pose_file.read(), start_frame=source_start, end_frame=source_end) # [t, people, d, xyz]
         
         pose_hide_legs(pose)
     

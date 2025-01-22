@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
-import pandas as pd
+import os
 import argparse
+import pandas as pd
 
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Process and transform a CSV file.")
     parser.add_argument("input_file", type=str, help="Path to the input CSV file.")
+    parser.add_argument("pose_directory", type=str, help="Path to the pose files.")
     parser.add_argument("output_file", type=str, help="Path to the output CSV file.")
     return parser.parse_args()
 
@@ -38,21 +40,23 @@ def main():
     data = pd.read_csv(args.input_file, delimiter="\t")
 
     # Create new columns using the placeholder functions
-    data['input'] = data.apply(leave_blank, axis=1)
+    data['source_signal'] = data.apply(leave_blank, axis=1)
     data['source_start'] = data.apply(set_as_0, axis=1)
     data['source_end'] = data.apply(set_as_0, axis=1)
     data['source_prompt'] = data.apply(construct_source_prompt, axis=1)
     data['input_text'] = data.apply(leave_blank, axis=1)
     data['generation_prompt'] = data.apply(leave_blank, axis=1)
     data['output_text'] = data.apply(leave_blank, axis=1)
-
+    
     # Example of mapping original columns to new ones
-    map_column_to_new_field('SENTENCE_NAME', 'input', data)
+    map_column_to_new_field('SENTENCE_NAME', 'source_signal', data)
     map_column_to_new_field('SENTENCE', 'output_text', data)
+    
+    data['source_signal'] = data['source_signal'].apply(lambda x: f"{args.pose_directory}/{x}.pose")
 
     # Select the desired columns for the new dataset
     output_columns = [
-        'input',
+        'source_signal',
         'source_start',
         'source_end',
         'input_text',

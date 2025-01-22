@@ -4,6 +4,7 @@ import torch
 import datasets
 
 from pathlib import Path
+from pose_format import Pose
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 
@@ -14,7 +15,7 @@ from multimodalhugs.data import (
     duration_filter,
 )
 
-class How2SignDataset(datasets.GeneratorBasedBuilder):
+class Pose2TextDataset(datasets.GeneratorBasedBuilder):
     def __init__(
         self,
         config: SignLanguageMTDataConfig, 
@@ -26,7 +27,6 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
 
         self.name = "how2sign_poses" if config.is_pose else "how2sign"
         self.config = config
-        self.fps = config.fps if  is not None else 24
         self.max_frames = config.max_frames
 
     def _info(self):
@@ -79,26 +79,34 @@ class How2SignDataset(datasets.GeneratorBasedBuilder):
         split = kwargs['split']
         dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
 
-        # Update VIDEO_NAME column with the full file path
-        def update_file_name(sample):
-            sample['DURATION'] = math.ceil((sample['source_end'] - sample['source_start']))
-            else:
-                if not os.path.exists(sample['input']):
-                    if self.config.is_numpy_video:
-                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/numpy_videos/{sample['input']}.npy"
-                    elif self.config.is_pose:
-                        sample['source'] = f"{metafile_path.split('text')[0].rstrip('/')}/rgb_front/pose_estimation/{sample['input']}.pose"
+        def mapping_function(sample):
+            sample['source'] = sample['source_signal']
+            if os.path.exists(sample['source']):
+                with open(sample['source'], "rb") as pose_file:
+                    if (sample['source_end'] - sample['source_start']) == 0:
+                        pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
                     else:
-                        raise ValueError("At least one of is_numpy_video or is_pose must be True")
-                else:
-                    sample['source'] = sample['input']
+                        pose = Pose.read(pose_file.read(), start_frame=sample['source_start'], end_frame=sample['source_end']) # [t, people, d, xyz]
+                sample['DURATION'] = pose.body.data.data.shape[0]
+            else:
+                sample['DURATION'] = 0
             return sample
+        
+        # def obtain_duration(sample):
+        #     with open(sample['source'], "rb") as sample['source']:
+        #         if (sample['source_end'] - sample['source_start']) == 0:
+        #             pose = Pose.read(sample['source'].read()) # [t, people, d, xyz]
+        #         else:
+        #             pose = Pose.read(sample['source'].read(), start_frame=sample['source_start'], end_frame=sample['source_end']) # [t, people, d, xyz]
+        #     sample['DURATION'] = pose.body.data.data.shape[0]
+        #     return sample
 
         # Apply the update to the VIDEO_NAME column
-        dataset = dataset.map(update_file_name)
-
+        dataset = dataset.map(mapping_function)
         # Filter out samples where the updated file path does not exist
         dataset = dataset.filter(lambda sample: file_exists_filter('source', sample))
+
+        # dataset = dataset.map(obtain_duration)
 
         dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample))
 

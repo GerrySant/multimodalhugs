@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import pandas as pd
 import os
 import argparse
+import pandas as pd
 
 def read_file_lines(filepath):
     """
@@ -51,7 +51,7 @@ def create_dataframe(sources_file, targets_file, source_prompts, generation_prom
 
     # Create the DataFrame
     dataframe = pd.DataFrame({
-        'input': sources,
+        'source_signal': sources,
         'source_prompt': source_prompt,
         'generation_prompt': generation_prompts,
         'output_text': targets
@@ -87,7 +87,7 @@ def main():
 
     # Select the desired columns for the new dataset
     output_columns = [
-        'input',
+        'source_signal',
         'source_prompt',
         'generation_prompt',
         'output_text'

@@ -72,7 +72,7 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item.get('source', item['input']),
+                "source": item.get('source', item['source_signal']),
                 "source_start": item.get('start_time', 0),
                 "source_end": item.get('end_time', 0),
                 "source_prompt": item.get('source_prompt', ""),

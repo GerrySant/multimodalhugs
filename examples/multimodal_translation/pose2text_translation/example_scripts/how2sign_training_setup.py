@@ -7,7 +7,7 @@ import argparse
 from omegaconf import OmegaConf
 from pathlib import Path
 
-from multimodalhugs.data import How2SignDataset, SignLanguageMTDataConfig, add_new_special_tokens_from_vocab_file
+from multimodalhugs.data import Pose2TextDataset, SignLanguageMTDataConfig, add_new_special_tokens_from_vocab_file
 from multimodalhugs.processors import Pose2TextTranslationProcessor
 from multimodalhugs.models import MultiModalEmbedderModel
 
@@ -17,7 +17,7 @@ def main(config_path):
     # Load config and initialize dataset
     config = OmegaConf.load(config_path)
     dataset_config = SignLanguageMTDataConfig(config)
-    dataset = How2SignDataset(config=dataset_config)
+    dataset = Pose2TextDataset(config=dataset_config)
 
     # Download, prepare, and save dataset
     data_path = Path(config.training.output_dir) / config.model.name / "datasets" / dataset.name

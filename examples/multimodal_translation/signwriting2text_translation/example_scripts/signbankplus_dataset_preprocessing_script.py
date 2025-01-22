@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import pandas as pd
 import os
 import argparse
+import pandas as pd
 
 from multimodalhugs.custom_datasets import properly_format_signbank_plus
 
@@ -44,12 +44,12 @@ def main():
     data['generation_prompt'] = data.apply(construct_generation_prompt, axis=1)
 
     # Map original columns to new ones
-    map_column_to_new_field('source', 'input', data)
+    map_column_to_new_field('source', 'source_signal', data)
     map_column_to_new_field('target', 'output_text', data)
 
     # Select the desired columns for the new dataset
     output_columns = [
-        'input',
+        'source_signal',
         'source_prompt',
         'generation_prompt',
         'output_text'
