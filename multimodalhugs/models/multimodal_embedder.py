@@ -18,7 +18,7 @@ from typing import Optional, Dict, Any, Tuple, Union
 
 # Local application libraries
 from multimodalhugs.models import EncoderWrapper, freeze_module_parameters
-from multimodalhugs.modules import VLMapper, FeatureExtractor, SpecialTokensEmbeddings, get_feature_extractor_class
+from multimodalhugs.modules import VLMapper, FeatureExtractor, SpecialTokensEmbeddings, get_feature_extractor_class, CustomEmbedding
 from multimodalhugs.utils import serialize_config
 
 logger = logging.getLogger(__name__)
@@ -44,12 +44,6 @@ def init_encoder_new_embeddings(cfg, new_embeddings, pretrained_embeddings, toke
             logger.info(f"Language embedding layer initialized with weights from the average language embeddings.")
     else:
         logger.info("Language embedding layer initialized from scratch as no initial language was provided.")
-    # Ensure that the special tokens (excluding Languages) of the new language embedding have the same weight from the original embedding layer
-    special_tokens = [tokenizer.special_tokens_map[key] for key in tokenizer.special_tokens_map.keys() if key != "additional_special_tokens"]
-    special_tokens = [tokenizer.convert_tokens_to_ids(special_token) for special_token in special_tokens]
-
-    for token_index in special_tokens:
-        new_embeddings.weight.data[token_index] = pretrained_embeddings.weight.data[token_index]
     return new_embeddings
 
 # Factory function to create the appropriate configuration class based on backbone_name
@@ -115,6 +109,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     new_embeddings_vocab_size: Optional[int] = field(
         default=None, metadata={"help": "vocab_size of the source language embeddings"}
     )
+    backbone_used_vocab_size: Optional[int] = field(
+        default=None, metadata={"help": "Original vocab_size of the backbone excluding garbage embeddings"}
+    )
     init_lang_abbr: Optional[str] = field(
         default=None,
         metadata={
@@ -122,6 +119,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         }
     )
     freeze_new_embeddings: bool = field(
+        default=False, metadata={"help": "if True, the new_embeddings parameters are frozen during training."}
+    )
+    freeze_old_embeddings: bool = field(
         default=False, metadata={"help": "if True, the new_embeddings parameters are frozen during training."}
     )
     backbone_name: str = field(
@@ -218,7 +218,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         # Lang Embedings
         self.special_tokens_embeddings = SpecialTokensEmbeddings(
-            vocab_size=config.new_embeddings_vocab_size,
+            old_vocab_size=config.backbone_used_vocab_size if config.backbone_used_vocab_size is not None else config.backbone_config.vocab_size,
+            new_vocab_size=config.new_embeddings_vocab_size if config.new_embeddings_vocab_size is not None else 0,
             embed_dim=config.encoder_embed_dim,
             scale_embeddings=False if config.no_scale_embedding else True,
             pad_idx=config.pad_token_id,
@@ -226,7 +227,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
 
         if config.freeze_new_embeddings:
-            freeze_module_parameters(self.special_tokens_embeddings)
+            if self.special_tokens_embeddings.special_tokens_embeddings.new_embeddings is not None:
+                freeze_module_parameters(self.special_tokens_embeddings.special_tokens_embeddings.new_embeddings)
+        if config.freeze_old_embeddings:
+            freeze_module_parameters(self.special_tokens_embeddings.special_tokens_embeddings.old_embeddings)
 
         # Backbone
         BackboneModelClass = get_backbone_model_class(config.backbone_name)
@@ -296,7 +300,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         return self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
 
     @classmethod
-    def build_model(cls, cfg, dataset=None, src_tokenizer = None, tgt_tokenizer = None, config_path = None):
+    def build_model(cls, cfg, dataset = None, src_tokenizer = None, tgt_tokenizer = None, config_path = None, new_vocab_tokens = []):
         """Build the MultiModal Embedder model using specific model configuration and dataset."""
 
         if dataset is not None:
@@ -318,18 +322,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         else:
             backbone = BackboneModelClass(cfg.backbone_config)
 
-        # Handling pretrained and language-specific embeddings
-        pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens
-
-        new_embeddings = nn.Embedding(num_embeddings=len(src_tokenizer), embedding_dim=cfg.encoder_embed_dim) 
-
-        new_embeddings = init_encoder_new_embeddings(
-            cfg=cfg, 
-            new_embeddings=new_embeddings, 
-            pretrained_embeddings=pretrained_embeddings, 
-            tokenizer=tgt_tokenizer
-        )
-
         # Determine EOS and PAD token indices
         pad_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
         bos_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.bos_token)
@@ -339,7 +331,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         cfg.pad_token_id = cfg.pad_token_id or pad_token_id
         cfg.bos_token_id = cfg.bos_token_id or bos_token_id
         cfg.eos_token_id = cfg.eos_token_id or eos_token_id
-        cfg.new_embeddings_vocab_size = new_embeddings.num_embeddings
+        cfg.backbone_used_vocab_size = cfg.backbone_used_vocab_size or (src_tokenizer.total_vocab_size - len(new_vocab_tokens))
+        cfg.new_embeddings_vocab_size = cfg.new_embeddings_vocab_size or len(new_vocab_tokens)
 
         # Update YAML configuration file
         if config_path:
@@ -351,16 +344,39 @@ class MultiModalEmbedderModel(PreTrainedModel):
             config_data['model']['pad_token_id'] = cfg.pad_token_id
             config_data['model']['bos_token_id'] = cfg.bos_token_id
             config_data['model']['eos_token_id'] = cfg.eos_token_id
-            config_data['model']['new_embeddings_vocab_size'] = new_embeddings.num_embeddings
+            config_data['model']['backbone_used_vocab_size'] = cfg.backbone_used_vocab_size
+            config_data['model']['new_embeddings_vocab_size'] = cfg.new_embeddings_vocab_size
             
             # Save the updated configuration back to the file
             with open(config_path, 'w') as file:
                 yaml.dump(config_data, file)
 
+        # Handling pretrained and language-specific embeddings
+        pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens # torch.Size([128112, 1024])
+
+        #new_embeddings = nn.Embedding(num_embeddings=len(src_tokenizer), embedding_dim=cfg.encoder_embed_dim) # torch.Size([128105, 1024])
+        source_embeddings = SpecialTokensEmbeddings.build_module(
+            old_vocab_size=(src_tokenizer.total_vocab_size - len(new_vocab_tokens)), 
+            new_vocab_size=len(new_vocab_tokens), 
+            embed_dim=cfg.encoder_embed_dim,
+            scale_embeddings=False if cfg.no_scale_embedding else True,
+            pad_idx=cfg.pad_token_id,
+            eos_idx=cfg.eos_token_id,
+            old_embs_weight=pretrained_embeddings.weight, 
+        )
+        
+        source_embeddings.special_tokens_embeddings.new_embeddings = init_encoder_new_embeddings(
+            cfg=cfg, 
+            new_embeddings=source_embeddings.special_tokens_embeddings.new_embeddings, 
+            pretrained_embeddings=source_embeddings.special_tokens_embeddings.old_embeddings, 
+            tokenizer=tgt_tokenizer
+        )
+
         # Create an instance of the model
         model = cls(config=cfg)
-
-        model.special_tokens_embeddings.special_tokens_embeddings.weight.data = new_embeddings.weight.data.clone()
+    
+        model.special_tokens_embeddings.special_tokens_embeddings.new_embeddings.weight.data = source_embeddings.special_tokens_embeddings.new_embeddings.weight.data.clone()
+        model.special_tokens_embeddings.special_tokens_embeddings.old_embeddings.weight.data = source_embeddings.special_tokens_embeddings.old_embeddings.weight.data.clone()
 
         # Converts all tensors in the model to contiguous
         for param in model.parameters():

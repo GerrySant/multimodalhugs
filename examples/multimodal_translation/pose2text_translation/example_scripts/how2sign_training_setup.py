@@ -29,6 +29,7 @@ def main(config_path):
     tokenizer = m2m_tokenizer
 
     vocab_files = []
+    new_vocab_tokens = []
     if dataset_config.tokenizer_src_langs_path:
         vocab_files.append(dataset_config.tokenizer_src_langs_path)
     if dataset_config.new_task_tokens_dictionary_path:
@@ -38,11 +39,12 @@ def main(config_path):
         output_dir = None
         if i == len(vocab_files) - 1:
             output_dir = f"{config.training.output_dir}/{config.model.name}"
-        tokenizer = add_new_special_tokens_from_vocab_file(
+        tokenizer, new_special_tokens = add_new_special_tokens_from_vocab_file(
             tokenizer=copy.deepcopy(tokenizer),
             vocab_file=vocab_file,
             output_dir=output_dir,
         )
+        new_vocab_tokens = new_vocab_tokens + new_special_tokens
 
     input_processor = Pose2TextTranslationProcessor(
             tokenizer=tokenizer,
@@ -59,6 +61,7 @@ def main(config_path):
         src_tokenizer=tokenizer, 
         tgt_tokenizer=m2m_tokenizer,
         config_path=config_path,
+        new_vocab_tokens=new_vocab_tokens,
     )
 
     model_path = f"{config.training.output_dir}/{config.model.name}/trained_model"

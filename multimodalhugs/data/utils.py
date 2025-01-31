@@ -78,7 +78,7 @@ def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=Non
         )
     if output_dir is not None:
         output_dir + "/tokenizer"
-    return tokenizer
+    return tokenizer, new_special_tokens
 
 def _transform(n_px, mean: List[float] = [0.48145466, 0.4578275, 0.40821073], std: List[float] = [0.26862954, 0.26130258, 0.27577711]):
     mean = tuple(mean)
