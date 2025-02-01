@@ -9,3 +9,6 @@ from .data import *
 from .models import *
 from .utils import *
 from .multilingual_seq2seq_trainer import MultiLingualSeq2SeqTrainer
+
+from .tasks import *
+from .multimodalhugs_cli import *

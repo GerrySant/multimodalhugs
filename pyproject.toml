@@ -74,3 +74,6 @@ where = ["."]
 [tool.pytest.ini_options]
 addopts = "-v"
 testpaths = ["tests"]  # This specifies the directory to look for tests
+
+[project.scripts]
+multimodalhugs-train = "multimodalhugs.multimodalhugs_cli.train:main"
