@@ -29,12 +29,24 @@ The `metadata.tsv` files for each partition must include the following fields:
 - `source_signal`: Path to the input pose.
 - `source_start`: Start timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
 - `source_end`: End timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
-- `input_text`: (optional) In case another text input is needed. (e.g., Siamese networks)
 - `source_prompt`: A text string (e.g., `__pose__ __en__`) that helps the model distinguish the modality or language. Can be empty if not used.
 - `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
 - `output_text`: Target text for translation.
   
-If `source_start` and `source_end` are not required, must be set as `0`. If `source_prompt` and `generation_prompt` are nout needed, can be let empty.
+If `source_start` and `source_end` are not required (when all the frames are used), must be set as `0`. If `source_prompt` and `generation_prompt` are nout needed, can be let empty.
+
+##### Example Metadata File Format
+
+Below is an example of how your metadata file should be structured. Each row represents one sample, and the columns correspond to the required fields:
+
+| **source_signal**                                         | **source_start** | **source_end** | **source_prompt**         | **generation_prompt** | **output_text**                                                                   |
+|-----------------------------------------------------------|------------------|----------------|---------------------------|-----------------------|-----------------------------------------------------------------------------------|
+| `/path/to/pose1.pose`               | `0`                | `0`              | `__slt__ __asl__`     |           `__en__`            | `Hi!`                                                                               |
+| `/path/to/pose2.pose`               | `24`             | `385`              | `__slt__ __asl__`     |              `__en__`           | `The aileron is controlled by lateral movement of the stick.`                       |
+| `/path/to/pose2.pose`               | `404`                | `514`              | `__slt__ __asl__`    |             `__en__`            | `By moving the stick, the angle of attack is adjusted for that wing.`                |
+| `/path/to/pose3.pose`               | `63`                | `88`            | `__slt__ __asl__`    |           `__en__`              | `The elevator adjusts the airplane's angle of attack.`                             |
+
+
 
 ## 2. Setting Up the Training Environment
 

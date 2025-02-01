@@ -1,62 +1,60 @@
 model:
-  name: "multimodal_embedder"
-  feature_extractor_type: "<feature_extractor_type>" # CLIP example: "clip"
-  pretrained_feature_extractor: "<pretrained-clip-model>" # CLIP example: "openai/clip-vit-base-patch32"
-  vl_mapper_type: "linear"
-  vl_mapper_layer_norm_before: true
-  vl_mapper_dropout: 0.1
-  backbone_name: "<pretrained-backbone-model>" # M2M example: "m2m100"
-  pretrained_backbone: "<pretrained-backbone-weights>" # M2M example: "facebook/m2m100_418M"
-  init_lang_abbr: avg
-  feature_extractor_cfg: # Specify args to be modified in the feature extractor architecture
-    feature_extractor_arguments: "<config-arguments>"
+  name: "multimodal_embedder"                          # The model name or identifier.
+  feature_extractor_type: "<feature_extractor_type>"   # Type of feature extractor (e.g., "clip" for CLIP).
+  pretrained_feature_extractor: "<pretrained-clip-model>"  # Pretrained weights for the feature extractor (e.g., "openai/clip-vit-base-patch32").
+  vl_mapper_type: "linear"                            # Visual-language mapper type (e.g., "linear" or "adapter").
+  vl_mapper_layer_norm_before: true                   # Apply layer normalization before the VL mapper.
+  vl_mapper_dropout: 0.1                              # Dropout probability for the VL mapper.
+  backbone_name: "<pretrained-backbone-model>"         # Identifier for the pretrained backbone model (e.g., "m2m100").
+  pretrained_backbone: "<pretrained-backbone-weights>"  # Pretrained weights for the backbone (e.g., "facebook/m2m100_418M").
+  init_lang_abbr: avg                                 # Language abbreviation used to initialize new language embeddings.
+  feature_extractor_cfg:                              # Configuration for modifying the feature extractor architecture.
+    feature_extractor_arguments: "<config-arguments>"  # Arguments to adjust the internal configuration of the feature extractor.
 
 common:
-  wandb_name: experiment_model
-  wandb_project: experiment_project
+  wandb_name: experiment_model                         # Experiment name for Weights & Biases logging.
+  wandb_project: experiment_project                   # Project name in Weights & Biases.
 
 training:
-  output_dir: "/path/to/output/results"
-  logging_dir: "/path/to/output/logs"
-  overwrite_output_dir: false
-  evaluation_strategy: "steps"
-  eval_steps: 20
-  per_device_train_batch_size: 32
-  gradient_accumulation_steps: 2
-  learning_rate: 2.0
-  weight_decay: 0
-  adam_beta1: 0.9
-  adam_beta2: 0.998
-  max_grad_norm: 0.0
-  num_train_epochs: 1
-  max_steps: 200
-  lr_scheduler_type: "constant_with_warmup"
-  warmup_steps: 8000
-  logging_steps: 20
-  save_steps: 128
-  save_total_limit: 10
-  seed: 1234
-  label_smoothing_factor: 0.1
-  dataloader_drop_last: false
-  dataloader_num_workers: 2
-  remove_unused_columns: True
-  fp16: True
+  output_dir: "/path/to/output/results"              # Directory where model checkpoints and outputs will be saved.
+  logging_dir: "/path/to/output/logs"                # Directory for storing training logs.
+  overwrite_output_dir: false                         # Do not overwrite the output directory if it exists.
+  evaluation_strategy: "steps"                        # Evaluation strategy; "steps" means evaluation occurs at specified step intervals.
+  eval_steps: 20                                      # Evaluation is performed every 20 training steps.
+  per_device_train_batch_size: 32                     # Batch size per device during training.
+  gradient_accumulation_steps: 2                      # Number of steps to accumulate gradients before updating weights.
+  learning_rate: 2.0                                  # Learning rate for the optimizer.
+  weight_decay: 0                                     # Weight decay factor for regularization.
+  adam_beta1: 0.9                                     # Beta1 parameter for the Adam optimizer.
+  adam_beta2: 0.998                                   # Beta2 parameter for the Adam optimizer.
+  max_grad_norm: 0.0                                  # Maximum gradient norm for clipping (0 means no clipping).
+  num_train_epochs: 1                                 # Number of training epochs.
+  max_steps: 200                                      # Maximum number of training steps.
+  lr_scheduler_type: "constant_with_warmup"           # Type of learning rate scheduler.
+  warmup_steps: 8000                                  # Number of warmup steps to gradually increase the learning rate.
+  logging_steps: 20                                   # Interval (in steps) at which training metrics are logged.
+  save_steps: 128                                     # Interval (in steps) at which model checkpoints are saved.
+  save_total_limit: 10                                # Maximum number of checkpoints to retain.
+  seed: 1234                                         # Random seed for reproducibility.
+  label_smoothing_factor: 0.1                         # Label smoothing factor applied during loss calculation.
+  dataloader_drop_last: false                         # Whether to drop the last incomplete batch in the dataloader.
+  dataloader_num_workers: 2                           # Number of worker threads for data loading.
+  remove_unused_columns: True                         # Remove dataset columns not used by the model.
+  fp16: True                                         # Enable mixed-precision (FP16) training.
 
 data:
-  train_metadata_dir: "/path/to/train/metadata_file.tsv"
-  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"
-  test_metadata_dir: "/path/to/test/metadata_file.tsv"
-  filter_empty_samples: True
-  shuffle: True
-  tokenizer_src_langs_path: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"
-  text_tokenizer_path: "<pretrained-tokenizer>" # M2M example: "facebook/m2m100_418M"
-  max_seq_length: 512
-  max_frames: 300
-  preprocess:
-    scale_frame: false
-    width: 224
-    height: 224
-    invert_frame: False
-    channels: 3
-    dataset_mean: "<[mean_values]>" # For SignBank+: "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]"
-    dataset_std: "<[std_values]>" # For SignBank+: "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]"
+  train_metadata_dir: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
+  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
+  test_metadata_dir: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
+  filter_empty_samples: True                                    # Filter out samples with empty fields.
+  shuffle: True                                                # Shuffle dataset samples during loading.
+  tokenizer_src_langs_path: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"  # Path to the file listing source languages for the tokenizer.
+  text_tokenizer_path: "<pretrained-tokenizer>"                 # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
+  max_seq_length: 512                                          # Maximum sequence length for tokenization.
+  max_frames: 300                                             # Maximum number of frames to consider.
+  preprocess:                                                 # Image preprocessing configuration.
+    width: 224                                               # Target image width in pixels.
+    height: 224                                              # Target image height in pixels.
+    channels: 3                                              # Number of image channels (e.g., 3 for RGB).
+    dataset_mean: "<[mean_values]>"                            # Mean pixel values for normalization (e.g., "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]").
+    dataset_std: "<[std_values]>"                              # Standard deviation for normalization (e.g., "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]").
