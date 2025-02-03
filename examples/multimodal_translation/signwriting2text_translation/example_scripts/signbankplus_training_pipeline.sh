@@ -43,7 +43,7 @@ python ${REPO_PATH}/examples/multimodal_translation/signwriting2text_translation
 # 3. Prepare Training Environment
 # ----------------------------------------------------------
 # This Python script sets up environment variables for the model, processor, etc.
-output=$(python ${REPO_PATH}/examples/multimodal_translation/signwriting2text_translation/example_scripts/signbankplus_training_setup.py \
+output=$(python ${REPO_PATH}/examples/multimodal_translation/signwriting2text_translation/example_scripts/signwriting2text_training_setup.py \
     --config_path $CONFIG_PATH)
 
 # Extract environment variables from the Python script’s output

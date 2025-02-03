@@ -49,7 +49,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 
 **Goal**: Initialize tokenizers, create or load the model, and save paths for easy retrieval.
 
-- **Script**: `hebrew_training_setup.py`
+- **Script**: `image2text_training_setup.py`
 - **Input**: A config file (e.g., `configs/example_config.yaml`) specifying:
   - Model parameters
   - Tokenizer paths
@@ -63,7 +63,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-python hebrew_training_setup.py --config_path /path/to/example_config.yaml
+python image2text_training_setup.py --config_path /path/to/example_config.yaml
 ```
 The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) that you can export for downstream usage.
 
@@ -141,7 +141,7 @@ image2text_translation
 ├── example_scripts
 │   ├── hebrew_dataset_preprocessing_script.py
 │   ├── hebrew_training_pipeline.sh
-│   └── hebrew_training_setup.py
+│   └── image2text_training_setup.py
 └── other
     ├── Arial.ttf                   # File needed for the creation of the images
     └── new_languages_hebrew.txt    # Contains a dictionary with the new tokens to be added to the tokenizer.

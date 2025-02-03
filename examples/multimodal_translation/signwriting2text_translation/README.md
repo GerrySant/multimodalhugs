@@ -52,7 +52,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 
 **Goal**: Initialize tokenizers, preprocessors, and models, and save their paths for further usage.
 
-- **Script**: [`signbankplus_training_setup.py`](./example_scripts/signbankplus_training_setup.py)
+- **Script**: [`signwriting2text_training_setup.py`](./example_scripts/signwriting2text_training_setup.py)
 - **Input**: A configuration file (e.g., `configs/example_config.yaml`) specifying:
   - Model parameters
   - Tokenizer paths
@@ -66,7 +66,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup script:
 
 ```bash
-python signbankplus_training_setup.py --config_path /path/to/signwriting_config.yaml
+python signwriting2text_training_setup.py --config_path /path/to/signwriting_config.yaml
 ```
 
 The script outputs environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) for downstream usage.
@@ -151,7 +151,7 @@ signwriting2text_translation
 ├── example_scripts
 │   ├── signbankplus_dataset_preprocessing_script.py
 │   ├── signbankplus_training_pipeline.sh
-│   └── signbankplus_training_setup.py
+│   └── signwriting2text_training_setup.py
 └── other
     └── new_languages_sign_bank_plus.txt  # Additional tokens for the tokenizer
 ```

@@ -52,7 +52,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 
 **Goal**: Initialize tokenizers, create or load the model, and save paths for easy retrieval.
 
-- **Script**: how2sign_training_setup.py
+- **Script**: pose2text_training_setup.py
 - **Input**: A config file (e.g., `configs/example_config.yaml`) specifying:
   - Model parameters
   - Tokenizer paths
@@ -66,7 +66,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-python how2sign_training_setup.py --config_path /path/to/pose2text_config.yaml
+python pose2text_training_setup.py --config_path /path/to/pose2text_config.yaml
 ```
 The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) that you can export for downstream usage.
 
@@ -88,9 +88,9 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 # ----------------------------------------------------------
 export MODEL_NAME="pose2text_example"
 export OUTPUT_PATH="/path/to/your/output_directory"
-export MODEL_PATH="/obtained/by/how2sign_training_setup.py"
-export PROCESSOR_PATH="/obtained/by/how2sign_training_setup.py"
-export DATA_PATH="/obtained/by/how2sign_training_setup.py"
+export MODEL_PATH="/obtained/by/pose2text_training_setup.py"
+export PROCESSOR_PATH="/obtained/by/pose2text_training_setup.py"
+export DATA_PATH="/obtained/by/pose2text_training_setup.py"
 
 # ----------------------------------------------------------
 # 2. Train the Model
@@ -144,7 +144,7 @@ pose2text_translation
 ├── example_scripts
 │   ├── how2sign_dataset_preprocessing_script.py
 │   ├── how2sign_training_pipeline.sh
-│   └── how2sign_training_setup.py
+│   └── pose2sign_training_setup.py
 └── other
     └── new_languages_how2sign.txt  # Optional: new tokens for tokenizer
 ```
