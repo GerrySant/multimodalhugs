@@ -150,8 +150,7 @@ signwriting2text_translation
 │   └── example_config.yaml    # Example configuration file
 ├── example_scripts
 │   ├── signbankplus_dataset_preprocessing_script.py
-│   ├── signbankplus_training_pipeline.sh
-│   └── signwriting2text_training_setup.py
+│   └── signbankplus_training_pipeline.sh
 └── other
     └── new_languages_sign_bank_plus.txt  # Additional tokens for the tokenizer
 ```

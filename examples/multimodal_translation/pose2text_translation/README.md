@@ -141,8 +141,7 @@ pose2text_translation
 │   └── example_config.yaml    # Example config template
 ├── example_scripts
 │   ├── how2sign_dataset_preprocessing_script.py
-│   ├── how2sign_training_pipeline.sh
-│   └── pose2sign_training_setup.py
+│   └── how2sign_training_pipeline.sh
 └── other
     └── new_languages_how2sign.txt  # Optional: new tokens for tokenizer
 ```

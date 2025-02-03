@@ -60,6 +60,7 @@ multimodalhugs
 │   ├── multimodalhugs_cli
 │   ├── processors
 │   ├── tasks
+│   ├── training_setup
 │   └── utils
 └── tests
 ```

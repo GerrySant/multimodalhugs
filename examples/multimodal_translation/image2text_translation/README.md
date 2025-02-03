@@ -140,8 +140,7 @@ image2text_translation
 │   └── example_config.yaml    # Example config template
 ├── example_scripts
 │   ├── hebrew_dataset_preprocessing_script.py
-│   ├── hebrew_training_pipeline.sh
-│   └── image2text_training_setup.py
+│   └── hebrew_training_pipeline.sh
 └── other
     ├── Arial.ttf                   # File needed for the creation of the images
     └── new_languages_hebrew.txt    # Contains a dictionary with the new tokens to be added to the tokenizer.
