@@ -4,6 +4,7 @@ from .dataset_configs.data_configs import (
     MultimodalMTDataConfig, 
     SignLanguageMTDataConfig, 
     BilingualImage2textMTDataConfig,
+    Pose2TextDataConfig,
 )
 from .datasets.signwriting import SignWritingDataset
 from .datasets.pose2text import Pose2TextDataset

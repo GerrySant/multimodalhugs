@@ -90,3 +90,11 @@ class BilingualImage2textMTDataConfig(MultimodalMTDataConfig):
         # Assign new arguments from config if available
         self.font_path = getattr(cfg.data, 'font_path', self.font_path)
         self.as_numpy = getattr(cfg.data, 'as_numpy', self.as_numpy)
+
+@dataclass
+class Pose2TextDataConfig(MultimodalMTDataConfig):
+    reduce_holistic_poses: bool = field(default=True, metadata={"help": "If True, it reduces holistic poses. See https://github.com/sign-language-processing/pose for more information."})
+    def __init__(self, cfg=None, **kwargs):
+        super().__init__(cfg=cfg, **kwargs)
+        # Assign new arguments from config if available
+        self.reduce_holistic_poses = getattr(cfg.data, 'reduce_holistic_poses', self.reduce_holistic_poses)

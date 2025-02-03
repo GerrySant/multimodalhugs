@@ -52,7 +52,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 
 **Goal**: Initialize tokenizers, create or load the model, and save paths for easy retrieval.
 
-- **Script**: pose2text_training_setup.py
+- **Command Line**: `multimodalhugs-setup --modality "pose2text"`
 - **Input**: A config file (e.g., `configs/example_config.yaml`) specifying:
   - Model parameters
   - Tokenizer paths
@@ -66,11 +66,9 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-python pose2text_training_setup.py --config_path /path/to/pose2text_config.yaml
+multimodalhugs-setup --modality "pose2text" --config_path </path/to/example_config.yaml>
 ```
 The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) that you can export for downstream usage.
-
-
 
 ## 3. Launching the Training Process
 **Goal**: Start the full Pose2Text training routine using Hugging Face’s Trainer.

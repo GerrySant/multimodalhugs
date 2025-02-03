@@ -18,6 +18,7 @@ from typing import Optional, Dict, Any, Tuple, Union
 
 # Local application libraries
 from multimodalhugs.models import EncoderWrapper, freeze_module_parameters
+from multimodalhugs.models.registry import register_model
 from multimodalhugs.modules import VLMapper, FeatureExtractor, SpecialTokensEmbeddings, get_feature_extractor_class, CustomEmbedding
 from multimodalhugs.utils import serialize_config
 
@@ -36,6 +37,7 @@ def init_encoder_new_embeddings(cfg, new_embeddings, pretrained_embeddings, toke
         lang_idx = [tokenizer.convert_tokens_to_ids(lang_idx_) for lang_idx_ in lang_idx]
 
         avg_tensor = []
+        
         for lang_idx_ in lang_idx:
             avg_tensor.append(pretrained_embeddings.weight.data[lang_idx_])
         if len(avg_tensor) > 0:
@@ -185,6 +187,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
 
 
 # Define the custom model class
+@register_model("multimodal_embedder")
 class MultiModalEmbedderModel(PreTrainedModel):
     config_class = MultiModalEmbedderConfig
     base_model_prefix = "multimodal_embedder"
@@ -300,16 +303,28 @@ class MultiModalEmbedderModel(PreTrainedModel):
         return self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
 
     @classmethod
-    def build_model(cls, cfg, dataset = None, src_tokenizer = None, tgt_tokenizer = None, config_path = None, new_vocab_tokens = []):
-        """Build the MultiModal Embedder model using specific model configuration and dataset."""
-
-        if dataset is not None:
-            src_tokenizer = dataset.src_tokenizer
-            tgt_tokenizer = dataset.tgt_tokenizer
+    def build_model(cls, **kwargs):
+        """
+        Build the model instance using provided configuration parameters.
+        
+        Expected common keys:
+          - src_tokenizer: the source tokenizer.
+          - tgt_tokenizer: the target tokenizer.
+          - config_path: the path to the YAML configuration file.
+          - new_vocab_tokens: a list of new vocabulary tokens.
+        
+        Plus any extra keys defined in the config.
+        """
+        # Extract common arguments if needed:
+        src_tokenizer = kwargs.pop("src_tokenizer")
+        tgt_tokenizer = kwargs.pop("tgt_tokenizer")
+        config_path = kwargs.pop("config_path", None)
+        new_vocab_tokens = kwargs.pop("new_vocab_tokens", [])
 
         if src_tokenizer is None or tgt_tokenizer is None:
             raise ValueError("Please provide the src_tokenizer and the tgt_tokenizer in case the dataset used does not have these as a parameter.")
-
+            
+        cfg = kwargs  # or merge with defaults, etc.
         if not isinstance(cfg, PretrainedConfig):
             cfg = cls.config_class.from_dict(serialize_config(cfg))
         else:
@@ -331,7 +346,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         cfg.pad_token_id = cfg.pad_token_id or pad_token_id
         cfg.bos_token_id = cfg.bos_token_id or bos_token_id
         cfg.eos_token_id = cfg.eos_token_id or eos_token_id
-        cfg.backbone_used_vocab_size = cfg.backbone_used_vocab_size or (src_tokenizer.total_vocab_size - len(new_vocab_tokens))
+        tokenizer_vocab_size = getattr(src_tokenizer, "total_vocab_size", src_tokenizer.vocab_size)
+        cfg.backbone_used_vocab_size = cfg.backbone_used_vocab_size or (tokenizer_vocab_size - len(new_vocab_tokens))
         cfg.new_embeddings_vocab_size = cfg.new_embeddings_vocab_size or len(new_vocab_tokens)
 
         # Update YAML configuration file
@@ -356,7 +372,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         #new_embeddings = nn.Embedding(num_embeddings=len(src_tokenizer), embedding_dim=cfg.encoder_embed_dim) # torch.Size([128105, 1024])
         source_embeddings = SpecialTokensEmbeddings.build_module(
-            old_vocab_size=(src_tokenizer.total_vocab_size - len(new_vocab_tokens)), 
+            old_vocab_size=cfg.backbone_used_vocab_size, 
             new_vocab_size=len(new_vocab_tokens), 
             embed_dim=cfg.encoder_embed_dim,
             scale_embeddings=False if cfg.no_scale_embedding else True,

@@ -52,7 +52,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 
 **Goal**: Initialize tokenizers, preprocessors, and models, and save their paths for further usage.
 
-- **Script**: [`signwriting2text_training_setup.py`](./example_scripts/signwriting2text_training_setup.py)
+- **Command Line**: `multimodalhugs-setup --modality "signwriting2text"`
 - **Input**: A configuration file (e.g., `configs/example_config.yaml`) specifying:
   - Model parameters
   - Tokenizer paths
@@ -66,7 +66,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup script:
 
 ```bash
-python signwriting2text_training_setup.py --config_path /path/to/signwriting_config.yaml
+multimodalhugs-setup --modality "signwriting2text" --config_path </path/to/signwriting_config.yaml>
 ```
 
 The script outputs environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) for downstream usage.

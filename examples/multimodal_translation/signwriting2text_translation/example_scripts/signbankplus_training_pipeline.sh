@@ -42,9 +42,8 @@ python ${REPO_PATH}/examples/multimodal_translation/signwriting2text_translation
 # ----------------------------------------------------------
 # 3. Prepare Training Environment
 # ----------------------------------------------------------
-# This Python script sets up environment variables for the model, processor, etc.
-output=$(python ${REPO_PATH}/examples/multimodal_translation/signwriting2text_translation/example_scripts/signwriting2text_training_setup.py \
-    --config_path $CONFIG_PATH)
+# This comand line sets up environment variables for the model, processor, etc.
+output=$(multimodalhugs-setup --modality "signwriting2text" --config_path $CONFIG_PATH)
 
 # Extract environment variables from the Python script’s output
 export MODEL_PATH=$(echo "$output" | grep 'MODEL_PATH' | cut -d '=' -f 2)

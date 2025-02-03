@@ -77,3 +77,4 @@ testpaths = ["tests"]  # This specifies the directory to look for tests
 
 [project.scripts]
 multimodalhugs-train = "multimodalhugs.multimodalhugs_cli.train:main"
+multimodalhugs-setup = "multimodalhugs.multimodalhugs_cli.training_setup:main"

@@ -50,8 +50,7 @@ python ${REPO_PATH}/multimodalhugs/examples/multimodal_translation/image2text_tr
 # ----------------------------------------------------------
 # 3. Prepare Training Environment
 # ----------------------------------------------------------
-output=$(python ${REPO_PATH}/multimodalhugs/examples/multimodal_translation/image2text_translation/example_scripts/image2text_training_setup.py \
-    --config_path $CONFIG_PATH)
+output=$(multimodalhugs-setup --modality "image2text" --config_path $CONFIG_PATH)
 
 export MODEL_PATH=$(echo "$output" | grep 'MODEL_PATH' | cut -d '=' -f 2)
 export PROCESSOR_PATH=$(echo "$output" | grep 'PROCESSOR_PATH' | cut -d '=' -f 2)

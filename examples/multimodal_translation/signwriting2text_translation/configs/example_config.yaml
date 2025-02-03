@@ -1,4 +1,5 @@
 model:
+  type: "multimodal_embedder" 
   name: "multimodal_embedder"                          # The model name or identifier.
   feature_extractor_type: "<feature_extractor_type>"   # Type of feature extractor (e.g., "clip" for CLIP).
   pretrained_feature_extractor: "<pretrained-clip-model>"  # Pretrained weights for the feature extractor (e.g., "openai/clip-vit-base-patch32").

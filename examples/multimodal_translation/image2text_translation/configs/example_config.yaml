@@ -1,4 +1,5 @@
 model:
+  type: "multimodal_embedder" 
   name: "hebrew_multimodalhugs"                           # The name or identifier of the model configuration.
   feature_extractor_type: "<feature_extractor_type>"     # Type of the feature extractor to use (e.g., "clip" for CLIP).
   pretrained_feature_extractor: "<pretrained-clip-model>" # Pretrained weights/checkpoint for the feature extractor (e.g., "openai/clip-vit-base-patch32").

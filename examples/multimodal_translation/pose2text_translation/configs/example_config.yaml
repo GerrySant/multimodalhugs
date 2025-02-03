@@ -4,6 +4,7 @@
 
 model:
   # Model-specific settings:
+  type: "multimodal_embedder" 
   name: "how2sign_pose_2_text_model"                      # The identifier or name of your model configuration.
   vl_mapper_type: "linear"                                # Type of visual-language mapper (e.g., "linear" or "adapter").
   vl_mapper_layer_norm_before: true                       # Whether to apply Layer Normalization before the VL mapper.

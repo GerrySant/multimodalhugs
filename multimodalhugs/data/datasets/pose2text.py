@@ -9,7 +9,7 @@ from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 
 from multimodalhugs.data import (
-    SignLanguageMTDataConfig,
+    Pose2TextDataConfig,
     contains_empty,
     file_exists_filter,
     duration_filter,
@@ -18,14 +18,14 @@ from multimodalhugs.data import (
 class Pose2TextDataset(datasets.GeneratorBasedBuilder):
     def __init__(
         self,
-        config: SignLanguageMTDataConfig, 
+        config: Pose2TextDataConfig, 
         *args,
         **kwargs
     ):
-        dataset_info = DatasetInfo(description="Dataset class for How2Sign.")
+        dataset_info = DatasetInfo(description="Dataset class for Pose2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
 
-        self.name = "how2sign_poses" if config.is_pose else "how2sign"
+        self.name = "pose2text"
         self.config = config
         self.max_frames = config.max_frames
 
@@ -91,15 +91,6 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             else:
                 sample['DURATION'] = 0
             return sample
-        
-        # def obtain_duration(sample):
-        #     with open(sample['source'], "rb") as sample['source']:
-        #         if (sample['source_end'] - sample['source_start']) == 0:
-        #             pose = Pose.read(sample['source'].read()) # [t, people, d, xyz]
-        #         else:
-        #             pose = Pose.read(sample['source'].read(), start_frame=sample['source_start'], end_frame=sample['source_end']) # [t, people, d, xyz]
-        #     sample['DURATION'] = pose.body.data.data.shape[0]
-        #     return sample
 
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function)
@@ -111,7 +102,6 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample))
 
         # Yield examples
-
         for idx, item in enumerate(dataset):
             yield idx, {
                 "source": item['source'],

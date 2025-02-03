@@ -6,7 +6,7 @@ import numpy as np
 import random
 from jiwer import wer
 from omegaconf import OmegaConf
-from transformers import PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerFast, AutoTokenizer
 from multimodalhugs.data import load_tokenizer_from_vocab_file
 from multimodalhugs.models import MultiModalEmbedderModel
 
@@ -19,7 +19,7 @@ tgt_tokenizer = None
 
 # Setup configuration and model initialization
 @pytest.fixture(scope="module")
-def model_setup():
+def model_setup(): 
 
     global model, src_tokenizer, tgt_tokenizer
     # Set a fixed seed for reproducibility
@@ -39,12 +39,15 @@ def model_setup():
     src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.data.src_lang_tokenizer_path)
     tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(cfg.data.text_tokenizer_path)
 
-    model = MultiModalEmbedderModel.build_model(
-        cfg=cfg.model, 
-        src_tokenizer=src_tokenizer,
-        tgt_tokenizer=tgt_tokenizer
-    ).to(DEVICE)
-
+    # Convert the model config into a dict and update it with the common arguments
+    model_kwargs = OmegaConf.to_container(cfg.model, resolve=True)
+    model_kwargs.update({
+        "src_tokenizer": src_tokenizer,
+        "tgt_tokenizer": tgt_tokenizer,
+        "config_path": config_path,
+        "new_vocab_tokens": src_tokenizer.additional_special_tokens  # Use an empty list if no extra tokens are needed
+    })
+    model = MultiModalEmbedderModel.build_model(**model_kwargs).to(DEVICE)
     return model, src_tokenizer, tgt_tokenizer
 
 # Test function for model overfitting
