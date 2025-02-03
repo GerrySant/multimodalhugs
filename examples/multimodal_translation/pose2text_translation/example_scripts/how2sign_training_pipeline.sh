@@ -53,8 +53,6 @@ export DATA_PATH=$(echo "$output" | grep 'DATA_PATH' | cut -d '=' -f 2)
 
 # Display the environment variables (for debugging)
 echo "MODEL_NAME: $MODEL_NAME"
-echo "REPO_PATH: $REPO_PATH"
-echo "CONFIG_PATH: $CONFIG_PATH"
 echo "OUTPUT_PATH: $OUTPUT_PATH"
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 echo "MODEL_PATH: $MODEL_PATH"
@@ -64,7 +62,8 @@ echo "DATA_PATH: $DATA_PATH"
 # ----------------------------------------------------------
 # 4. Train the Model
 # ----------------------------------------------------------
-python ${REPO_PATH}/examples/multimodal_translation/run_translation.py \
+multimodalhugs-train \
+    --task "translation" \
     --model_name_or_path $MODEL_PATH \
     --processor_name_or_path $PROCESSOR_PATH \
     --run_name $MODEL_NAME \

@@ -49,7 +49,7 @@ Explore the [examples/multimodal_translation/](/examples/multimodal_translation/
 multimodalhugs
 ├── examples
 │   └── multimodal_translation
-│       ├── Image2text_translation
+│       ├── image2text_translation
 │       ├── pose2text_translation
 │       └── signwriting2text_translation
 ├── multimodalhugs
@@ -57,10 +57,11 @@ multimodalhugs
 │   ├── data
 │   ├── models
 │   ├── modules
+│   ├── multimodalhugs_cli
 │   ├── processors
+│   ├── tasks
 │   └── utils
-├── tests
-└── results
+└── tests
 ```
 
 - `examples/`: Contains ready-to-run demos for various multimodal tasks.

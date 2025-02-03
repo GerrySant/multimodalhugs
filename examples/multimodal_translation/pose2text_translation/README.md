@@ -77,8 +77,8 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 
 - **Process**:
   1. (Optional) Activate a virtual environment or conda environment.
-  2. Define environment variables (e.g., `MODEL_NAME`, `REPO_PATH`, `CONFIG_PATH`, `OUTPUT_PATH`, etc).
-  3. Run `run_translation.py` with the correct arguments.
+  2. Define environment variables (e.g., `MODEL_NAME`, `MODEL_PATH`, `PROCESSOR_PATH`, `OUTPUT_PATH`, etc).
+  3. Run `multimodalhugs-train` with the desired arguments.
 
 - **Training Command Lines:**:
 
@@ -87,8 +87,6 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 # 1. Specify global variables
 # ----------------------------------------------------------
 export MODEL_NAME="pose2text_example"
-export REPO_PATH="/path/to/your/multimodalhugs"
-export CONFIG_PATH="/path/to/pose2text_config.yaml"
 export OUTPUT_PATH="/path/to/your/output_directory"
 export MODEL_PATH="/obtained/by/how2sign_training_setup.py"
 export PROCESSOR_PATH="/obtained/by/how2sign_training_setup.py"
@@ -97,7 +95,8 @@ export DATA_PATH="/obtained/by/how2sign_training_setup.py"
 # ----------------------------------------------------------
 # 2. Train the Model
 # ----------------------------------------------------------
-python ${REPO_PATH}/examples/multimodal_translation/run_translation.py \
+multimodalhugs-train \
+    --task "translation" \
     --model_name_or_path $MODEL_PATH \
     --processor_name_or_path $PROCESSOR_PATH \
     --run_name $MODEL_NAME \
@@ -123,7 +122,7 @@ python ${REPO_PATH}/examples/multimodal_translation/run_translation.py \
     --learning_rate 5e-05 \
     --warmup_steps 20000 \
     --max_steps 200000 \
-    --predict_with_generate True \
+    --predict_with_generate True
 ```
 >**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 
@@ -133,7 +132,7 @@ python ${REPO_PATH}/examples/multimodal_translation/run_translation.py \
 The script [how2sign_training_pipeline.sh](https://github.com/GerrySant/multimodalhugs/blob/master/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_training_pipeline.py) performs the entire pipeline, taking care of both the preprocessing of the dataset, the setup of the training modules and finally launches a training example. Simply run the following command:
 
 ```bash
-bash how2sign_training.sh
+bash how2sign_training_pipeline.sh
 ```
 
 ## Directory Overview
@@ -144,7 +143,7 @@ pose2text_translation
 │   └── example_config.yaml    # Example config template
 ├── example_scripts
 │   ├── how2sign_dataset_preprocessing_script.py
-│   ├── how2sign_training.sh
+│   ├── how2sign_training_pipeline.sh
 │   └── how2sign_training_setup.py
 └── other
     └── new_languages_how2sign.txt  # Optional: new tokens for tokenizer

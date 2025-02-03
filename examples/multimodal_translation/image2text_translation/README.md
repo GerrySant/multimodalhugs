@@ -33,6 +33,18 @@ The `metadata.tsv` files for each partition must include the following fields:
 - `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
 - `output_text`: The target text for translation.
 
+##### Example Metadata File Format
+
+Below is an example of how your metadata file should be structured. Each row represents one sample, and the columns correspond to the required fields:
+
+| **source_signal**   | **source_prompt**         | **generation_prompt** | **output_text**                                                                   |
+|-----------------------------------------------------------|---------------------------|-----------------------|-----------------------------------------------------------------------------------|
+| `/path/to/your/image_1.jpg /path/to/your/image_2.jpg ... /path/to/your/image_N.jpg`         | `__vhe__`     |           `__en__`            | `No one was inside the apartment`                                                                               |
+| `הטייס זוהה כמפקד הטייסת דילוקריט פאטאבי.`                    | `__vhe__`     |              `__en__`           | `The pilot was identified as Squadron Leader Dilokrit Pattavee.`                       |
+| `בית הסוהר אבו-גרייב בעירק הוצת במהלך התפרעות.`                     | `__vhe__`    |             `__en__`            | `Iraq's Abu Ghraib prison has been set alight during a riot.`                |
+| `/path/to/your/image_1.npy /path/to/your/image_2.npy ... /path/to/your/image_M.npy`                 | `__vhe__`    |           `__ar__`              | `Zayat was unhurt in the accident.`| 
+
+
 ## 2. Setting Up the Training Environment
 
 **Goal**: Initialize tokenizers, create or load the model, and save paths for easy retrieval.
@@ -59,21 +71,66 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 
 **Goal**: Start the full Image2Text training routine using Hugging Face’s Trainer.
 
-- **Script**: [`hebrew_training.sh`](./example_scripts/hebrew_training.sh)
 - **Process**:
   1. (Optional) Activate a virtual environment or conda environment.
-  2. Define environment variables (e.g., `MODEL_NAME`, `REPO_PATH`, `CONFIG_PATH`, `OUTPUT_PATH`).
-  3. Preprocess the dataset (calling `hebrew_dataset_preprocessing_script.py`).
-  4. Run `hebrew_training_setup.py` to configure and retrieve paths.
-  5. Invoke `run_translation.py` with the correct arguments.
+  2. Define environment variables (e.g., `MODEL_NAME`, `MODEL_PATH`, `PROCESSOR_PATH`, `OUTPUT_PATH`).
+  5. Run `multimodalhugs-train` with the desired arguments.
 
-Example usage:
+- **Training Command Lines:**:
 
 ```bash
-bash hebrew_training.sh
+# ----------------------------------------------------------
+# 1. Specify global variables
+# ----------------------------------------------------------
+export MODEL_NAME="image2text_example"
+export OUTPUT_PATH="/path/to/your/output_directory"
+export MODEL_PATH="/obtained/by/hebrew_dataset_preprocessing_script.py"
+export PROCESSOR_PATH="/obtained/by/hebrew_dataset_preprocessing_script.py"
+export DATA_PATH="/obtained/by/hebrew_dataset_preprocessing_script.py"
+
+# ----------------------------------------------------------
+# 2. Train the Model
+# ----------------------------------------------------------
+multimodalhugs-train \
+    --task "translation" \
+    --model_name_or_path $MODEL_PATH \
+    --processor_name_or_path $PROCESSOR_PATH \
+    --run_name $MODEL_NAME \
+    --dataset_dir $DATA_PATH \
+    --output_dir $OUTPUT_PATH \
+    --do_train True \
+    --do_eval True \
+    --logging_steps 100 \
+    --remove_unused_columns False \
+    --per_device_train_batch_size 16 \
+    --per_device_eval_batch_size 8 \
+    --evaluation_strategy "steps" \
+    --eval_steps $EVAL_STEPS \
+    --save_strategy "steps" \
+    --save_steps $EVAL_STEPS \
+    --save_total_limit 3 \
+    --load_best_model_at_end true \
+    --metric_for_best_model 'bleu' \
+    --overwrite_output_dir \
+    --per_device_eval_batch_size 8 \
+    --gradient_accumulation_steps 4 \
+    --learning_rate 5e-05 \
+    --warmup_steps 20000 \
+    --max_steps 200000 \
+    --predict_with_generate True \
+    --lr_scheduler_type "inverse_sqrt"
 ```
 
 >**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
+
+## Full Pipeline Example
+
+The script [`hebrew_training_pipeline.sh`](./example_scripts/hebrew_training_pipeline.sh) performs the entire pipeline, taking care of both the preprocessing of the dataset, the setup of the training modules and finally launches a training example. Simply run the following command:
+
+```bash
+bash hebrew_training_pipeline.sh
+```
+
 
 ## Directory Overview
 ```kotlin
@@ -83,7 +140,7 @@ image2text_translation
 │   └── example_config.yaml    # Example config template
 ├── example_scripts
 │   ├── hebrew_dataset_preprocessing_script.py
-│   ├── hebrew_training.sh
+│   ├── hebrew_training_pipeline.sh
 │   └── hebrew_training_setup.py
 └── other
     ├── Arial.ttf                   # File needed for the creation of the images
