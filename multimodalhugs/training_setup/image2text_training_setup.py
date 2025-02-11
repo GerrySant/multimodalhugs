@@ -11,6 +11,7 @@ from multimodalhugs.data import (
 )
 from multimodalhugs.processors import Image2TextTranslationProcessor
 from multimodalhugs.models.registry import get_model_class
+from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 
 from transformers import AutoTokenizer
 

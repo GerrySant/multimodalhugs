@@ -1,7 +1,9 @@
 # Standard libraries
 import logging
 import math
-
+import importlib
+from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES
+from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
 # Third-party libraries
 import torch
 import torch.nn as nn
@@ -47,24 +49,98 @@ def init_encoder_new_embeddings(cfg, new_embeddings, pretrained_embeddings, toke
     else:
         logger.info("Language embedding layer initialized from scratch as no initial language was provided.")
     return new_embeddings
+    
+def get_backbone_config_class(model_type: str):
+    """
+    Retrieves the specific configuration class for the given `model_type`
+    using Hugging Face's CONFIG_MAPPING_NAMES mapping.
 
-# Factory function to create the appropriate configuration class based on backbone_name
-def get_backbone_config_class(backbone_name):
-    if backbone_name == "m2m100": # The actual version only supports M2M as backbone
-        return M2M100Config
-    elif backbone_name == "byt5": # The actual version only supports M2M as backbone
-        return T5Config
-    else:
-        raise ValueError(f"Unknown backbone name: {backbone_name}")
+    Args:
+        model_type (str): The model type (e.g., 'bert', 't5', etc.).
 
-# Factory function to create the appropriate model class based on backbone_name
-def get_backbone_model_class(backbone_name):
-    if backbone_name == "m2m100": # The actual version only supports M2M as backbone
-        return M2M100ForConditionalGeneration
-    elif backbone_name == "byt5": # The actual version only supports M2M as backbone
-        return T5ForConditionalGeneration
+    Returns:
+        The corresponding configuration class.
+
+    Raises:
+        ValueError: If `model_type` is not found in CONFIG_MAPPING_NAMES.
+        ImportError: If the configuration class cannot be imported.
+    """
+    if model_type not in CONFIG_MAPPING_NAMES:
+        raise ValueError(
+            f"Unknown model type '{model_type}'. Available options: {list(CONFIG_MAPPING_NAMES.keys())}"
+        )
+
+    config_class_name = CONFIG_MAPPING_NAMES[model_type]
+    # Assumes that the module is named using model_type, replacing dashes with underscores
+    module_name = model_type.replace("-", "_")
+
+    try:
+        module = importlib.import_module(f"transformers.models.{module_name}")
+    except ImportError:
+        # If it fails, try retrieving the class directly from the transformers package.
+        import transformers
+        if hasattr(transformers, config_class_name):
+            return getattr(transformers, config_class_name)
+        raise ImportError(f"Could not import module for model_type '{model_type}'.")
+
+    if hasattr(module, config_class_name):
+        return getattr(module, config_class_name)
     else:
-        raise ValueError(f"Unknown backbone name: {backbone_name}")
+        # Fallback: Try retrieving the class from the transformers package.
+        import transformers
+        if hasattr(transformers, config_class_name):
+            return getattr(transformers, config_class_name)
+    
+    raise ImportError(
+        f"The configuration class '{config_class_name}' was not found for model_type '{model_type}'."
+    )
+
+
+def get_backbone_model_class(model_type: str):
+    """
+    Retrieves the specific model (backbone) class for the given `model_type`
+    using Hugging Face's MODEL_WITH_LM_HEAD_MAPPING_NAMES mapping.
+
+    Args:
+        model_type (str): The model type (e.g., 'bert', 't5', etc.).
+
+    Returns:
+        The corresponding model class.
+
+    Raises:
+        ValueError: If `model_type` is not found in MODEL_WITH_LM_HEAD_MAPPING_NAMES.
+        ImportError: If the module or model class cannot be imported.
+    """
+    if model_type not in MODEL_WITH_LM_HEAD_MAPPING_NAMES:
+        raise ValueError(
+            f"Unknown model type '{model_type}'. Available options: {list(MODEL_WITH_LM_HEAD_MAPPING_NAMES.keys())}"
+        )
+    
+    model_class_name = MODEL_WITH_LM_HEAD_MAPPING_NAMES[model_type]
+    # Assumes that the module name corresponds to model_type, replacing dashes with underscores
+    module_name = model_type.replace("-", "_")
+    
+    try:
+        module = importlib.import_module(f"transformers.models.{module_name}")
+    except ImportError:
+        # Fallback: Try retrieving the class from the transformers package
+        import transformers
+        if hasattr(transformers, model_class_name):
+            return getattr(transformers, model_class_name)
+        raise ImportError(f"Could not import module for model_type '{model_type}'.")
+    
+    if hasattr(module, model_class_name):
+        return getattr(module, model_class_name)
+    else:
+        # Fallback: Try retrieving the class from the transformers package
+        import transformers
+        if hasattr(transformers, model_class_name):
+            return getattr(transformers, model_class_name)
+    
+    raise ImportError(
+        f"The model class '{model_class_name}' was not found for model_type '{model_type}'."
+    )
+
 
 @dataclass
 class MultiModalEmbedderConfig(PretrainedConfig):
@@ -163,6 +239,13 @@ class MultiModalEmbedderConfig(PretrainedConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        if kwargs:
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+                else:
+                    setattr(self, key, value)
+
         if kwargs and 'backbone_name' in kwargs:
             backbone_name = kwargs['backbone_name']
             BackboneConfigClass = get_backbone_config_class(backbone_name)
@@ -176,13 +259,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
             self.feature_extractor_config = FeatureExtractorConfigClass(**kwargs.get('feature_extractor_cfg', {}))
         else:
             self.feature_extractor_config = None
-        
-        if kwargs:
-            for key, value in kwargs.items():
-                if hasattr(self, key):
-                    setattr(self, key, value)
-                else:
-                    setattr(self, key, value)
+
         self.is_encoder_decoder = True
 
 
@@ -532,6 +609,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
     def get_encoder(self):
         return EncoderWrapper(self)
+
+    def _reorder_cache(self, past_key_values, beam_idx):
+        return self.backbone._reorder_cache(past_key_values, beam_idx)
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):

@@ -71,6 +71,32 @@ multimodalhugs-setup --modality "signwriting2text" --config_path </path/to/signw
 
 The script outputs environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) for downstream usage.
 
+> **Note:** In this example, the model uses `m2m_100` as a pretrained backbone, along with its corresponding tokenizer. This can be seen in the configuration fields:  
+> - `model.pretrained_backbone: facebook/m2m100_418M`  
+> - `data.text_tokenizer_path: facebook/m2m100_418M`  
+>   
+> If you want to initialize a backbone from scratch, select the desired architecture in `model.backbone_name` (e.g., `m2m_100`), set `model.pretrained_backbone: null`, and define the necessary hyperparameters under `model.backbone_cfg`. For instance:
+>
+> ```yaml
+> backbone_cfg:
+>   vocab_size: 384
+>   bos_token_id: 0
+>   eos_token_id: 1
+>   pad_token_id: 0
+>   decoder_start_token_id: 0
+>   d_model: 256  
+>   encoder_layers: 6 
+>   encoder_attention_heads: 1
+>   decoder_layers: 6  
+>   decoder_attention_heads: 1
+>   decoder_ffn_dim: 64
+>   encoder_ffn_dim: 64
+>   (...)
+> ```
+>
+> If you plan to use a custom tokenizer, make sure to train a tokenizer compatible with your backbone and specify its path in the configuration:  
+> `data.text_tokenizer_path: path/to/local/tokenizer/`
+
 ---
 
 ## 3. Launching the Training Process

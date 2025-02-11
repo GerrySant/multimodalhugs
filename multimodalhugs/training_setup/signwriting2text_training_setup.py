@@ -15,6 +15,7 @@ from transformers.models.clip.image_processing_clip import CLIPImageProcessor
 
 # Import the model registry helper (ensure this module exists)
 from multimodalhugs.models.registry import get_model_class
+from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 
 def main(config_path):
     # Load config and initialize dataset
