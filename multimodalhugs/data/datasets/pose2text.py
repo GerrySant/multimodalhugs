@@ -71,7 +71,10 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             ),
         ]
 
-   def _read_pose(self, file_path):
+    _last_buffer = None
+    __last_file_path = None
+    
+    def _read_pose(self, file_path):
         """
         Reads and caches the pose buffer from a file.
         If the same file is requested sequentially, reuse the cached buffer.
