@@ -49,6 +49,13 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
     def _split_generators(self, dl_manager):
         return [
             datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={
+                    "metafile_path": self.config.train_metadata_dir, 
+                    "split": f"{datasets.Split.TRAIN}"
+                }
+            ),
+            datasets.SplitGenerator(
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
                     "metafile_path": self.config.validation_metadata_dir, 
@@ -62,14 +69,19 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
                     "split": f"{datasets.Split.TEST}"
                 }
             ),
-            datasets.SplitGenerator(
-                name=datasets.Split.TRAIN,
-                gen_kwargs={
-                    "metafile_path": self.config.train_metadata_dir, 
-                    "split": f"{datasets.Split.TRAIN}"
-                }
-            ),
         ]
+
+   def _read_pose(self, file_path):
+        """
+        Reads and caches the pose buffer from a file.
+        If the same file is requested sequentially, reuse the cached buffer.
+        """
+        if self._last_file_path != file_path:
+            with open(file_path, "rb") as pose_file:
+                buffer = pose_file.read()
+                self._last_buffer = buffer
+                self._last_file_path = file_path
+        return self._last_buffer
 
     def _generate_examples(self, **kwargs):
         """
@@ -81,15 +93,15 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
         def mapping_function(sample):
             sample['source'] = sample['source_signal']
-            if os.path.exists(sample['source']):
-                with open(sample['source'], "rb") as pose_file:
-                    if (sample['source_end'] - sample['source_start']) == 0:
-                        pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
-                    else:
-                        pose = Pose.read(pose_file.read(), start_frame=sample['source_start'], end_frame=sample['source_end']) # [t, people, d, xyz]
-                sample['DURATION'] = pose.body.data.data.shape[0]
-            else:
-                sample['DURATION'] = 0
+            
+            buffer = self._read_pose(sample['source'])
+            with open(sample['source'], "rb") as pose_file:
+                if (sample['source_end'] - sample['source_start']) == 0:
+                    pose = Pose.read(buffer) # [t, people, d, xyz]
+                else:
+                    pose = Pose.read(buffer, start_time=sample['source_start'], end_time=sample['source_end']) # [t, people, d, xyz]
+            sample['DURATION'] = len(pose.body.data)
+
             return sample
 
         # Apply the update to the VIDEO_NAME column
