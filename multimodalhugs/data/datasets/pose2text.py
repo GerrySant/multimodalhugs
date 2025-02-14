@@ -72,7 +72,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         ]
 
     _last_buffer = None
-    __last_file_path = None
+    _last_file_path = None
     
     def _read_pose(self, file_path):
         """
