@@ -98,11 +98,10 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             sample['source'] = sample['source_signal']
             
             buffer = self._read_pose(sample['source'])
-            with open(sample['source'], "rb") as pose_file:
-                if (sample['source_end'] - sample['source_start']) == 0:
-                    pose = Pose.read(buffer) # [t, people, d, xyz]
-                else:
-                    pose = Pose.read(buffer, start_time=sample['source_start'], end_time=sample['source_end']) # [t, people, d, xyz]
+            if (sample['source_end'] - sample['source_start']) == 0:
+                pose = Pose.read(buffer) # [t, people, d, xyz]
+            else:
+                pose = Pose.read(buffer, start_time=sample['source_start'], end_time=sample['source_end']) # [t, people, d, xyz]
             sample['DURATION'] = len(pose.body.data)
 
             return sample
