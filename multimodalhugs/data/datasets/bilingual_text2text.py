@@ -42,13 +42,6 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
     def _split_generators(self, dl_manager):
         return [
             datasets.SplitGenerator(
-                name=datasets.Split.TRAIN,
-                gen_kwargs={
-                    "metafile_path": self.config.train_metadata_dir, 
-                    "split": f"{datasets.Split.TRAIN}"
-                }
-            ),
-            datasets.SplitGenerator(
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
                     "metafile_path": self.config.validation_metadata_dir, 
@@ -60,6 +53,13 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
                 gen_kwargs={
                     "metafile_path": self.config.test_metadata_dir, 
                     "split": f"{datasets.Split.TEST}"
+                }
+            ),
+            datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={
+                    "metafile_path": self.config.train_metadata_dir, 
+                    "split": f"{datasets.Split.TRAIN}"
                 }
             ),
         ]
