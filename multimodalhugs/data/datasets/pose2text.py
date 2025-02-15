@@ -71,6 +71,21 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             ),
         ]
 
+    _last_buffer = None
+    _last_file_path = None
+    
+    def _read_pose(self, file_path):
+        """
+        Reads and caches the pose buffer from a file.
+        If the same file is requested sequentially, reuse the cached buffer.
+        """
+        if self._last_file_path != file_path:
+            with open(file_path, "rb") as pose_file:
+                buffer = pose_file.read()
+                self._last_buffer = buffer
+                self._last_file_path = file_path
+        return self._last_buffer
+
     def _generate_examples(self, **kwargs):
         """
         Yields examples as (key, example) tuples.
@@ -81,23 +96,21 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
         def mapping_function(sample):
             sample['source'] = sample['source_signal']
-            if os.path.exists(sample['source']):
-                with open(sample['source'], "rb") as pose_file:
-                    if (sample['source_end'] - sample['source_start']) == 0:
-                        pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
-                    else:
-                        pose = Pose.read(pose_file.read(), start_frame=sample['source_start'], end_frame=sample['source_end']) # [t, people, d, xyz]
-                sample['DURATION'] = pose.body.data.data.shape[0]
+            
+            buffer = self._read_pose(sample['source'])
+            if (sample['source_end'] - sample['source_start']) == 0:
+                pose = Pose.read(buffer) # [t, people, d, xyz]
             else:
-                sample['DURATION'] = 0
+                pose = Pose.read(buffer, start_time=sample['source_start'], end_time=sample['source_end']) # [t, people, d, xyz]
+            sample['DURATION'] = len(pose.body.data)
+
             return sample
+
+        # Filter out samples where the file path does not exist
+        dataset = dataset.filter(lambda sample: file_exists_filter('source_signal', sample))
 
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function)
-        # Filter out samples where the updated file path does not exist
-        dataset = dataset.filter(lambda sample: file_exists_filter('source', sample))
-
-        # dataset = dataset.map(obtain_duration)
 
         dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample))
 
