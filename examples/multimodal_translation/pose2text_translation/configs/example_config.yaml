@@ -14,11 +14,6 @@ model:
   feat_dim: 534                                           # Dimensionality of the features produced by the backbone or feature extractor.
   init_lang_abbr: avg                                     # Abbreviation of the language used to initialize new language embeddings. (avg means that the new embeddings will be inicialized from the avg of the pretrained embeddings.)
 
-common:
-  # Common experiment parameters (e.g., for experiment tracking):
-  wandb_name: experiment_model                            # Name for the experiment in Weights & Biases (wandb).
-  wandb_project: experiment_project                       # Project name in wandb where the experiment will be logged.
-
 training:
   # Training hyperparameters and directories:
   output_dir: "/path/to/output/results"                   # Directory where model checkpoints and final results will be saved.
@@ -28,7 +23,7 @@ training:
   eval_steps: 128                                         # Perform evaluation every 128 training steps.
   per_device_train_batch_size: 8                          # Batch size per device (GPU/CPU) during training.
   gradient_accumulation_steps: 3                          # Number of steps to accumulate gradients before updating weights.
-  learning_rate: 2.0                                      # Learning rate for the optimizer.
+  learning_rate: 5e-05                                    # Learning rate for the optimizer.
   weight_decay: 0                                         # Weight decay (L2 regularization) factor.
   adam_beta1: 0.9                                         # Beta1 hyperparameter for the Adam optimizer.
   adam_beta2: 0.998                                       # Beta2 hyperparameter for the Adam optimizer.
@@ -44,7 +39,7 @@ training:
   label_smoothing_factor: 0.1                             # Factor for label smoothing during loss computation.
   dataloader_drop_last: false                             # Whether to drop the last incomplete batch in the dataloader.
   dataloader_num_workers: 8                               # Number of subprocesses to use for data loading.
-  remove_unused_columns: True                             # Remove columns from the dataset that are not used by the model.
+  remove_unused_columns: false                             # Remove columns from the dataset that are not used by the model.
   fp16: True                                              # Enable mixed-precision training (FP16) for faster computation and reduced memory usage.
 
 data:

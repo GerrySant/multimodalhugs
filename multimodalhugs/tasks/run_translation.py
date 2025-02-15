@@ -39,6 +39,8 @@ import logging
 import os
 import sys
 import dataclasses
+import argparse
+from omegaconf import OmegaConf
 from dataclasses import dataclass, field, asdict, fields
 from typing import Optional
 
@@ -100,6 +102,47 @@ def construct_kwargs(obj, not_used_keys = []):
             kwargs[field_info.name] = obj_dict[field_info.name]
     
     return kwargs
+
+def merge_training_arguments(training_args: Seq2SeqTrainingArguments,
+                             config_training_args: Seq2SeqTrainingArguments,
+                             command_arg_names: list,
+                             yaml_training_keys: list) -> Seq2SeqTrainingArguments:
+    """
+    Merge training arguments from the command line and config, following these rules:
+    
+    1. Identify the arguments that kept their default value in training_args.
+       These are the fields whose names are not in command_arg_names.
+       (Store these names in the list `default_arguments`.)
+       
+    2. For each training argument field:
+         - If the value in training_args (command-line) differs from the value in 
+           config_training_args and the field name is in default_arguments,
+           then use the value from config_training_args.
+         - Otherwise (if the field was explicitly set on the command line),
+           keep the training_args value.
+           
+    Returns the updated training_args object.
+    """
+    # 1. Identify which fields in training_args are still set to their default values
+    # (i.e. not provided on the command line).
+    default_arguments = [f.name for f in fields(training_args) if f.name not in command_arg_names]
+    
+    # 2. For each field, decide which value to keep.
+    for f in fields(training_args):
+        field_name = f.name
+        cmd_value = getattr(training_args, field_name)
+        cfg_value = getattr(config_training_args, field_name)
+        
+        # Only consider fields that were specified in the config (yaml_training_keys)
+        if field_name in yaml_training_keys:
+            # If the values differ...
+            if cmd_value != cfg_value:
+                # If the field was not provided on the command line (i.e. it's default)
+                # then override it with the config value.
+                if field_name in default_arguments:
+                    setattr(training_args, field_name, cfg_value)
+                # Otherwise, keep the command-line value (do nothing).
+    return training_args
 
 @dataclass
 class ModelArguments:
@@ -314,10 +357,50 @@ class DataTrainingArguments:
             self.val_max_target_length = self.max_target_length
 
 
+# def main():
+#     # Step 1. Use a simple parser to grab --config and remove it from sys.argv.
+#     config_parser = argparse.ArgumentParser(add_help=False)
+#     config_parser.add_argument("--config", type=str, help="Path to YAML config file")
+#     config_args, remaining_args = config_parser.parse_known_args()
+#     sys.argv = [sys.argv[0]] + remaining_args  # Remove --config for the next parser
+
+#     # Step 2. If a config file is provided, update the default training arguments.
+#     if config_args.config:
+#         yaml_conf = OmegaConf.load(config_args.config)
+#         yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
+#         # Only update the training-related fields (i.e. for Seq2SeqTrainingArguments).
+#         if "training" in yaml_dict:
+#             for key, value in yaml_dict["training"].items():
+#                 if key in Seq2SeqTrainingArguments.__dataclass_fields__:
+#                     Seq2SeqTrainingArguments.__dataclass_fields__[key].default = value
+
+#     # Step 3. Create HfArgumentParser and parse command-line arguments.
+#     parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
+#     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
+#         model_args, processor_args, data_args, training_args = parser.parse_json_file(
+#             json_file=os.path.abspath(sys.argv[1])
+#         )
+#     else:
+#         model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
+
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument("--config", type=str, help="Path to YAML config file")
+    config_args, remaining_args = config_parser.parse_known_args()
+    sys.argv = [sys.argv[0]] + remaining_args  # Remove --config for the next parser 
+
+    # Step 2. If a config file is provided, update the default training arguments.
+    if config_args.config:
+        yaml_conf = OmegaConf.load(config_args.config)
+        yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
+        parser_training = HfArgumentParser((Seq2SeqTrainingArguments,))
+        config_training_args = parser_training.parse_dict(yaml_dict['training'])[0]
+        command_arg_names = [value[2:].replace("-", "_") for value in remaining_args if value[:2] == '--']
+        yaml_training_keys = yaml_dict['training'].keys()
 
     parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
@@ -326,6 +409,13 @@ def main():
         model_args, processor_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        if config_args.config:
+            training_args = merge_training_arguments(
+                training_args,
+                config_training_args,
+                command_arg_names,
+                yaml_training_keys
+            )
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.

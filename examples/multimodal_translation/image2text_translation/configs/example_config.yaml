@@ -12,10 +12,6 @@ model:
   feature_extractor_cfg:                                 # Configuration for the feature extractor.
     feature_extractor_arguments: "<config-arguments>"   # Arguments to adjust the feature extractor's internal configuration.
 
-common:
-  wandb_name: experiment_model       # Experiment name for Weights & Biases logging.
-  wandb_project: experiment_project  # Project name in wandb.
-
 training:
   output_dir: "/path/to/output/results"           # Directory where model checkpoints and results will be saved.
   logging_dir: "/path/to/output/logs"             # Directory to store training logs.
@@ -24,7 +20,7 @@ training:
   eval_steps: 128                                  # Number of training steps between evaluations.
   per_device_train_batch_size: 8                   # Batch size per device (GPU/CPU) during training.
   gradient_accumulation_steps: 3                   # Number of steps to accumulate gradients before updating weights.
-  learning_rate: 2.0                               # Learning rate for the optimizer.
+  learning_rate: 5e-05                               # Learning rate for the optimizer.
   weight_decay: 0                                  # Weight decay factor (L2 regularization).
   adam_beta1: 0.9                                  # Beta1 parameter for the Adam optimizer.
   adam_beta2: 0.998                                # Beta2 parameter for the Adam optimizer.
@@ -40,7 +36,7 @@ training:
   label_smoothing_factor: 0.1                     # Factor for label smoothing in the loss computation.
   dataloader_drop_last: false                     # Whether to drop the last incomplete batch in the dataloader.
   dataloader_num_workers: 8                       # Number of subprocesses to use for data loading.
-  remove_unused_columns: True                     # Automatically remove columns from the dataset not used by the model.
+  remove_unused_columns: false                     # Automatically remove columns from the dataset not used by the model.
   fp16: True                                      # Enable mixed-precision (FP16) training for faster computation and reduced memory usage.
 
 data:

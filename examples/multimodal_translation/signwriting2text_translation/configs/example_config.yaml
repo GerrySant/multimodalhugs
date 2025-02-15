@@ -12,10 +12,6 @@ model:
   feature_extractor_cfg:                              # Configuration for modifying the feature extractor architecture.
     feature_extractor_arguments: "<config-arguments>"  # Arguments to adjust the internal configuration of the feature extractor.
 
-common:
-  wandb_name: experiment_model                         # Experiment name for Weights & Biases logging.
-  wandb_project: experiment_project                   # Project name in Weights & Biases.
-
 training:
   output_dir: "/path/to/output/results"              # Directory where model checkpoints and outputs will be saved.
   logging_dir: "/path/to/output/logs"                # Directory for storing training logs.
@@ -24,7 +20,7 @@ training:
   eval_steps: 20                                      # Evaluation is performed every 20 training steps.
   per_device_train_batch_size: 32                     # Batch size per device during training.
   gradient_accumulation_steps: 2                      # Number of steps to accumulate gradients before updating weights.
-  learning_rate: 2.0                                  # Learning rate for the optimizer.
+  learning_rate: 5e-05                                # Learning rate for the optimizer.
   weight_decay: 0                                     # Weight decay factor for regularization.
   adam_beta1: 0.9                                     # Beta1 parameter for the Adam optimizer.
   adam_beta2: 0.998                                   # Beta2 parameter for the Adam optimizer.
@@ -40,7 +36,7 @@ training:
   label_smoothing_factor: 0.1                         # Label smoothing factor applied during loss calculation.
   dataloader_drop_last: false                         # Whether to drop the last incomplete batch in the dataloader.
   dataloader_num_workers: 2                           # Number of worker threads for data loading.
-  remove_unused_columns: True                         # Remove dataset columns not used by the model.
+  remove_unused_columns: false                         # Remove dataset columns not used by the model.
   fp16: True                                         # Enable mixed-precision (FP16) training.
 
 data:

@@ -110,17 +110,20 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 # ----------------------------------------------------------
 # 1. Specify global variables
 # ----------------------------------------------------------
-export MODEL_NAME="pose2text_example"
+export MODEL_NAME="pose2text_example" # To specify the WANDB run name
+export MODEL_PATH="/obtained/by/multimodalhugs-setup"
+export PROCESSOR_PATH="/obtained/by/multimodalhugs-setup"
+export DATA_PATH="/obtained/by/multimodalhugs-setup"
+export CONFIG_PATH="/path/to/config.yaml"
 export OUTPUT_PATH="/path/to/your/output_directory"
-export MODEL_PATH="/obtained/by/pose2text_training_setup.py"
-export PROCESSOR_PATH="/obtained/by/pose2text_training_setup.py"
-export DATA_PATH="/obtained/by/pose2text_training_setup.py"
+export WANDB_PROJECT=my_prpject_name # To specify the WANDB project
 
 # ----------------------------------------------------------
 # 2. Train the Model
 # ----------------------------------------------------------
 multimodalhugs-train \
     --task "translation" \
+    --config $CONFIG_PATH \
     --model_name_or_path $MODEL_PATH \
     --processor_name_or_path $PROCESSOR_PATH \
     --run_name $MODEL_NAME \
@@ -148,6 +151,9 @@ multimodalhugs-train \
     --max_steps 200000 \
     --predict_with_generate True
 ```
+**Note:**  
+The `--config` (Optional) parameter indicates that the training arguments defined in the configuration file will be used if they have not been specified on the command line.
+
 >**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 
 
