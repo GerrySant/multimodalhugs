@@ -78,12 +78,11 @@ This project is licensed under the terms of the MIT License.
 ## Citing this Work
 If you use MultimodalHugs in your research or applications, please cite:
 
-```css
+```bibtex
 @misc{multimodalhugs2024, 
     title={MultimodalHugs: Extending HuggingFace for Generalized Multimodal AI Model Training and Evaluation},
     author={Sant, Gerard and Moryossef, Amit},
     howpublished={\url{https://github.com/GerrySant/multimodalhugs}},
     year={2024}
 }
-
 ```
