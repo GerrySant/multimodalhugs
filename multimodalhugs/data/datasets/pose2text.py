@@ -106,12 +106,11 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
             return sample
 
+        # Filter out samples where the file path does not exist
+        dataset = dataset.filter(lambda sample: file_exists_filter('source_signal', sample))
+
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function)
-        # Filter out samples where the updated file path does not exist
-        dataset = dataset.filter(lambda sample: file_exists_filter('source', sample))
-
-        # dataset = dataset.map(obtain_duration)
 
         dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample))
 
