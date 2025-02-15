@@ -33,10 +33,7 @@ training:
   save_steps: 128                                     # Interval (in steps) at which model checkpoints are saved.
   save_total_limit: 10                                # Maximum number of checkpoints to retain.
   seed: 1234                                         # Random seed for reproducibility.
-  label_smoothing_factor: 0.1                         # Label smoothing factor applied during loss calculation.
   dataloader_drop_last: false                         # Whether to drop the last incomplete batch in the dataloader.
-  dataloader_num_workers: 2                           # Number of worker threads for data loading.
-  remove_unused_columns: false                         # Remove dataset columns not used by the model.
   fp16: True                                         # Enable mixed-precision (FP16) training.
 
 data:

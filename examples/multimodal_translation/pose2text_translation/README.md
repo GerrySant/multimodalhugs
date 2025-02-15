@@ -66,7 +66,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-multimodalhugs-setup --modality "pose2text" --config_path </path/to/example_config.yaml>
+multimodalhugs-setup --modality "pose2text" --config-path_path </path/to/example_config.yaml>
 ```
 The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) that you can export for downstream usage.
 
@@ -123,7 +123,7 @@ export WANDB_PROJECT=my_prpject_name # To specify the WANDB project
 # ----------------------------------------------------------
 multimodalhugs-train \
     --task "translation" \
-    --config $CONFIG_PATH \
+    --config-path $CONFIG_PATH \
     --model_name_or_path $MODEL_PATH \
     --processor_name_or_path $PROCESSOR_PATH \
     --run_name $MODEL_NAME \
@@ -133,7 +133,6 @@ multimodalhugs-train \
     --do_eval True \
     --fp16 \
     --label_smoothing_factor 0.1 \
-    --remove_unused_columns False \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 8 \
     --evaluation_strategy "steps" \
@@ -152,7 +151,7 @@ multimodalhugs-train \
     --predict_with_generate True
 ```
 **Note:**  
-The `--config` (Optional) parameter indicates that the training arguments defined in the configuration file will be used if they have not been specified on the command line.
+The `--config-path` (Optional) parameter indicates that the training arguments defined in the configuration file will be used if they have not been specified on the command line.
 
 >**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 

@@ -356,46 +356,19 @@ class DataTrainingArguments:
         if self.val_max_target_length is None:
             self.val_max_target_length = self.max_target_length
 
-
-# def main():
-#     # Step 1. Use a simple parser to grab --config and remove it from sys.argv.
-#     config_parser = argparse.ArgumentParser(add_help=False)
-#     config_parser.add_argument("--config", type=str, help="Path to YAML config file")
-#     config_args, remaining_args = config_parser.parse_known_args()
-#     sys.argv = [sys.argv[0]] + remaining_args  # Remove --config for the next parser
-
-#     # Step 2. If a config file is provided, update the default training arguments.
-#     if config_args.config:
-#         yaml_conf = OmegaConf.load(config_args.config)
-#         yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
-#         # Only update the training-related fields (i.e. for Seq2SeqTrainingArguments).
-#         if "training" in yaml_dict:
-#             for key, value in yaml_dict["training"].items():
-#                 if key in Seq2SeqTrainingArguments.__dataclass_fields__:
-#                     Seq2SeqTrainingArguments.__dataclass_fields__[key].default = value
-
-#     # Step 3. Create HfArgumentParser and parse command-line arguments.
-#     parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
-#     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-#         model_args, processor_args, data_args, training_args = parser.parse_json_file(
-#             json_file=os.path.abspath(sys.argv[1])
-#         )
-#     else:
-#         model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
-
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
     config_parser = argparse.ArgumentParser(add_help=False)
-    config_parser.add_argument("--config", type=str, help="Path to YAML config file")
+    config_parser.add_argument("--config-path", type=str, help="Path to YAML config file")
     config_args, remaining_args = config_parser.parse_known_args()
     sys.argv = [sys.argv[0]] + remaining_args  # Remove --config for the next parser 
 
     # Step 2. If a config file is provided, update the default training arguments.
-    if config_args.config:
-        yaml_conf = OmegaConf.load(config_args.config)
+    if config_args.config_path:
+        yaml_conf = OmegaConf.load(config_args.config_path)
         yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
         parser_training = HfArgumentParser((Seq2SeqTrainingArguments,))
         config_training_args = parser_training.parse_dict(yaml_dict['training'])[0]
@@ -409,13 +382,16 @@ def main():
         model_args, processor_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
-        if config_args.config:
+        if config_args.config_path:
             training_args = merge_training_arguments(
                 training_args,
                 config_training_args,
                 command_arg_names,
                 yaml_training_keys
             )
+            
+    # set remove_unused_columns to false
+    setattr(training_args, "remove_unused_columns", False)
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
