@@ -1,6 +1,5 @@
 model:
   type: "multimodal_embedder" 
-  name: "hebrew_multimodalhugs"                           # The name or identifier of the model configuration.
   feature_extractor_type: "<feature_extractor_type>"     # Type of the feature extractor to use (e.g., "clip" for CLIP).
   pretrained_feature_extractor: "<pretrained-clip-model>" # Pretrained weights/checkpoint for the feature extractor (e.g., "openai/clip-vit-base-patch32").
   vl_mapper_type: "linear"                               # Visual-language mapper type (e.g., "linear" or "adapter").
@@ -13,28 +12,36 @@ model:
     feature_extractor_arguments: "<config-arguments>"   # Arguments to adjust the feature extractor's internal configuration.
 
 training:
-  output_dir: "/path/to/output/results"           # Directory where model checkpoints and results will be saved.
-  logging_dir: "/path/to/output/logs"             # Directory to store training logs.
-  overwrite_output_dir: false                      # Do not overwrite the output directory if it exists.
-  evaluation_strategy: "steps"                    # Evaluation strategy ("steps" or "epoch").
+  run_name: "hebrew_multimodalhugs"                # The name or identifier of the model configuration.
+  logging_dir: "/path/to/output/logs"              # Directory to store training logs.
+  do_train: True                                   # Whether to run training.
+  do_eval: True                                    # Whether to run evaluation on the validation set.
+  predict_with_generate: true                      # Use generate to compute generative metrics.
+  overwrite_output_dir: True                       # Do not overwrite the output directory if it exists.
+  save_strategy: "steps"                           # Checkpoint save strategy during training.
+  evaluation_strategy: "steps"                     # Evaluation strategy ("steps" or "epoch").
   eval_steps: 128                                  # Number of training steps between evaluations.
-  per_device_train_batch_size: 8                   # Batch size per device (GPU/CPU) during training.
-  gradient_accumulation_steps: 3                   # Number of steps to accumulate gradients before updating weights.
-  learning_rate: 5e-05                               # Learning rate for the optimizer.
+  logging_steps: 128                               # Interval (in steps) at which training metrics are logged.
+  save_steps: 128                                  # Interval (in steps) at which model checkpoints are saved.
+  per_device_train_batch_size: 8                   # Batch size per device during training.
+  per_device_eval_batch_size: 8                    # Batch size per device for evaluation.
+  gradient_accumulation_steps: 3                   # Number of steps to accumulate gradients before weight updates.
+  learning_rate: 5e-05                             # Initial learning rate for the optimizer.
+  load_best_model_at_end: True                     # Load the best model found during training at the end.
+  metric_for_best_model: 'bleu'                    # Metric used to determine the best model.
   weight_decay: 0                                  # Weight decay factor (L2 regularization).
   adam_beta1: 0.9                                  # Beta1 parameter for the Adam optimizer.
   adam_beta2: 0.998                                # Beta2 parameter for the Adam optimizer.
   max_grad_norm: 0.0                               # Maximum gradient norm for clipping (0 means no clipping).
   num_train_epochs: 1                              # Number of full passes through the training dataset.
   max_steps: 500000                                # Maximum number of training steps (overrides num_train_epochs if set).
-  lr_scheduler_type: "constant_with_warmup"       # Type of learning rate scheduler.
+  lr_scheduler_type: "inverse_sqrt"                # Type of learning rate scheduler.
   warmup_steps: 8000                               # Number of warmup steps to gradually increase the learning rate.
-  logging_steps: 128                               # Interval (in steps) at which training metrics are logged.
-  save_steps: 128                                  # Interval (in steps) at which model checkpoints are saved.
   save_total_limit: 10                             # Maximum number of checkpoints to retain (older ones are deleted).
-  seed: 3435                                      # Random seed for reproducibility.
-  dataloader_drop_last: false                     # Whether to drop the last incomplete batch in the dataloader.
-  fp16: True                                      # Enable mixed-precision (FP16) training for faster computation and reduced memory usage.
+  seed: 3435                                       # Random seed for reproducibility.
+  dataloader_drop_last: false                      # Drop the last incomplete batch in the dataloader.
+  fp16: True                                       # Enable mixed-precision (FP16) training for faster computation.
+  # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
 
 data:
   train_metadata_dir: "/path/to/train/metadata_file.tsv"  # Path to the training metadata file.

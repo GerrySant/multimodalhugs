@@ -41,8 +41,8 @@ import sys
 import dataclasses
 import argparse
 from omegaconf import OmegaConf
-from dataclasses import dataclass, field, asdict, fields
-from typing import Optional
+from dataclasses import dataclass, field, asdict, fields, is_dataclass
+from typing import Optional, List, TypeVar
 
 import datasets
 import evaluate
@@ -84,7 +84,6 @@ logger = logging.getLogger(__name__)
 # A list of all multilingual tokenizer which require src_lang and tgt_lang attributes.
 MULTILINGUAL_TOKENIZERS = [MBartTokenizer, MBartTokenizerFast, MBart50Tokenizer, MBart50TokenizerFast, M2M100Tokenizer]
 
-
 def construct_kwargs(obj, not_used_keys = []):
     kwargs = {}
     obj_dict = asdict(obj)
@@ -103,46 +102,79 @@ def construct_kwargs(obj, not_used_keys = []):
     
     return kwargs
 
-def merge_training_arguments(training_args: Seq2SeqTrainingArguments,
-                             config_training_args: Seq2SeqTrainingArguments,
-                             command_arg_names: list,
-                             yaml_training_keys: list) -> Seq2SeqTrainingArguments:
+T = TypeVar("T")
+
+def merge_arguments(cmd_args: T,
+                    config_args: T,
+                    command_arg_names: List[str],
+                    yaml_arg_keys: List[str]) -> T:
     """
-    Merge training arguments from the command line and config, following these rules:
+    Merge command-line arguments and configuration arguments for any dataclass instance.
+
+    This function merges the attributes of two dataclass instances of the same type,
+    following these rules:
     
-    1. Identify the arguments that kept their default value in training_args.
-       These are the fields whose names are not in command_arg_names.
-       (Store these names in the list `default_arguments`.)
+    1. Identify the fields in `cmd_args` that were NOT explicitly provided on the command line.
+       These fields are assumed to still have their default values (i.e. names not in `command_arg_names`).
        
-    2. For each training argument field:
-         - If the value in training_args (command-line) differs from the value in 
-           config_training_args and the field name is in default_arguments,
-           then use the value from config_training_args.
-         - Otherwise (if the field was explicitly set on the command line),
-           keep the training_args value.
-           
-    Returns the updated training_args object.
-    """
-    # 1. Identify which fields in training_args are still set to their default values
-    # (i.e. not provided on the command line).
-    default_arguments = [f.name for f in fields(training_args) if f.name not in command_arg_names]
-    
-    # 2. For each field, decide which value to keep.
-    for f in fields(training_args):
-        field_name = f.name
-        cmd_value = getattr(training_args, field_name)
-        cfg_value = getattr(config_training_args, field_name)
+    2. For each field:
+         - If the value in `cmd_args` differs from that in `config_args` **and** the field was not
+           explicitly set on the command line (i.e. it is in the default list), override the value in
+           `cmd_args` with the value from `config_args`.
+         - Otherwise, keep the command-line value.
+
+    Only fields listed in `yaml_arg_keys` will be considered for merging.
+
+    Args:
+        cmd_args (T): The dataclass instance populated from command-line arguments.
+        config_args (T): The dataclass instance populated from configuration (e.g. YAML).
+        command_arg_names (List[str]): The names of the arguments that were explicitly set on the command line.
+        yaml_arg_keys (List[str]): The names of the arguments present in the configuration.
+
+    Returns:
+        T: The merged dataclass instance with updated fields.
         
-        # Only consider fields that were specified in the config (yaml_training_keys)
-        if field_name in yaml_training_keys:
-            # If the values differ...
-            if cmd_value != cfg_value:
-                # If the field was not provided on the command line (i.e. it's default)
-                # then override it with the config value.
-                if field_name in default_arguments:
-                    setattr(training_args, field_name, cfg_value)
-                # Otherwise, keep the command-line value (do nothing).
-    return training_args
+    Raises:
+        ValueError: If either cmd_args or config_args is not a dataclass instance.
+    """
+    if not (is_dataclass(cmd_args) and is_dataclass(config_args)):
+        raise ValueError("Both cmd_args and config_args must be dataclass instances.")
+    
+    # Determine which fields are still at their default value (i.e., not set via command-line).
+    default_arguments = [f.name for f in fields(cmd_args) if f.name not in command_arg_names]
+    
+    # For each field in the dataclass, update the value if needed.
+    for f in fields(cmd_args):
+        field_name = f.name
+        
+        # Only merge fields that exist in the YAML configuration.
+        if field_name in yaml_arg_keys:
+            cmd_value = getattr(cmd_args, field_name)
+            cfg_value = getattr(config_args, field_name)
+            if cmd_value != cfg_value and field_name in default_arguments:
+                setattr(cmd_args, field_name, cfg_value)
+    
+    return cmd_args
+
+def filter_config_keys(config_section: dict, dataclass_type) -> dict:
+    valid_keys = {f.name for f in fields(dataclass_type)}
+    return {k: v for k, v in config_section.items() if k in valid_keys}
+
+def merge_config_and_command_args(config_path, class_type, section, _args, remaining_args):
+    yaml_conf = OmegaConf.load(config_path)
+    yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
+    _parser = HfArgumentParser((class_type,))
+    filtered_yaml = filter_config_keys(yaml_dict[section], class_type)
+    config_args = _parser.parse_dict(filtered_yaml)[0]
+    command_arg_names = [value[2:].replace("-", "_") for value in remaining_args if value[:2] == '--']
+    yaml_keys = yaml_dict[section].keys()
+    _args = merge_arguments(
+        cmd_args=_args,
+        config_args=config_args,
+        command_arg_names=command_arg_names,
+        yaml_arg_keys=yaml_keys
+    )
+    return _args
 
 @dataclass
 class ModelArguments:
@@ -151,6 +183,7 @@ class ModelArguments:
     """
 
     model_name_or_path: str = field(
+        default=None,
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
     config_name: Optional[str] = field(
@@ -213,17 +246,17 @@ class DataTrainingArguments:
     """
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
+    dataset_dir: Optional[str] = field(default=None, metadata={"help": "Path to the data directory"})
+    dataset_name: Optional[str] = field(
+        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
+    )
 
     source_lang: str = field(default=None, metadata={"help": "Source language id for translation."})
     target_lang: str = field(default=None, metadata={"help": "Target language id for translation."})
 
-    dataset_name: Optional[str] = field(
-        default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
-    )
     dataset_config_name: Optional[str] = field(
         default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
     )
-    dataset_dir: Optional[str] = field(default=None, metadata={"help": "Path to the data directory"})
     train_file: Optional[str] = field(default=None, metadata={"help": "The input training data file (a jsonlines)."})
     validation_file: Optional[str] = field(
         default=None,
@@ -338,8 +371,8 @@ class DataTrainingArguments:
     )
 
     def __post_init__(self):
-        if self.dataset_name is None and self.dataset_dir is None and self.train_file is None and self.validation_file is None:
-            raise ValueError("Need either a dataset name/directory or a training/validation file.")
+        # if self.dataset_name is None and self.dataset_dir is None and self.train_file is None and self.validation_file is None:
+        #     raise ValueError("Need either a dataset name/directory or a training/validation file.")
         # elif self.source_lang is None or self.target_lang is None:
         #     raise ValueError("Need to specify the source language and the target language.")
 
@@ -366,29 +399,13 @@ def main():
     config_args, remaining_args = config_parser.parse_known_args()
     sys.argv = [sys.argv[0]] + remaining_args  # Remove --config for the next parser 
 
-    # Step 2. If a config file is provided, update the default training arguments.
-    if config_args.config_path:
-        yaml_conf = OmegaConf.load(config_args.config_path)
-        yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
-        parser_training = HfArgumentParser((Seq2SeqTrainingArguments,))
-        config_training_args = parser_training.parse_dict(yaml_dict['training'])[0]
-        command_arg_names = [value[2:].replace("-", "_") for value in remaining_args if value[:2] == '--']
-        yaml_training_keys = yaml_dict['training'].keys()
-
     parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
-    if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script and it's the path to a json file,
-        # let's parse it to get our arguments.
-        model_args, processor_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
-    else:
-        model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
-        if config_args.config_path:
-            training_args = merge_training_arguments(
-                training_args,
-                config_training_args,
-                command_arg_names,
-                yaml_training_keys
-            )
+    model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    if config_args.config_path:
+        training_args = merge_config_and_command_args(config_args.config_path, Seq2SeqTrainingArguments, "training", training_args, remaining_args)
+        model_args = merge_config_and_command_args(config_args.config_path, ModelArguments, "model", model_args, remaining_args)
+        processor_args = merge_config_and_command_args(config_args.config_path, ProcessorArguments, "processor", processor_args, remaining_args)
+        data_args = merge_config_and_command_args(config_args.config_path, DataTrainingArguments, "data", data_args, remaining_args)
             
     # set remove_unused_columns to false
     setattr(training_args, "remove_unused_columns", False)
@@ -452,51 +469,12 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    # Get the datasets: you can either provide your own JSON training and evaluation files (see below)
-    # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
-    # (the dataset will be downloaded automatically from the datasets Hub).
-    #
-    # For translation, only JSON files are supported, with one field named "translation" containing two keys for the
-    # source and target languages (unless you adapt what follows).
-    #
-    # In distributed training, the load_dataset function guarantee that only one local process can concurrently
-    # download the dataset.
-    if data_args.dataset_name is not None:
-        # Downloading and loading a dataset from the hub.
-        raw_datasets = load_dataset(
-            data_args.dataset_name,
-            data_args.dataset_config_name,
-            cache_dir=model_args.cache_dir,
-            token=model_args.token,
-            trust_remote_code=model_args.trust_remote_code,
-        )
-    elif data_args.dataset_dir is not None:
+    if data_args.dataset_dir is not None:
         raw_datasets = load_from_disk(
             data_args.dataset_dir,
         )
     else:
-        data_files = {}
-        if data_args.train_file is not None:
-            data_files["train"] = data_args.train_file
-            extension = data_args.train_file.split(".")[-1]
-        if data_args.validation_file is not None:
-            data_files["validation"] = data_args.validation_file
-            extension = data_args.validation_file.split(".")[-1]
-        if data_args.test_file is not None:
-            data_files["test"] = data_args.test_file
-            extension = data_args.test_file.split(".")[-1]
-        if extension == "jsonl":
-            builder_name = "json"  # the "json" builder reads both .json and .jsonl files
-        else:
-            builder_name = extension  # e.g. "parquet"
-        raw_datasets = load_dataset(
-            builder_name,
-            data_files=data_files,
-            cache_dir=model_args.cache_dir,
-            token=model_args.token,
-        )
-    # See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
-    # https://huggingface.co/docs/datasets/loading.
+        raise ValueError("You must specify dataset_dir in the config or on the command line")
 
     # Load pretrained model and tokenizer
     #
@@ -837,13 +815,6 @@ def main():
                     writer.write("\n".join(predictions))
 
     kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "translation"}
-    if data_args.dataset_name is not None:
-        kwargs["dataset_tags"] = data_args.dataset_name
-        if data_args.dataset_config_name is not None:
-            kwargs["dataset_args"] = data_args.dataset_config_name
-            kwargs["dataset"] = f"{data_args.dataset_name} {data_args.dataset_config_name}"
-        else:
-            kwargs["dataset"] = data_args.dataset_name
 
     languages = [l for l in [data_args.source_lang, data_args.target_lang] if l is not None]
     if len(languages) > 0:

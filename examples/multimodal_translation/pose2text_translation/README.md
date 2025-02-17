@@ -58,17 +58,13 @@ Below is an example of how your metadata file should be structured. Each row rep
   - Tokenizer paths
   - Training paths (output directories, etc.)
   - Additional vocabulary files (e.g., `other/new_languages_how2sign.txt`)
-- **Output**:
-  1. `MODEL_PATH`: Directory with the saved model.
-  2. `PROCESSOR_PATH`: Directory with the saved processor.
-  3. `DATA_PATH`: Directory where the processed dataset is stored.
    
 Run the setup:
 
 ```bash
-multimodalhugs-setup --modality "pose2text" --config-path_path </path/to/example_config.yaml>
+multimodalhugs-setup --modality "pose2text" --config-path </path/to/example_config.yaml>
 ```
-The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DATA_PATH`) that you can export for downstream usage.
+The script will automatically save the paths of each of the training actors created in their respective section of the configuration.
 
 > **Note:** In this example, the model uses `m2m_100` as a pretrained backbone, along with its corresponding tokenizer. This can be seen in the configuration fields:  
 > - `model.pretrained_backbone: facebook/m2m100_418M`  
@@ -110,13 +106,9 @@ The script will print environment variables (`MODEL_PATH`, `PROCESSOR_PATH`, `DA
 # ----------------------------------------------------------
 # 1. Specify global variables
 # ----------------------------------------------------------
-export MODEL_NAME="pose2text_example" # To specify the WANDB run name
-export MODEL_PATH="/obtained/by/multimodalhugs-setup"
-export PROCESSOR_PATH="/obtained/by/multimodalhugs-setup"
-export DATA_PATH="/obtained/by/multimodalhugs-setup"
 export CONFIG_PATH="/path/to/config.yaml"
-export OUTPUT_PATH="/path/to/your/output_directory"
-export WANDB_PROJECT=my_prpject_name # To specify the WANDB project
+export OUTPUT_PATH="/path/to/your/output_directory" # Directory to store model checkpoints & results.
+export WANDB_PROJECT="<my_prpject_name>" # To specify the WANDB project
 
 # ----------------------------------------------------------
 # 2. Train the Model
@@ -124,31 +116,8 @@ export WANDB_PROJECT=my_prpject_name # To specify the WANDB project
 multimodalhugs-train \
     --task "translation" \
     --config-path $CONFIG_PATH \
-    --model_name_or_path $MODEL_PATH \
-    --processor_name_or_path $PROCESSOR_PATH \
-    --run_name $MODEL_NAME \
-    --dataset_dir $DATA_PATH \
     --output_dir $OUTPUT_PATH \
-    --do_train True \
-    --do_eval True \
-    --fp16 \
-    --label_smoothing_factor 0.1 \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
-    --evaluation_strategy "steps" \
-    --eval_steps 2000 \
-    --save_strategy "steps" \
-    --save_steps 2000 \
-    --save_total_limit 3 \
-    --load_best_model_at_end true \
-    --metric_for_best_model 'bleu' \
-    --overwrite_output_dir \
-    --per_device_eval_batch_size 8 \
-    --gradient_accumulation_steps 4 \
-    --learning_rate 5e-05 \
-    --warmup_steps 20000 \
-    --max_steps 200000 \
-    --predict_with_generate True
+    [--additional-arg <value> ...]  # Additional optional arguments can be specified here.
 ```
 **Note:**  
 The `--config-path` (Optional) parameter indicates that the training arguments defined in the configuration file will be used if they have not been specified on the command line.

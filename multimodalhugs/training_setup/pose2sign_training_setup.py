@@ -1,4 +1,4 @@
-### Usage: python training_setup.py --config_path path_to_your_config.yaml
+### Usage: python training_setup.py --config-path path_to_your_config.yaml
 
 import os
 import copy
@@ -10,6 +10,7 @@ from pathlib import Path
 from multimodalhugs.data import Pose2TextDataset, Pose2TextDataConfig
 from multimodalhugs.processors import Pose2TextTranslationProcessor
 from multimodalhugs.models.registry import get_model_class
+from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
 from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 
 from transformers import AutoTokenizer
@@ -21,7 +22,7 @@ def main(config_path):
     dataset = Pose2TextDataset(config=dataset_config)
 
     # Download, prepare, and save dataset
-    data_path = Path(config.training.output_dir) / config.model.name / "datasets" / dataset.name
+    data_path = Path(config.training.output_dir) / config.training.run_name / "datasets" / dataset.name
     dataset.download_and_prepare(data_path)
     dataset.as_dataset().save_to_disk(data_path)
 
@@ -30,7 +31,7 @@ def main(config_path):
     tokenizer, new_vocab_tokens = extend_tokenizer(
         dataset_config, 
         training_output_dir=config.training.output_dir, 
-        model_name=config.model.name
+        model_name=config.training.run_name
     )
 
     # The preprocessor is created
@@ -40,7 +41,7 @@ def main(config_path):
     )
 
     # Save processor and set PROCESSOR_PATH environment variable
-    processor_path = config.training.output_dir + f"/{config.model.name}" + f"/pose2text_translation_processor"
+    processor_path = config.training.output_dir + f"/{config.training.run_name}" + f"/pose2text_translation_processor"
     input_processor.save_pretrained(save_directory=processor_path, push_to_hub=False)
 
     # --- Model creation becomes model-independent ---
@@ -65,17 +66,17 @@ def main(config_path):
     # Build the model. Each model class can decide which arguments to use.
     model = model_class.build_model(**model_kwargs)
 
-    model_path = os.path.join(config.training.output_dir, config.model.name, "trained_model")
+    model_path = os.path.join(config.training.output_dir, config.training.run_name, "trained_model")
     model.save_pretrained(model_path)
 
-    print(f"MODEL_PATH={model_path}")
-    print(f"PROCESSOR_PATH={processor_path}")
-    print(f"DATA_PATH={data_path}")
-
+    add_argument_to_the_config(config_path, "processor", "processor_name_or_path", str(processor_path))
+    add_argument_to_the_config(config_path, "data", "dataset_dir", str(data_path))
+    add_argument_to_the_config(config_path, "model", "model_name_or_path", str(model_path))
+    reformat_yaml_file(config_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training script for multimodal models")
-    parser.add_argument('--config_path', type=str, required=True, help="Path to the configuration file")
+    parser.add_argument('--config-path', type=str, required=True, help="Path to the configuration file")
     
     args = parser.parse_args()
     
