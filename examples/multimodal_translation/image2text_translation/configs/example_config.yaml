@@ -44,9 +44,9 @@ training:
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
 
 data:
-  train_metadata_dir: "/path/to/train/metadata_file.tsv"  # Path to the training metadata file.
-  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
-  test_metadata_dir: "/path/to/test/metadata_file.tsv"    # Path to the test metadata file.
+  train_metadata_file: "/path/to/train/metadata_file.tsv"  # Path to the training metadata file.
+  validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
+  test_metadata_file: "/path/to/test/metadata_file.tsv"    # Path to the test metadata file.
   font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
   as_numpy: false                                        # Whether to create images as numpy arrays (false means on-the-fly image generation).
   shuffle: True                                          # Shuffle dataset samples during loading.

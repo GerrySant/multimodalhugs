@@ -37,9 +37,9 @@ class PreprocessArguments:
 @dataclass
 class MultimodalMTDataConfig(BuilderConfig):
     name: str = "MultimodalMTDataConfig"
-    train_metadata_dir: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the train metadata file."})
-    validation_metadata_dir: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the validation metadata file."})
-    test_metadata_dir: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the test metadata file."})
+    train_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the train metadata file."})
+    validation_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the validation metadata file."})
+    test_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the test metadata file."})
     filter_empty_samples: bool = field(default=True, metadata={"help": "If True, it filters samples with an empty field."})
     shuffle: bool = field(default=True, metadata={"help": "If True, it shuffles samples in the dataset."})
     tokenizer_src_langs_path: Optional[str] = field(default=None, metadata={"help": "Path to the tokenizer of the new source languages."})
@@ -53,9 +53,9 @@ class MultimodalMTDataConfig(BuilderConfig):
 
     def __init__(self, cfg=None, **kwargs):
         super().__init__(**kwargs)
-        self.train_metadata_dir = getattr(cfg.data, 'train_metadata_dir', self.train_metadata_dir)
-        self.validation_metadata_dir = getattr(cfg.data, 'validation_metadata_dir', self.validation_metadata_dir)
-        self.test_metadata_dir = getattr(cfg.data, 'test_metadata_dir', self.test_metadata_dir)
+        self.train_metadata_file = getattr(cfg.data, 'train_metadata_file', self.train_metadata_file)
+        self.validation_metadata_file = getattr(cfg.data, 'validation_metadata_file', self.validation_metadata_file)
+        self.test_metadata_file = getattr(cfg.data, 'test_metadata_file', self.test_metadata_file)
         self.filter_empty_samples = getattr(cfg.data, 'filter_empty_samples', self.filter_empty_samples)
         self.shuffle = getattr(cfg.data, 'shuffle', self.shuffle)
         self.tokenizer_src_langs_path = getattr(cfg.data, 'tokenizer_src_langs_path', self.tokenizer_src_langs_path)

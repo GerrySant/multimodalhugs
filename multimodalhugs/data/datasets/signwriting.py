@@ -53,21 +53,21 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
             datasets.SplitGenerator(
                 name=datasets.Split.VALIDATION,
                 gen_kwargs={
-                    "metafile_path": self.config.validation_metadata_dir, 
+                    "metafile_path": self.config.validation_metadata_file, 
                     "split": "val"
                 }
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.TEST,
                 gen_kwargs={
-                    "metafile_path": self.config.test_metadata_dir, 
+                    "metafile_path": self.config.test_metadata_file, 
                     "split": f"{datasets.Split.TEST}"
                 }
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.TRAIN,
                 gen_kwargs={
-                    "metafile_path": self.config.train_metadata_dir, 
+                    "metafile_path": self.config.train_metadata_file, 
                     "split": f"{datasets.Split.TRAIN}"
                 }
             ),

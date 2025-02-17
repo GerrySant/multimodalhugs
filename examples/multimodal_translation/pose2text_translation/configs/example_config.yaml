@@ -47,9 +47,9 @@ training:
 
 data:
   # Dataset and preprocessing settings:
-  train_metadata_dir: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
-  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
-  test_metadata_dir: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.
+  train_metadata_file: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
+  validation_metadata_file: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
+  test_metadata_file: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.
   shuffle: True                                                                                                                # Shuffle the dataset samples during loading.
   tokenizer_src_langs_path: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"          # Path to the file listing the source languages for the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"                                                                                # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").

@@ -45,9 +45,9 @@ training:
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
 
 data:
-  train_metadata_dir: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
-  validation_metadata_dir: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
-  test_metadata_dir: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
+  train_metadata_file: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
+  validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
+  test_metadata_file: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
   filter_empty_samples: True                                    # Filter out samples with empty fields.
   shuffle: True                                                # Shuffle dataset samples during loading.
   tokenizer_src_langs_path: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"  # Path to the file listing source languages for the tokenizer.
