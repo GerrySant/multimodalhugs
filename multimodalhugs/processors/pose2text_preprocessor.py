@@ -47,8 +47,8 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         
         Args:
             pose_file (Union[str, Path]): Path to the pose file.
-            source_start (int): Starting index or frame (default is 0).
-            source_end (int): Ending index or frame (default is 0).
+            source_start (int): Starting time (ms) (default is 0).
+            source_end (int): Ending time (ms) (default is 0).
 
         Returns:
             torch.Tensor: Tensor representation of the pose file.
@@ -58,7 +58,7 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
             if (source_end - source_start) == 0:
                 pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
             else:
-                pose = Pose.read(pose_file.read(), start_frame=source_start, end_frame=source_end) # [t, people, d, xyz]
+                pose = Pose.read(pose_file.read(), start_time=source_start, end_time=source_end) # [t, people, d, xyz]
         
         pose_hide_legs(pose)
     

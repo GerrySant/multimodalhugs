@@ -35,8 +35,8 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
     def _info(self):
         dataset_features = {
                 "source": str,
-                "source_start": Optional[float],
-                "source_end": Optional[float],
+                "source_start": Optional[int],
+                "source_end": Optional[int],
                 "source_prompt": Optional[str],
                 "generation_prompt": Optional[str],
                 "output_text": Optional[str],
