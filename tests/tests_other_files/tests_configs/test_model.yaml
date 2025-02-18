@@ -9,7 +9,7 @@ model:
   vl_factor: 1  # Reduce the vl_factor to decrease complexity
   vl_mapper_dropout: 0.0  # Remove dropout for fast overfitting
   backbone_name: m2m_100
-  backbone_cfg:
+  backbone_config:
     vocab_size: 8039
     backbone_argumnets: whatever
     d_model: 32    # Reduce model dimension for smaller model
@@ -20,7 +20,7 @@ model:
     decoder_ffn_dim: 64    # Smaller feed-forward network
     encoder_ffn_dim: 64
   pretrained_backbone:
-  encoder_embed_dim: 32  # Smaller embedding dimension
+  d_model: 32  # Smaller embedding dimension
   feat_dim: 32  # Smaller feature dimension
   num_labels: 2
   pad_token_id: 1
