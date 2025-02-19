@@ -17,35 +17,13 @@ from ruamel.yaml import YAML
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Tuple, Union
 
-from multimodalhugs.models import EncoderWrapper, freeze_module_parameters
+from multimodalhugs.models import EncoderWrapper
 from multimodalhugs.models.registry import register_model
-from multimodalhugs.modules import VLMapper, FeatureExtractor, SpecialTokensEmbeddings, get_feature_extractor_class
+from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
+from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities
 from multimodalhugs.utils import serialize_config
+
 logger = logging.getLogger(__name__)
-
-def init_encoder_new_embeddings(cfg, new_embeddings, pretrained_embeddings, tokenizer):
-
-    if cfg.init_lang_abbr is not None and cfg.init_lang_abbr!="avg":
-        lang_idx = "__" + cfg.init_lang_abbr + "__"
-        lang_idx = tokenizer.convert_tokens_to_ids(lang_idx)
-        new_embeddings.weight.data = pretrained_embeddings.weight.data[lang_idx].expand_as(new_embeddings.weight).clone()
-        logger.info(f"Language embedding layer initialized with weights from the '{cfg.init_lang_abbr}' language.")
-    
-    elif cfg.init_lang_abbr=="avg": # We iniciclize the weights from the average weight from all the MT language tokens
-        lang_idx = tokenizer.special_tokens_map['additional_special_tokens']
-        lang_idx = [tokenizer.convert_tokens_to_ids(lang_idx_) for lang_idx_ in lang_idx]
-
-        avg_tensor = []
-        
-        for lang_idx_ in lang_idx:
-            avg_tensor.append(pretrained_embeddings.weight.data[lang_idx_])
-        if len(avg_tensor) > 0:
-            avg_tensor = torch.stack(avg_tensor).mean(dim=0)
-            new_embeddings.weight.data = avg_tensor.expand_as(new_embeddings.weight).clone()
-            logger.info(f"Language embedding layer initialized with weights from the average language embeddings.")
-    else:
-        logger.info("Language embedding layer initialized from scratch as no initial language was provided.")
-    return new_embeddings
     
 def get_backbone_config_class(model_type: str):
     """
@@ -150,9 +128,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     feature_extractor_type: Optional[str] = field(
         default=None, metadata={"help": "Feature Extractor type to be used."}
     )
-    no_scale_embedding: bool = field(
-        default=False, metadata={"help": "if True, dont scale embeddings"}
-    )
     pretrained_feature_extractor: Optional[str] = field(
         default=None, metadata={"help": "Pretrained Feature Extractor or path to the Pretrained Feature Extractor checkpoint."}
     )
@@ -181,23 +156,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     freeze_vl_mapper: bool = field(
         default=False, metadata={"help": "if True, the vl_mapper parameters are frozen during training."}
     )
-    new_embeddings_vocab_size: Optional[int] = field(
-        default=None, metadata={"help": "vocab_size of the source language embeddings"}
-    )
     backbone_used_vocab_size: Optional[int] = field(
         default=None, metadata={"help": "Original vocab_size of the backbone excluding garbage embeddings"}
-    )
-    init_lang_abbr: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Language abbreviation of the language you want to use as initialization of the embeddings layer of the new languages. If the value is None, the embeddings layer will be initialized from scratch."
-        }
-    )
-    freeze_new_embeddings: bool = field(
-        default=False, metadata={"help": "if True, the new_embeddings parameters are frozen during training."}
-    )
-    freeze_old_embeddings: bool = field(
-        default=False, metadata={"help": "if True, the new_embeddings parameters are frozen during training."}
     )
     backbone_name: str = field(
         default="m2m100", metadata={"help": "Name of the model to be used as a backbone"}
@@ -211,6 +171,15 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     freeze_backbone: bool = field(
         default=False, metadata={"help": "if True, the backbone parameters are frozen during training."}
     )
+    freeze_encoder_embed_tokens: bool = field(
+        default=False, metadata={"help": "if True, the encoder.embed_tokens parameters are frozen during training."}
+    )
+    freeze_decoder_embed_tokens: bool = field(
+        default=False, metadata={"help": "if True, the decoder.embed_tokens parameters are frozen during training."}
+    )
+    freeze_lm_head: bool = field(
+        default=False, metadata={"help": "if True, the lm_head parameters are frozen during training."}
+    )
     d_model: Optional[int] = field(
         default=None, metadata={"help": "Dimention of the model"}
     )
@@ -219,6 +188,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     )
     is_encoder_decoder: bool = field(
         default=True,
+    )
+    decoder_start_token_id: Optional[int] = field(
+        default=None, metadata={"help": "Allows to specify the id for the decoder_start_token_id."}
     )
     pad_token_id: Optional[int] = field(
         default=None, metadata={"help": "Allows to specify the vocabulary index of the <pad> token to be added to the multimodal sequences."}
@@ -275,8 +247,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
             config=config.feature_extractor_config, 
         ) if config.feature_extractor_type is not None else None
 
-        if config.freeze_feature_extractor and self.feature_extractor is not None:
-            freeze_module_parameters(self.feature_extractor)
+        # Freezes or unfreezes the feature_extractor parameters. 
+        if self.feature_extractor is not None:
+            if config.freeze_feature_extractor:
+                set_module_parameters(self.feature_extractor, freeze=True)
+            else:
+                set_module_parameters(self.feature_extractor, freeze=False)
             
         # VL Mapper
         self.vl_mapper = VLMapper(
@@ -289,24 +265,14 @@ class MultiModalEmbedderModel(PreTrainedModel):
             layer_norm=config.vl_mapper_layer_norm, 
             activation=config.vl_mapper_activation,
         )
+        # Freezes or unfreezes the vl_mapper parameters. 
         if config.freeze_vl_mapper:
-            freeze_module_parameters(self.vl_mapper)
+            set_module_parameters(self.vl_mapper, freeze=True)
+        else:
+            set_module_parameters(self.vl_mapper, freeze=False)
 
-        # Lang Embedings
-        self.special_tokens_embeddings = SpecialTokensEmbeddings(
-            old_vocab_size=config.backbone_used_vocab_size if config.backbone_used_vocab_size is not None else config.backbone_config.vocab_size,
-            new_vocab_size=config.new_embeddings_vocab_size if config.new_embeddings_vocab_size is not None else 0,
-            embed_dim=config.d_model,
-            scale_embeddings=False if config.no_scale_embedding else True,
-            pad_idx=config.pad_token_id,
-            eos_idx=config.eos_token_id,
-        )
-
-        if config.freeze_new_embeddings:
-            if self.special_tokens_embeddings.special_tokens_embeddings.new_embeddings is not None:
-                freeze_module_parameters(self.special_tokens_embeddings.special_tokens_embeddings.new_embeddings)
-        if config.freeze_old_embeddings:
-            freeze_module_parameters(self.special_tokens_embeddings.special_tokens_embeddings.old_embeddings)
+        self.pad_token_id = config.pad_token_id
+        self.eos_token_id = config.eos_token_id
 
         # Backbone
         BackboneModelClass = get_backbone_model_class(config.backbone_name)
@@ -315,13 +281,39 @@ class MultiModalEmbedderModel(PreTrainedModel):
             self.backbone = BackboneModelClass(config.backbone_config)
         else:
             self.backbone = BackboneModelClass.from_pretrained(config.pretrained_backbone)
-            
+        
+        # Freezes or unfreezes the backbone parameters.
         if config.freeze_backbone:
-            freeze_module_parameters(self.backbone)
+            set_module_parameters(self.backbone, freeze=True)
+        else:
+            set_module_parameters(self.backbone, freeze=False)
+
+        # Freezes or unfreezes the encoder.embed_tokens parameters.
+        if config.freeze_encoder_embed_tokens:
+            set_module_parameters(self.get_backbone_encoder.embed_tokens, freeze=True)
+        else:
+            set_module_parameters(self.get_backbone_encoder.embed_tokens, freeze=False)
+
+        # Freezes or unfreezes the decoder.embed_tokens parameters.
+        if config.freeze_decoder_embed_tokens:
+            set_module_parameters(self.get_backbone_decoder.embed_tokens, freeze=True)
+        else:
+            set_module_parameters(self.get_backbone_decoder.embed_tokens, freeze=False)
+
+        # Freezes or unfreezes the lm_head parameters.
+        if config.freeze_lm_head:
+            set_module_parameters(self.lm_head, freeze=True)
+        else:
+            set_module_parameters(self.lm_head, freeze=False)
+
+        # If any of the embed_tokens layers or the lm_head are unfrozen, it unfreezes the decoder.embed_tokens parameters.
+        if config.freeze_decoder_embed_tokens or config.freeze_encoder_embed_tokens or config.freeze_lm_head:
+            set_module_parameters(self.get_shared, freeze=True, verbose=False)
+        else:
+            set_module_parameters(self.get_shared, freeze=False, verbose=False)
 
         # Others
         self.max_length = config.max_length
-        self.embed_scale = 1.0 if config.no_scale_embedding else math.sqrt(config.d_model)
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
         self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_token_id is not None else config.pad_token_id
         self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_token_id is not None else config.eos_token_id
@@ -334,7 +326,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 return getattr(self.backbone.model, 'shared', None) 
         else:
             return None
-
 
     def set_input_embeddings(self, value):
         # Set 'shared' attribute
@@ -361,10 +352,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if decoder and hasattr(decoder, 'embed_tokens'):
             decoder.embed_tokens = value
 
-
-
     def get_output_embeddings(self):
-        return self.backbone.lm_head
+        return self.lm_head
 
     @property
     def lm_head(self):
@@ -373,8 +362,22 @@ class MultiModalEmbedderModel(PreTrainedModel):
         return None
 
     @property
-    def language_encoder(self):
+    def get_backbone_encoder(self):
         return self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
+
+    @property
+    def get_backbone_decoder(self):
+        return self.backbone.decoder if hasattr(self.backbone, 'decoder') else self.backbone.model.decoder
+    
+    @property
+    def get_shared(self):
+        if hasattr(self.backbone, 'shared'):
+            return self.backbone.shared
+        elif hasattr(self.backbone, 'model'):
+            if hasattr(self.backbone.model, 'shared'):
+                return getattr(self.backbone.model, 'shared', None) 
+        else:
+            return None
 
     @classmethod
     def build_model(cls, **kwargs):
@@ -413,8 +416,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             backbone = BackboneModelClass(cfg.backbone_config)
         
         cfg.d_model = cfg.d_model or cfg.backbone_config.d_model
-
-        print(f"backbone: \n{backbone}")
+        cfg.decoder_start_token_id = cfg.decoder_start_token_id or cfg.backbone_config.decoder_start_token_id
 
         # Determine EOS and PAD token indices
         pad_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
@@ -426,8 +428,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         cfg.bos_token_id = cfg.bos_token_id or bos_token_id
         cfg.eos_token_id = cfg.eos_token_id or eos_token_id
         tokenizer_vocab_size = getattr(src_tokenizer, "total_vocab_size", src_tokenizer.vocab_size)
-        cfg.backbone_used_vocab_size = cfg.backbone_used_vocab_size or (tokenizer_vocab_size - len(new_vocab_tokens))
-        cfg.new_embeddings_vocab_size = cfg.new_embeddings_vocab_size or len(new_vocab_tokens)
+        #cfg.backbone_used_vocab_size = cfg.backbone_used_vocab_size or (tokenizer_vocab_size - len(new_vocab_tokens))
 
         # Update YAML configuration file
         if config_path:
@@ -440,45 +441,23 @@ class MultiModalEmbedderModel(PreTrainedModel):
             config_data['model']['pad_token_id'] = cfg.pad_token_id
             config_data['model']['bos_token_id'] = cfg.bos_token_id
             config_data['model']['eos_token_id'] = cfg.eos_token_id
-            config_data['model']['backbone_used_vocab_size'] = cfg.backbone_used_vocab_size
-            config_data['model']['new_embeddings_vocab_size'] = cfg.new_embeddings_vocab_size
+            config_data['model']['decoder_start_token_id'] = cfg.decoder_start_token_id
             
             # Save the updated configuration back to the file
             with open(config_path, 'w') as file:
                 yaml.dump(config_data, file)
 
-        # Handling pretrained and language-specific embeddings
-        pretrained_embeddings = backbone.encoder.embed_tokens if hasattr(backbone, 'encoder') else backbone.model.encoder.embed_tokens # torch.Size([128112, 1024])
-
-        source_embeddings = SpecialTokensEmbeddings.build_module(
-            old_vocab_size=cfg.backbone_used_vocab_size, 
-            new_vocab_size=len(new_vocab_tokens), 
-            embed_dim=cfg.d_model,
-            scale_embeddings=False if cfg.no_scale_embedding else True,
-            pad_idx=cfg.pad_token_id,
-            eos_idx=cfg.eos_token_id,
-            old_embs_weight=pretrained_embeddings.weight, 
-        )
-        
-        source_embeddings.special_tokens_embeddings.new_embeddings = init_encoder_new_embeddings(
-            cfg=cfg, 
-            new_embeddings=source_embeddings.special_tokens_embeddings.new_embeddings, 
-            pretrained_embeddings=source_embeddings.special_tokens_embeddings.old_embeddings, 
-            tokenizer=tgt_tokenizer
-        )
+        backbone, new_vocab_size = extend_all_embeddings_and_lm_head(backbone=backbone, num_new_tokens=len(new_vocab_tokens), verbose=True)
+        cfg.backbone_config.vocab_size = new_vocab_size
 
         # Create an instance of the model
         model = cls(config=cfg)
 
-        model.backbone.load_state_dict(backbone.state_dict()) # copy the weights from the backbone instance to the model.backbone 
-        model.special_tokens_embeddings.special_tokens_embeddings.new_embeddings.weight.data = source_embeddings.special_tokens_embeddings.new_embeddings.weight.data.clone()
-        model.special_tokens_embeddings.special_tokens_embeddings.old_embeddings.weight.data = source_embeddings.special_tokens_embeddings.old_embeddings.weight.data.clone()
-
+        model.backbone.load_state_dict(backbone.state_dict()) # copy the weights from the backbone instance to the model.backbone
         # Converts all tensors in the model to contiguous
         for param in model.parameters():
             if not param.is_contiguous():
                 param.data = param.data.contiguous()
-
         return model
 
     def forward(
@@ -524,7 +503,15 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if self.vl_mapper is not None:
             inputs_embeds = self.vl_mapper(inputs_embeds)
 
-        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_prompt, source_prompt_length_padding_mask)
+        inputs_embeds, attention_mask = merge_modalities(
+            x=inputs_embeds, 
+            padding_mask=attention_mask, 
+            prompt=src_prompt, 
+            prompt_length_padding_mask=source_prompt_length_padding_mask,
+            embeddings_module=self.get_backbone_encoder.embed_tokens, 
+            pad_idx=self.pad_token_id, 
+            eos_idx=self.eos_token_id, 
+        )
 
         outputs = self.backbone(
             input_ids = input_ids,
@@ -573,9 +560,18 @@ class MultiModalEmbedderModel(PreTrainedModel):
             inputs_embeds = self.feature_extractor(input_frames)
         if self.vl_mapper is not None:
             inputs_embeds = self.vl_mapper(inputs_embeds)
-        inputs_embeds, attention_mask =  self.special_tokens_embeddings(inputs_embeds, attention_mask, src_prompt, source_prompt_length_padding_mask)
 
-        return self.language_encoder(
+        inputs_embeds, attention_mask = merge_modalities(
+            x=inputs_embeds, 
+            padding_mask=attention_mask, 
+            prompt=src_prompt, 
+            prompt_length_padding_mask=source_prompt_length_padding_mask,
+            embeddings_module=self.get_backbone_encoder.embed_tokens, 
+            pad_idx=self.pad_token_id, 
+            eos_idx=self.eos_token_id, 
+        )
+
+        return self.get_backbone_encoder(
             input_ids=None,
             attention_mask=attention_mask,
             head_mask=head_mask,

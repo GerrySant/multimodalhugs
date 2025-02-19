@@ -20,7 +20,7 @@ training:
   predict_with_generate: true                      # Use generate to compute generative metrics.
   overwrite_output_dir: True                       # Do not overwrite the output directory if it exists.
   save_strategy: "steps"                           # Checkpoint save strategy during training.
-  evaluation_strategy: "steps"                     # Evaluation strategy ("steps" or "epoch").
+  eval_strategy: "steps"                     # Evaluation strategy ("steps" or "epoch").
   eval_steps: 128                                  # Number of training steps between evaluations.
   logging_steps: 128                               # Interval (in steps) at which training metrics are logged.
   save_steps: 128                                  # Interval (in steps) at which model checkpoints are saved.

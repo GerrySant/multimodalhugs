@@ -42,8 +42,7 @@ model:
       intermediate_size: 64    # Smaller intermediate size
       projection_dim: 32    # Reduce projection dimension
       image_size: 32
-  new_embeddings_vocab_size: 79
-  backbone_used_vocab_size: 8039
+  decoder_start_token_id: 2
 data:
   src_lang_tokenizer_path: tests/tests_other_files/new_languages.txt
   text_tokenizer_path: tests/tests_other_files/tiny_tokenizer   # /home/gsantm/store/other/tiny_tokenizer.json #facebook/m2m100_418M

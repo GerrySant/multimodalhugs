@@ -755,7 +755,7 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
-        print(f"checkpoint: {checkpoint}")
+        logger.info(f"Resuming training from: {checkpoint}")
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
         trainer.save_model()  # Saves the tokenizer too for easy upload
 
@@ -827,11 +827,9 @@ def main():
 
     return results
 
-
 def _mp_fn(index):
     # For xla_spawn (TPUs)
     main()
-
 
 if __name__ == "__main__":
     main()
