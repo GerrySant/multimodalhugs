@@ -12,6 +12,7 @@ from transformers import (
     AutoConfig,
 )
 from transformers.modeling_outputs import Seq2SeqLMOutput
+from accelerate.utils import find_tied_parameters
 
 from ruamel.yaml import YAML
 from dataclasses import dataclass, field
@@ -168,6 +169,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     pretrained_backbone: Optional[str] = field(
         default=None, metadata={"help": "Pretrained Backbone or path to the Pretrained Backbone checkpoint."}
     )
+    backbone_tied_weights_keys: Optional[Any] = field(
+        default=None, metadata={"help": "Name of the model to be used as a backbone"}
+    )
     freeze_backbone: bool = field(
         default=False, metadata={"help": "if True, the backbone parameters are frozen during training."}
     )
@@ -207,19 +211,27 @@ class MultiModalEmbedderConfig(PretrainedConfig):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.is_encoder_decoder = True
         if kwargs:
             for key, value in kwargs.items():
                 if hasattr(self, key):
                     setattr(self, key, value)
                 else:
                     setattr(self, key, value)
-
-        if kwargs and 'backbone_name' in kwargs:
+        if kwargs and 'backbone_name' in kwargs and 'backbone_config' in kwargs:
             backbone_name = kwargs['backbone_name']
             BackboneConfigClass = get_backbone_config_class(backbone_name)
             self.backbone_config = BackboneConfigClass(**kwargs.get('backbone_config', {}))
+
+        elif kwargs and 'pretrained_backbone' in kwargs:
+            self.backbone_config = AutoConfig.from_pretrained(kwargs['pretrained_backbone'])
+
         else:
             self.backbone_config = None
+
+        if self.backbone_config is not None:
+            self.tie_encoder_decoder = self.backbone_config.tie_encoder_decoder
+            self.tie_word_embeddings = self.backbone_config.tie_word_embeddings
 
         if kwargs and 'feature_extractor_type' in kwargs:
             feature_extractor_type = kwargs['feature_extractor_type']
@@ -227,9 +239,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
             self.feature_extractor_config = FeatureExtractorConfigClass(**kwargs.get('feature_extractor_cfg', {}))
         else:
             self.feature_extractor_config = None
-
-        self.is_encoder_decoder = True
-
 
 # Define the custom model class
 @register_model("multimodal_embedder")
@@ -253,7 +262,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 set_module_parameters(self.feature_extractor, freeze=True)
             else:
                 set_module_parameters(self.feature_extractor, freeze=False)
-            
         # VL Mapper
         self.vl_mapper = VLMapper(
             feat_dim=config.feat_dim, 
@@ -281,6 +289,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
             self.backbone = BackboneModelClass(config.backbone_config)
         else:
             self.backbone = BackboneModelClass.from_pretrained(config.pretrained_backbone)
+        
+        if type(config.backbone_tied_weights_keys) == list:
+            self.backbone._tied_weights_keys = config.backbone_tied_weights_keys
         
         # Freezes or unfreezes the backbone parameters.
         if config.freeze_backbone:
@@ -317,6 +328,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
         self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_token_id is not None else config.pad_token_id
         self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_token_id is not None else config.eos_token_id
+        self.post_init()
 
     def get_input_embeddings(self):
         if hasattr(self.backbone, 'shared'):
@@ -417,6 +429,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         
         cfg.d_model = cfg.d_model or cfg.backbone_config.d_model
         cfg.decoder_start_token_id = cfg.decoder_start_token_id or cfg.backbone_config.decoder_start_token_id
+        cfg.backbone_tied_weights_keys = cfg.backbone_tied_weights_keys or find_tied_parameters(backbone)[0]
+        backbone._tied_weights_keys = cfg.backbone_tied_weights_keys
 
         # Determine EOS and PAD token indices
         pad_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
@@ -453,7 +467,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         # Create an instance of the model
         model = cls(config=cfg)
 
-        model.backbone.load_state_dict(backbone.state_dict()) # copy the weights from the backbone instance to the model.backbone
+        # Copy the weights from the backbone instance to the model.backbone
+        model.backbone.load_state_dict(backbone.state_dict())
+
         # Converts all tensors in the model to contiguous
         for param in model.parameters():
             if not param.is_contiguous():
