@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig, add_new_special_tokens_from_vocab_file
+from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig
 from multimodalhugs.processors import SignwritingProcessor
 from transformers import AutoTokenizer
 from transformers.models.clip.image_processing_clip import CLIPImageProcessor
@@ -26,8 +26,10 @@ def main(config_path):
 
     # Download, prepare, and save dataset
     data_path = Path(config.training.output_dir) / config.training.run_name / "datasets" / dataset.name
-    dataset.download_and_prepare(data_path)
-    dataset.as_dataset().save_to_disk(data_path)
+    if not data_path.exists():
+        # Download, prepare, and save dataset only if data_path doesn't exist
+        dataset.download_and_prepare(data_path)
+        dataset.as_dataset().save_to_disk(data_path)
 
     # Load the tokenizer (here, we use AutoTokenizer)
     pretrained_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)

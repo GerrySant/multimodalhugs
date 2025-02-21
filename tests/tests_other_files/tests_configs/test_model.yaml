@@ -8,7 +8,7 @@ model:
   vl_mapper_activation: false
   vl_factor: 1  # Reduce the vl_factor to decrease complexity
   vl_mapper_dropout: 0.0  # Remove dropout for fast overfitting
-  backbone_name: m2m_100
+  backbone_type: m2m_100
   backbone_config:
     vocab_size: 8039
     backbone_argumnets: whatever
@@ -44,5 +44,5 @@ model:
       image_size: 32
   decoder_start_token_id: 2
 data:
-  src_lang_tokenizer_path: tests/tests_other_files/new_languages.txt
+  new_vocabulary: tests/tests_other_files/new_languages.txt
   text_tokenizer_path: tests/tests_other_files/tiny_tokenizer   # /home/gsantm/store/other/tiny_tokenizer.json #facebook/m2m100_418M

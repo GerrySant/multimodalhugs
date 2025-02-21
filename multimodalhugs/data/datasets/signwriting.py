@@ -18,6 +18,7 @@ from multimodalhugs.data import (
     check_columns,
     contains_empty,
 )
+from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.custom_datasets import properly_format_signbank_plus
 
 class SignWritingDataset(datasets.GeneratorBasedBuilder):
@@ -79,8 +80,8 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         """
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
-        dataset = dataset.filter(lambda sample: not contains_empty(sample))
+        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
+        dataset = dataset.filter(lambda sample: not contains_empty(sample), num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

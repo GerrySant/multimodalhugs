@@ -70,7 +70,7 @@ The script will automatically save the paths of each of the training actors crea
 > - `model.pretrained_backbone: facebook/m2m100_418M`  
 > - `data.text_tokenizer_path: facebook/m2m100_418M`  
 >   
-> If you want to initialize a backbone from scratch, select the desired architecture in `model.backbone_name` (e.g., `m2m_100`), set `model.pretrained_backbone: null`, and define the necessary hyperparameters under `model.backbone_config`. For instance:
+> If you want to initialize a backbone from scratch, select the desired architecture in `model.backbone_type` (e.g., `m2m_100`), set `model.pretrained_backbone: null`, and define the necessary hyperparameters under `model.backbone_config`. For instance:
 >
 > ```yaml
 > backbone_config:

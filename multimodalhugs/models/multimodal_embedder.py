@@ -124,7 +124,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         default="multimodal_embedder", metadata={"help": "Name of the model to be used."}
     )
     feat_dim: int = field(
-        default=512, metadata={"help": "Dimention of the Feature Extractor output."}
+        default=512, metadata={"help": "Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features."}
     )
     feature_extractor_type: Optional[str] = field(
         default=None, metadata={"help": "Feature Extractor type to be used."}
@@ -160,8 +160,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     backbone_used_vocab_size: Optional[int] = field(
         default=None, metadata={"help": "Original vocab_size of the backbone excluding garbage embeddings"}
     )
-    backbone_name: str = field(
-        default="m2m100", metadata={"help": "Name of the model to be used as a backbone"}
+    backbone_type: str = field(
+        default="m2m_100", metadata={"help": "Type of the model to be used as a backbone"}
     )
     backbone_config: Optional[Dict[str, Any]] = field(
         default=None, metadata={"help": "Hyperparameters in case the backbone is inicialized from scratch."}
@@ -218,9 +218,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
                     setattr(self, key, value)
                 else:
                     setattr(self, key, value)
-        if kwargs and 'backbone_name' in kwargs and 'backbone_config' in kwargs:
-            backbone_name = kwargs['backbone_name']
-            BackboneConfigClass = get_backbone_config_class(backbone_name)
+        if kwargs and 'backbone_type' in kwargs and 'backbone_config' in kwargs:
+            backbone_type = kwargs['backbone_type']
+            BackboneConfigClass = get_backbone_config_class(backbone_type)
             self.backbone_config = BackboneConfigClass(**kwargs.get('backbone_config', {}))
 
         elif kwargs and 'pretrained_backbone' in kwargs:
@@ -283,7 +283,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         self.eos_token_id = config.eos_token_id
 
         # Backbone
-        BackboneModelClass = get_backbone_model_class(config.backbone_name)
+        BackboneModelClass = get_backbone_model_class(config.backbone_type)
 
         if config.backbone_config is not None:
             self.backbone = BackboneModelClass(config.backbone_config)
@@ -420,7 +420,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             cfg = cfg
 
         # Load backbone model & config
-        BackboneModelClass = get_backbone_model_class(cfg.backbone_name)
+        BackboneModelClass = get_backbone_model_class(cfg.backbone_type)
         if cfg.pretrained_backbone is not None:
             backbone = BackboneModelClass.from_pretrained(cfg.pretrained_backbone)
             cfg.backbone_config = AutoConfig.from_pretrained(cfg.pretrained_backbone)

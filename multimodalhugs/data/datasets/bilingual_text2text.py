@@ -12,6 +12,7 @@ from multimodalhugs.data import (
     MultimodalMTDataConfig,
     duration_filter,
 )
+from multimodalhugs.utils.utils import get_num_proc
 
 class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
     def __init__(
@@ -70,7 +71,7 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         """
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
+        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
 
         for idx, item in enumerate(dataset):
             yield idx, {

@@ -14,6 +14,7 @@ from multimodalhugs.data import (
     file_exists_filter,
     duration_filter,
 )
+from multimodalhugs.utils.utils import get_num_proc
 
 class Pose2TextDataset(datasets.GeneratorBasedBuilder):
     def __init__(
@@ -92,7 +93,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         """
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
+        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
 
         def mapping_function(sample):
             sample['source'] = sample['source_signal']
@@ -107,12 +108,12 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             return sample
 
         # Filter out samples where the file path does not exist
-        dataset = dataset.filter(lambda sample: file_exists_filter('source_signal', sample))
+        dataset = dataset.filter(lambda sample: file_exists_filter('source_signal', sample), num_proc=get_num_proc())
 
         # Apply the update to the VIDEO_NAME column
-        dataset = dataset.map(mapping_function)
+        dataset = dataset.map(mapping_function, num_proc=get_num_proc())
 
-        dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample))
+        dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

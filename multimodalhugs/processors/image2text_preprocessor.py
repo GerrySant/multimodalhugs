@@ -111,4 +111,3 @@ class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
             "input_frames": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])
             "attention_mask": padded_input_masks                   # torch.Size([batch_size, n_frames]) 0 indicates padding elements
         }, kwargs
-

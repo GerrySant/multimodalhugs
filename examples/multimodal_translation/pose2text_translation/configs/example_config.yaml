@@ -8,10 +8,9 @@ model:
   vl_mapper_type: "linear"                                # Type of visual-language mapper (e.g., "linear" or "adapter").
   vl_mapper_layer_norm_before: true                       # Whether to apply Layer Normalization before the VL mapper.
   vl_mapper_dropout: 0.1                                  # Dropout probability for the VL mapper to prevent overfitting.
-  backbone_name: "<pretrained-backbone-model>"            # Identifier for the pretrained backbone (e.g., "m2m100").
+  backbone_type: "<pretrained-backbone-model>"            # Identifier for the pretrained backbone (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"    # Weights or checkpoint identifier for the pretrained backbone.
-  feat_dim: 534                                           # Dimensionality of the features produced by the backbone or feature extractor.
-  init_lang_abbr: avg                                     # Abbreviation of the language used to initialize new language embeddings. (avg means that the new embeddings will be inicialized from the avg of the pretrained embeddings.)
+  feat_dim: 534                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
 
 training:
   run_name: "how2sign_pose_2_text_model"           # The name or identifier of the model configuration.
@@ -50,8 +49,8 @@ data:
   train_metadata_file: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.
-  shuffle: True                                                                                                                # Shuffle the dataset samples during loading.
-  tokenizer_src_langs_path: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"          # Path to the file listing the source languages for the tokenizer.
-  text_tokenizer_path: "<pretrained-tokenizer>"                                                                                # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
-  max_seq_length: 512                                                                                                          # Maximum number of tokens allowed in a sequence for tokenization/generation.
-  max_frames: 300                                                                                                              # Maximum number of frames to consider in video samples; samples exceeding this are filtered.
+  shuffle: True                                                                                                                 # Shuffle the dataset samples during loading.
+  new_vocabulary: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"                     # Path to the file containing the new tokens that will be added to the tokenizer.
+  text_tokenizer_path: "<pretrained-tokenizer>"                                                                                 # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
+  max_seq_length: 512                                                                                                           # Maximum number of tokens allowed in a sequence for tokenization/generation.
+  max_frames: 300                                                                                                               # Maximum number of frames to consider in video samples; samples exceeding this are filtered.

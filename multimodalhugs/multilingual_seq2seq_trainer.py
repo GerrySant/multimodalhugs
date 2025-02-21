@@ -160,7 +160,7 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
             miniminibatch_inputs = {k: v[sample_indices] for k, v in inputs.items() if k not in ("decoder_input_ids", "decoder_attention_mask")}
 
             # Generamos para este miniminibatch
-            batch_generated_tokens = self.model.generate(**miniminibatch_inputs, **gen_kwargs)#, forced_bos_token_id=int(lang_token))
+            batch_generated_tokens = self.model.generate(**miniminibatch_inputs, **gen_kwargs, forced_bos_token_id=int(lang_token))
             original_indices.extend(sample_indices)
 
 

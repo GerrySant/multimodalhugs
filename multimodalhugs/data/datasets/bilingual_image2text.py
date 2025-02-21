@@ -14,6 +14,7 @@ from multimodalhugs.data import (
     BilingualText2TextDataset,
     get_images
 )
+from multimodalhugs.utils.utils import get_num_proc
 
 class BilingualImage2TextDataset(BilingualText2TextDataset):
     def __init__(
@@ -64,10 +65,11 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
 
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t")
+
+        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
 
         if self.as_numpy:
-            dataset = dataset.map(create_image_secuences)
+            dataset = dataset.map(create_image_secuences, num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

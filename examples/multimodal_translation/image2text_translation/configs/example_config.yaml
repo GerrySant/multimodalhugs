@@ -5,9 +5,9 @@ model:
   vl_mapper_type: "linear"                               # Visual-language mapper type (e.g., "linear" or "adapter").
   vl_mapper_layer_norm_before: true                      # Apply Layer Normalization before the VL mapper.
   vl_mapper_dropout: 0.1                                 # Dropout probability for the VL mapper.
-  backbone_name: "<pretrained-backbone-model>"          # Identifier for the pretrained backbone model (e.g., "m2m100").
+  backbone_type: "<pretrained-backbone-model>"          # Identifier for the pretrained backbone model (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"  # Pretrained weights for the backbone (e.g., "facebook/m2m100_418M").
-  init_lang_abbr: avg                                    # Language abbreviation used to initialize new language embeddings.
+  feat_dim: 512                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
   feature_extractor_cfg:                                 # Configuration for the feature extractor.
     feature_extractor_arguments: "<config-arguments>"   # Arguments to adjust the feature extractor's internal configuration.
 
@@ -50,7 +50,7 @@ data:
   font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
   as_numpy: false                                        # Whether to create images as numpy arrays (false means on-the-fly image generation).
   shuffle: True                                          # Shuffle dataset samples during loading.
-  tokenizer_src_langs_path: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # File listing source languages for the tokenizer.
+  new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
   max_seq_length: 512                                    # Maximum token sequence length for text generation/tokenization.
   max_frames: 300                                       # Maximum number of frames to consider from the data.

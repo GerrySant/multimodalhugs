@@ -1,4 +1,7 @@
+import os
 import re
+import multiprocessing
+
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from omegaconf import OmegaConf, DictConfig
@@ -91,3 +94,30 @@ def reformat_yaml_file(config_path: str):
     # Write back the formatted text to the file
     with open(config_path, 'w') as f:
         f.write(formatted_text)
+
+def get_num_proc():
+    # SGE
+    if "NSLOTS" in os.environ:
+        return int(os.environ["NSLOTS"])
+    # SLURM
+    if "SLURM_CPUS_PER_TASK" in os.environ:
+        return int(os.environ["SLURM_CPUS_PER_TASK"])
+    # PBS/Torque
+    if "PBS_NUM_PPN" in os.environ:
+        return int(os.environ["PBS_NUM_PPN"])
+    if "PBS_NODEFILE" in os.environ:
+        try:
+            with open(os.environ["PBS_NODEFILE"]) as f:
+                return len(f.readlines())
+        except Exception:
+            pass
+    # HTCondor
+    if "NUM_CPUS" in os.environ:
+        return int(os.environ["NUM_CPUS"])
+    # LSF
+    if "LSB_DJOB_NUMPROC" in os.environ:
+        return int(os.environ["LSB_DJOB_NUMPROC"])
+    if "LSB_MAX_NUM_PROCESSORS" in os.environ:
+        return int(os.environ["LSB_MAX_NUM_PROCESSORS"])
+    # Fallback: number of system cores
+    return multiprocessing.cpu_count()

@@ -55,26 +55,26 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
 
     def process_prompts(self, prompts):
         """
-        Procesa las prompts para tener en cuenta diferentes longitudes de tokens entre muestras.
+        Processes the prompts to account for different token lengths among samples.
 
         Args:
-            prompts (list of str): Lista de prompts.
+            prompts (list of str): List of prompts.
 
         Returns:
-            torch.Tensor: Tensores de prompts con padding.
-            torch.Tensor: Máscara indicando las posiciones de padding (1 para tokens reales, 0 para padding).
+            torch.Tensor: Prompt tensors with padding.
+            torch.Tensor: Mask indicating the padding positions (1 for real tokens, 0 for padding).
         """
 
-        # Tokenizar las prompts con padding
+        # Tokenize the prompts with padding
         tokenized_output = self.tokenizer(
             prompts,
             add_special_tokens=False,
-            padding=True,  # Añadir padding automáticamente
-            truncation=False,  # No truncar las secuencias
-            return_tensors="pt",  # Devolver tensores de PyTorch
+            padding=True,  # Automatically add padding
+            truncation=False,  # Do not truncate sequences
+            return_tensors="pt",  # Return PyTorch tensors
         )
 
-        # Obtener tensores de prompts y la máscara
+        # Obtain prompt tensors and the mask
         padded_prompts = tokenized_output["input_ids"]
         source_prompt_length_padding_mask = tokenized_output["attention_mask"]
 
