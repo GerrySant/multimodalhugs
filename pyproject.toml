@@ -9,7 +9,7 @@ authors = [
 readme = "README.md"
 dependencies = [
     "datasets",
-    "torch",
+    "torch<2.6", # Currently, HuggingFace does not support changing the default value of the `weights_only` argument in `torch.load` from `False` to `True` introduced in PyTorch 2.6.
     "torchvision",
     "torchaudio",
     "transformers<=4.44.2",
