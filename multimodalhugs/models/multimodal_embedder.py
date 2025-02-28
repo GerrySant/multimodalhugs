@@ -479,7 +479,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     def forward(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        src_prompt: Optional[torch.LongTensor] = None,
+        source_prompt: Optional[torch.LongTensor] = None,
         source_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -505,14 +505,28 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         INPUTS:
             - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
-            - input_frames (also known as 'src_tokens'): B x N_frames x C x W x H <- Multimodal input minibatch
-            - src_prompt: B x prompt_n_tokens <- prompt to be added to 'inputs_embeds' before fitting them to the Language Model
+            - input_frames: B x N_frames x C x W x H <- Multimodal input minibatch
+            - source_prompt: B x prompt_n_tokens <- prompt to be added to 'inputs_embeds' before fitting them to the Language Model
             - source_prompt_length_padding_mask: B x prompt_n_tokens <- source prompt padding_mask.
-            - attention_mask (also known as 'encoder_padding_mask'): B x N_frames <- 0 indicates padding elements
-            - decoder_input_ids (also known as 'source_text'): B x T_text <- Should look as ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>'] if teacher forcing, otherwise None. In Generation: ['<s>', '<tgt_lang>']
-            - labels (also known as 'source_text'): B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
+            - attention_mask: B x N_frames <- 0 indicates padding elements
+            - decoder_input_ids: B x T_text <- Should look as ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>'] if teacher forcing, otherwise None. In Generation: ['<s>', '<tgt_lang>']
+            - labels: B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
             - decoder_attention_mask: B x T_text <- 0 indicates padding elements
         """
+        #print("-----------------------------------------------------------------")
+        #print(f"decoder_input_ids: \n{decoder_input_ids}\n")
+        #print(f"decoder_attention_mask: \n{decoder_attention_mask}\n")
+        if labels is not None: # During training, use backbone method to create decoder_input_ids from labels
+            decoder_input_ids = None
+            decoder_attention_mask = None
+
+        # if decoder_input_ids is not None:
+        #     print(f"decoder_input_ids_after: \n{decoder_input_ids}\n")
+        #print(f"decoder_attention_mask_after: \n{decoder_attention_mask}\n")
+        #print("-----------------------------------------------------------------")
+
+
+
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
 
@@ -522,7 +536,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         inputs_embeds, attention_mask = merge_modalities(
             x=inputs_embeds, 
             padding_mask=attention_mask, 
-            prompt=src_prompt, 
+            prompt=source_prompt, 
             prompt_length_padding_mask=source_prompt_length_padding_mask,
             embeddings_module=self.get_backbone_encoder.embed_tokens, 
             pad_idx=self.pad_token_id, 
@@ -553,7 +567,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     def input_to_encoder_outputs(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        src_prompt: Optional[torch.LongTensor] = None,
+        source_prompt: Optional[torch.LongTensor] = None,
         source_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -566,10 +580,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         """
         INPUTS:
             - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
-            - input_frames (also known as 'src_tokens'): B x N_frames x C x W x H <- Multimodal input minibatch
-            - src_prompt: B x prompt_n_tokens <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
+            - input_frames: B x N_frames x C x W x H <- Multimodal input minibatch
+            - source_prompt: B x prompt_n_tokens <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
             - source_prompt_length_padding_mask: B x prompt_n_tokens <- source prompt padding_mask.
-            - attention_mask (also known as 'encoder_padding_mask'): B x N_frames <- 0 indicates padding elements
+            - attention_mask: B x N_frames <- 0 indicates padding elements
         """
         
         if inputs_embeds is None:
@@ -580,7 +594,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         inputs_embeds, attention_mask = merge_modalities(
             x=inputs_embeds, 
             padding_mask=attention_mask, 
-            prompt=src_prompt, 
+            prompt=source_prompt, 
             prompt_length_padding_mask=source_prompt_length_padding_mask,
             embeddings_module=self.get_backbone_encoder.embed_tokens, 
             pad_idx=self.pad_token_id, 
@@ -599,6 +613,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
     def prepare_inputs_for_generation(self, *args, **kwargs):
         # Added a condition to handle empty `past_key_values` which occurred unpredictably in the final autoregression step, causing errors during generation. This ensures stability across all steps.
+
         if kwargs.get('past_key_values', ()) == ():
             kwargs['past_key_values'] = None
 
@@ -612,9 +627,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if inputs_embeds is not None:
             model_inputs["inputs_embeds"] = inputs_embeds
 
-        src_prompt = kwargs.get('src_prompt', None)
-        if src_prompt is not None:
-            model_inputs["src_prompt"] = src_prompt
+        source_prompt = kwargs.get('source_prompt', None)
+        if source_prompt is not None:
+            model_inputs["source_prompt"] = source_prompt
 
         source_prompt_length_padding_mask = kwargs.get('source_prompt_length_padding_mask', None)
         if source_prompt_length_padding_mask is not None:

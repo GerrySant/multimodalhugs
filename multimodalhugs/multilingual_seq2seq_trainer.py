@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from transformers.trainer_utils import EvalPrediction, PredictionOutput
     from transformers.training_args import TrainingArguments
 
+def all_values_equal(tensor):
+    return torch.all(tensor == tensor.flatten()[0])
 
 class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
 
@@ -145,37 +147,29 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
                 k: v for k, v in inputs.items() if k not in ("decoder_input_ids", "decoder_attention_mask")
             }
 
-        lang_tokens = inputs['labels'][:, 0].tolist()
-        # Use these language tokens to group indices
-        language_groups = defaultdict(list)
-        for idx, lang_token in enumerate(lang_tokens):
-            language_groups[lang_token].append(idx)
+        if all_values_equal(generation_inputs['decoder_attention_mask']):
+            # If all decoder_prompts have the same number of tokens, we can pass the whole batch in the model.generate()
+            generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
 
-        generated_tokens = []
-        original_indices = []
-        max_len_generation = 0
+        else:
+            # Otherwise, we generate sample by sample:
+            B = next(iter(generation_inputs.values())).shape[0]
+            samples = [{key: value[i:i+1] for key, value in generation_inputs.items()} for i in range(B)]
 
-        # Generamos para cada miniminibatch agrupado por idioma
-        for lang_token, sample_indices in language_groups.items():
-            miniminibatch_inputs = {k: v[sample_indices] for k, v in inputs.items() if k not in ("decoder_input_ids", "decoder_attention_mask")}
+            generated_tokens = []
+            max_len_generation = 0
 
-            # Generamos para este miniminibatch
-            batch_generated_tokens = self.model.generate(**miniminibatch_inputs, **gen_kwargs, forced_bos_token_id=int(lang_token))
-            original_indices.extend(sample_indices)
+            for sample in samples:
+                _generated_tokens = self.model.generate(**sample, **gen_kwargs)
 
+                if _generated_tokens.shape[1] > max_len_generation:
+                    max_len_generation = _generated_tokens.shape[1]
 
-            if batch_generated_tokens.shape[1] > max_len_generation:
-                max_len_generation = batch_generated_tokens.shape[1]
-            
-            generated_tokens.append(batch_generated_tokens)
+                generated_tokens.append(_generated_tokens)
 
-        sorted_indices = sorted(range(len(original_indices)), key=lambda k: original_indices[k])
-
-        for i in range(len(generated_tokens)):
-            generated_tokens[i] = F.pad(generated_tokens[i], (0, max_len_generation - generated_tokens[i].size(1)), value=self.tokenizer.pad_token_id)
-
-        generated_tokens = torch.cat(generated_tokens, dim=0)
-        generated_tokens = generated_tokens[sorted_indices]
+            for i in range(len(generated_tokens)):
+                generated_tokens[i] = F.pad(generated_tokens[i], (0, max_len_generation - generated_tokens[i].size(1)), value=self.tokenizer.pad_token_id)
+            generated_tokens = torch.cat(generated_tokens, dim=0)
 
         # Temporary hack to ensure the generation config is not initialized for each iteration of the evaluation loop
         # TODO: remove this hack when the legacy code that initializes generation_config from a model config is

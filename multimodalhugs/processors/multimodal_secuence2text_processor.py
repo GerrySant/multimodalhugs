@@ -76,9 +76,9 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
 
         # Obtain prompt tensors and the mask
         padded_prompts = tokenized_output["input_ids"]
-        source_prompt_length_padding_mask = tokenized_output["attention_mask"]
+        prompt_length_padding_mask = tokenized_output["attention_mask"]
 
-        return padded_prompts, source_prompt_length_padding_mask
+        return padded_prompts, prompt_length_padding_mask
 
     def get_obtainables(self):
         if self.obtainables_list is not None:
@@ -105,17 +105,21 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         raise NotImplementedError("_obtain_multimodal_input_and_masks method must be implemented by the child class.")
 
-    def _obtain_src_prompt(self, batch, **kwargs):
-
+    def _obtain_source_prompt(self, batch, **kwargs):
         padded_prompts, source_prompt_length_padding_mask = self.process_prompts([sample['source_prompt'] for sample in batch])
 
         return {
-            "src_prompt": padded_prompts,                                               # torch.Size([batch_size, prompt_length])
+            "source_prompt": padded_prompts,                                               # torch.Size([batch_size, prompt_length])
             "source_prompt_length_padding_mask": source_prompt_length_padding_mask,     # torch.Size([batch_size, prompt_length])
         }, kwargs
 
-    def _obtain_others(self, batch, **kwargs):
-        return self._obtain_src_prompt(batch, **kwargs)
+    def _obtain_generation_prompt(self, batch, **kwargs):
+        padded_prompts, generation_prompt_length_padding_mask = self.process_prompts([sample['generation_prompt'] for sample in batch])
+
+        return {
+            "decoder_input_ids": padded_prompts,                                 # torch.Size([batch_size, prompt_length])
+            "decoder_attention_mask": generation_prompt_length_padding_mask,     # torch.Size([batch_size, prompt_length])
+        }, kwargs
         
     def __call__(
         self,
