@@ -2,7 +2,7 @@
 """
 Dispatcher for training.
 Usage example:
-    multimodalhugs-train \
+    multimodalhugs-generate \
         --task "translation" \
         --config-path $CONFIG_PATH \
         --output_dir $OUTPUT_PATH \
@@ -28,10 +28,10 @@ def main():
     
     if args.task == "translation":
         # Import the translation runner.
-        from multimodalhugs.tasks import translation_training_main
+        from multimodalhugs.tasks import translation_generate_main
         # Replace sys.argv with the remaining arguments so that the translation script's own parser sees them.
         sys.argv = [sys.argv[0]] + remaining_args
-        translation_training_main()
+        translation_generate_main()
     else:
         # If you add more tasks, dispatch them accordingly.
         print(f"Task {args.task} is not implemented.")

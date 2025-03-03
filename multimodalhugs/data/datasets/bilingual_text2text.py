@@ -41,29 +41,38 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         )
 
     def _split_generators(self, dl_manager):
-        return [
-            datasets.SplitGenerator(
-                name=datasets.Split.VALIDATION,
-                gen_kwargs={
-                    "metafile_path": self.config.validation_metadata_file, 
-                    "split": "val"
-                }
-            ),
-            datasets.SplitGenerator(
-                name=datasets.Split.TEST,
-                gen_kwargs={
-                    "metafile_path": self.config.test_metadata_file, 
-                    "split": f"{datasets.Split.TEST}"
-                }
-            ),
-            datasets.SplitGenerator(
-                name=datasets.Split.TRAIN,
-                gen_kwargs={
-                    "metafile_path": self.config.train_metadata_file, 
-                    "split": f"{datasets.Split.TRAIN}"
-                }
-            ),
-        ]
+        splits = []
+        if self.config.train_metadata_file is not None:
+            splits.append(
+                datasets.SplitGenerator(
+                    name=datasets.Split.TRAIN,
+                    gen_kwargs={
+                        "metafile_path": self.config.train_metadata_file,
+                        "split": "train"
+                    }
+                )
+            )
+        if self.config.validation_metadata_file is not None:
+            splits.append(
+                datasets.SplitGenerator(
+                    name=datasets.Split.VALIDATION,
+                    gen_kwargs={
+                        "metafile_path": self.config.validation_metadata_file,
+                        "split": "validation"
+                    }
+                )
+            )
+        if self.config.test_metadata_file is not None:
+            splits.append(
+                datasets.SplitGenerator(
+                    name=datasets.Split.TEST,
+                    gen_kwargs={
+                        "metafile_path": self.config.test_metadata_file,
+                        "split": "test"
+                    }
+                )
+            )
+        return splits
 
     def _generate_examples(self, **kwargs):
         """

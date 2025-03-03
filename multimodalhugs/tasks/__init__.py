@@ -4,4 +4,5 @@ For example, the 'translation' task should be implemented in a module
 named translation.py within this package.
 """
 
-from .run_translation import main as translation_main
+from .translation.translation_training import main as translation_training_main
+from .translation.translation_generate import main as translation_generate_main

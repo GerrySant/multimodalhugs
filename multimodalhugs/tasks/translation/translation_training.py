@@ -105,7 +105,7 @@ def construct_kwargs(obj, not_used_keys = []):
 T = TypeVar("T")
 
 def merge_arguments(cmd_args: T,
-                    config_args: T,
+                    extra_args: T,
                     command_arg_names: List[str],
                     yaml_arg_keys: List[str]) -> T:
     """
@@ -118,16 +118,16 @@ def merge_arguments(cmd_args: T,
        These fields are assumed to still have their default values (i.e. names not in `command_arg_names`).
        
     2. For each field:
-         - If the value in `cmd_args` differs from that in `config_args` **and** the field was not
+         - If the value in `cmd_args` differs from that in `extra_args` **and** the field was not
            explicitly set on the command line (i.e. it is in the default list), override the value in
-           `cmd_args` with the value from `config_args`.
+           `cmd_args` with the value from `extra_args`.
          - Otherwise, keep the command-line value.
 
     Only fields listed in `yaml_arg_keys` will be considered for merging.
 
     Args:
         cmd_args (T): The dataclass instance populated from command-line arguments.
-        config_args (T): The dataclass instance populated from configuration (e.g. YAML).
+        extra_args (T): The dataclass instance populated from configuration (e.g. YAML).
         command_arg_names (List[str]): The names of the arguments that were explicitly set on the command line.
         yaml_arg_keys (List[str]): The names of the arguments present in the configuration.
 
@@ -135,10 +135,10 @@ def merge_arguments(cmd_args: T,
         T: The merged dataclass instance with updated fields.
         
     Raises:
-        ValueError: If either cmd_args or config_args is not a dataclass instance.
+        ValueError: If either cmd_args or extra_args is not a dataclass instance.
     """
-    if not (is_dataclass(cmd_args) and is_dataclass(config_args)):
-        raise ValueError("Both cmd_args and config_args must be dataclass instances.")
+    if not (is_dataclass(cmd_args) and is_dataclass(extra_args)):
+        raise ValueError("Both cmd_args and extra_args must be dataclass instances.")
     
     # Determine which fields are still at their default value (i.e., not set via command-line).
     default_arguments = [f.name for f in fields(cmd_args) if f.name not in command_arg_names]
@@ -150,7 +150,7 @@ def merge_arguments(cmd_args: T,
         # Only merge fields that exist in the YAML configuration.
         if field_name in yaml_arg_keys:
             cmd_value = getattr(cmd_args, field_name)
-            cfg_value = getattr(config_args, field_name)
+            cfg_value = getattr(extra_args, field_name)
             if cmd_value != cfg_value and field_name in default_arguments:
                 setattr(cmd_args, field_name, cfg_value)
     
@@ -165,12 +165,12 @@ def merge_config_and_command_args(config_path, class_type, section, _args, remai
     yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
     _parser = HfArgumentParser((class_type,))
     filtered_yaml = filter_config_keys(yaml_dict[section], class_type)
-    config_args = _parser.parse_dict(filtered_yaml)[0]
+    extra_args = _parser.parse_dict(filtered_yaml)[0]
     command_arg_names = [value[2:].replace("-", "_") for value in remaining_args if value[:2] == '--']
     yaml_keys = yaml_dict[section].keys()
     _args = merge_arguments(
         cmd_args=_args,
-        config_args=config_args,
+        extra_args=extra_args,
         command_arg_names=command_arg_names,
         yaml_arg_keys=yaml_keys
     )
@@ -228,16 +228,6 @@ class ModelArguments:
 class ProcessorArguments:
     processor_name_or_path: Optional[str] = field(
         default=None, metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
-    )
-    target_lang_on_source: bool = field(
-        default=False,
-        metadata={
-            "help": (
-                "Whether to trust the execution of code from datasets/models defined on the Hub."
-                " This option should only be set to `True` for repositories you trust and in which you have read the"
-                " code, as it will execute code present on the Hub on your local machine."
-            )
-        },
     )
 
 
@@ -394,18 +384,19 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    config_parser = argparse.ArgumentParser(add_help=False)
-    config_parser.add_argument("--config-path", type=str, help="Path to YAML config file")
-    config_args, remaining_args = config_parser.parse_known_args()
+    extra_parser = argparse.ArgumentParser(add_help=False)
+    extra_parser.add_argument("--config-path", type=str, help="Path to YAML config file")
+    extra_parser.add_argument("--visualize_prediction_prob", type=float, default=0.05, help="Percentage of samples displaying their predictions during evaluation")
+    extra_args, remaining_args = extra_parser.parse_known_args()
     sys.argv = [sys.argv[0]] + remaining_args  # Remove --config for the next parser 
 
     parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
     model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    if config_args.config_path:
-        training_args = merge_config_and_command_args(config_args.config_path, Seq2SeqTrainingArguments, "training", training_args, remaining_args)
-        model_args = merge_config_and_command_args(config_args.config_path, ModelArguments, "model", model_args, remaining_args)
-        processor_args = merge_config_and_command_args(config_args.config_path, ProcessorArguments, "processor", processor_args, remaining_args)
-        data_args = merge_config_and_command_args(config_args.config_path, DataTrainingArguments, "data", data_args, remaining_args)
+    if extra_args.config_path:
+        training_args = merge_config_and_command_args(extra_args.config_path, Seq2SeqTrainingArguments, "training", training_args, remaining_args)
+        model_args = merge_config_and_command_args(extra_args.config_path, ModelArguments, "model", model_args, remaining_args)
+        processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, remaining_args)
+        data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, remaining_args)
             
     # set remove_unused_columns to false
     setattr(training_args, "remove_unused_columns", False)
@@ -488,8 +479,13 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    if hasattr(config, "max_new_tokens") and config.max_new_tokens is not None:
+        # Avoids the warning about setting a value for both max_length and max_new_tokens
+        config.max_length = None
 
-    generation_config = GenerationConfig.from_model_config(config) if training_args.predict_with_generate else None
+
+    generation_config = GenerationConfig.from_model_config(config)
+
 
     tokenizer = None
     processor= None
@@ -743,6 +739,7 @@ def main():
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics if training_args.predict_with_generate else None,
+        visualize_prediction_prob=extra_args.visualize_prediction_prob
     )
 
     logger.info(f"\n{model}\n")
