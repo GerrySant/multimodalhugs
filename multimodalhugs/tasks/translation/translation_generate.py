@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 # coding=utf-8
 """
-Script para evaluar un modelo entrenado en la partición de test.
+Script to evaluate a trained model on the test partition.
 
-Se mantienen los bloques necesarios para:
-- Cargar argumentos y configuración desde la línea de comandos o un archivo YAML.
-- Configurar el entorno de evaluación (logging, telemetry, etc.).
-- Cargar y preprocesar el dataset de test.
-- Configurar el modelo, tokenizador/procesador y data collator.
-- Ejecutar la evaluación y guardar las predicciones y métricas.
+It maintains the necessary blocks to:
+- Load arguments and configuration from the command line or a YAML file.
+- Set up the evaluation environment (logging, telemetry, etc.).
+- Load and preprocess the test dataset.
+- Configure the model, tokenizer/processor, and data collator.
+- Execute the evaluation and save the predictions and metrics.
 
-El script permite al usuario especificar la métrica a utilizar (cualquier métrica soportada por evaluate.load())
-y conserva la posibilidad de configurar los parámetros vía YAML, como en el script de entrenamiento.
+The script allows the user to specify the metric to use (any metric supported by evaluate.load())
+and retains the possibility to configure parameters via YAML, as in the training script.
 """
 
 import logging
@@ -49,14 +49,14 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 
-# Importamos componentes del framework multimodal: procesadores, modelos y trainer.
+# Import multimodal framework components: processors, models, and trainer.
 from multimodalhugs.processors import SignwritingProcessor, Pose2TextTranslationProcessor, Image2TextTranslationProcessor
 from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
 from multimodalhugs import MultiLingualSeq2SeqTrainer
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
-# Registrar configuraciones y clases personalizadas para nuestros modelos y procesadores.
+# Register custom configurations and classes for our models and processors.
 AutoConfig.register("multimodal_embedder", MultiModalEmbedderConfig)
 AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel)
 
@@ -75,7 +75,7 @@ MULTILINGUAL_TOKENIZERS = [MBartTokenizer, MBartTokenizerFast, MBart50Tokenizer,
 
 T = TypeVar("T")
 
-def construct_kwargs(obj, not_used_keys = []):
+def construct_kwargs(obj, not_used_keys=[]):
     kwargs = {}
     obj_dict = asdict(obj)
 
@@ -94,12 +94,12 @@ def construct_kwargs(obj, not_used_keys = []):
     return kwargs
 
 # -----------------------------
-# Funciones para la gestión de la configuración YAML
+# Functions for managing YAML configuration
 # -----------------------------
 def merge_arguments(cmd_args: T, extra_args: T, command_arg_names: List[str], yaml_arg_keys: List[str]) -> T:
     """
-    Fusiona los argumentos de línea de comandos con los definidos en el YAML.
-    Se sobrescriben aquellos valores que no fueron especificados explícitamente en la línea de comandos.
+    Merges command line arguments with those defined in the YAML.
+    Values that were not explicitly specified on the command line are overwritten.
     """
     if not (is_dataclass(cmd_args) and is_dataclass(extra_args)):
         raise ValueError("Both cmd_args and extra_args must be dataclass instances.")
@@ -114,13 +114,13 @@ def merge_arguments(cmd_args: T, extra_args: T, command_arg_names: List[str], ya
     return cmd_args
 
 def filter_config_keys(config_section: dict, dataclass_type) -> dict:
-    """Filtra las llaves válidas para la dataclass."""
+    """Filters the valid keys for the dataclass."""
     valid_keys = {f.name for f in fields(dataclass_type)}
     return {k: v for k, v in config_section.items() if k in valid_keys}
 
 def merge_config_and_command_args(config_path, class_type, section, _args, remaining_args):
     """
-    Fusiona los argumentos del archivo YAML con los de línea de comandos para una sección dada.
+    Merges the arguments from the YAML file with the command line arguments for a given section.
     """
     yaml_conf = OmegaConf.load(config_path)
     yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
@@ -138,106 +138,106 @@ def merge_config_and_command_args(config_path, class_type, section, _args, remai
     return _args
 
 # -----------------------------
-# Definición de los argumentos
+# Definition of arguments
 # -----------------------------
 @dataclass
 class ModelArguments:
     model_name_or_path: str = field(
         default=None,
-        metadata={"help": "Ruta al modelo preentrenado o identificador en huggingface.co/models"}
+        metadata={"help": "Path to the pretrained model or identifier from huggingface.co/models"}
     )
     config_name: Optional[str] = field(
-        default=None, metadata={"help": "Nombre o ruta de la configuración preentrenada (si difiere de model_name)"}
+        default=None, metadata={"help": "Name or path of the pretrained configuration (if different from model_name)"}
     )
     tokenizer_name: Optional[str] = field(
-        default=None, metadata={"help": "Nombre o ruta del tokenizador preentrenado (si difiere de model_name)"}
+        default=None, metadata={"help": "Name or path of the pretrained tokenizer (if different from model_name)"}
     )
     cache_dir: Optional[str] = field(
         default=None,
-        metadata={"help": "Directorio para almacenar los modelos descargados"}
+        metadata={"help": "Directory to store downloaded models"}
     )
     use_fast_tokenizer: bool = field(
         default=True,
-        metadata={"help": "Si se debe usar un tokenizador rápido"}
+        metadata={"help": "Whether to use a fast tokenizer"}
     )
     model_revision: str = field(
         default="main",
-        metadata={"help": "Versión específica del modelo (rama, etiqueta o commit)"}
+        metadata={"help": "Specific version of the model (branch, tag, or commit)"}
     )
     token: str = field(
         default=None,
-        metadata={"help": "Token para descarga de archivos remotos"}
+        metadata={"help": "Token for downloading remote files"}
     )
     trust_remote_code: bool = field(
         default=False,
-        metadata={"help": "Si se debe confiar en la ejecución del código remoto del modelo"}
+        metadata={"help": "Whether to trust remote model code execution"}
     )
 
 @dataclass
 class ProcessorArguments:
     processor_name_or_path: Optional[str] = field(
-        default=None, metadata={"help": "Ruta al procesador preentrenado o identificador en huggingface.co/models"}
+        default=None, metadata={"help": "Path to the pretrained processor or identifier from huggingface.co/models"}
     )
 
 @dataclass
 class DataTrainingArguments:
-    dataset_dir: Optional[str] = field(default=None, metadata={"help": "Directorio de datos"})
+    dataset_dir: Optional[str] = field(default=None, metadata={"help": "Data directory"})
     dataset_name: Optional[str] = field(
-        default=None, metadata={"help": "Nombre del dataset (usando la librería datasets)"}
-    ) # Not implemented yet
+        default=None, metadata={"help": "Dataset name (using the datasets library)"}
+    )  # Not implemented yet
     dataset_config_name: Optional[str] = field(
-        default=None, metadata={"help": "Configuración del dataset"}
-    ) # Not implemented yet
+        default=None, metadata={"help": "Dataset configuration"}
+    )  # Not implemented yet
     test_file: Optional[str] = field(
         default=None,
-        metadata={"help": "Archivo de datos de test para evaluación (jsonlines)"}
-    ) # Not implemented yet
+        metadata={"help": "Test data file for evaluation (jsonlines)"}
+    )  # Not implemented yet
     overwrite_cache: bool = field(
-        default=False, metadata={"help": "Sobrescribir la cache de datos"}
-    ) # Not implemented yet
+        default=False, metadata={"help": "Overwrite the data cache"}
+    )  # Not implemented yet
     preprocessing_num_workers: Optional[int] = field(
         default=None,
-        metadata={"help": "Número de procesos para preprocesamiento"}
+        metadata={"help": "Number of processes for preprocessing"}
     )
     max_source_length: Optional[int] = field(
         default=1024,
-        metadata={"help": "Longitud máxima de la secuencia de entrada"}
+        metadata={"help": "Maximum input sequence length"}
     )
     max_target_length: Optional[int] = field(
         default=128,
-        metadata={"help": "Longitud máxima de la secuencia de destino"}
+        metadata={"help": "Maximum target sequence length"}
     )
     val_max_target_length: Optional[int] = field(
         default=None,
-        metadata={"help": "Longitud máxima para evaluación (usa max_target_length si no se define)"}
+        metadata={"help": "Maximum length for evaluation (uses max_target_length if not defined)"}
     )
     pad_to_max_length: bool = field(
         default=False,
-        metadata={"help": "Si se debe rellenar hasta la longitud máxima"}
+        metadata={"help": "Whether to pad to the maximum length"}
     )
     max_predict_samples: Optional[int] = field(
         default=None,
-        metadata={"help": "Número máximo de muestras a evaluar"}
+        metadata={"help": "Maximum number of samples to evaluate"}
     )
     num_beams: Optional[int] = field(
         default=1,
-        metadata={"help": "Número de beams para la generación"}
+        metadata={"help": "Number of beams for generation"}
     )
     ignore_pad_token_for_loss: bool = field(
         default=True,
-        metadata={"help": "Ignorar tokens de padding en la pérdida"}
+        metadata={"help": "Ignore padding tokens in the loss"}
     )
-    # Aunque se definen, estos argumentos ya no se usan directamente en generate.
+    # Although defined, these arguments are no longer used directly in generate.
     source_prefix: Optional[str] = field(
-        default=None, metadata={"help": "Prefijo para la entrada (no se usa en generate)"}
+        default=None, metadata={"help": "Prefix for the input (not used in generate)"}
     )
     forced_bos_token: Optional[str] = field(
         default=None,
-        metadata={"help": "Token forzado como primer token en la generación (para modelos multilingües)"}
+        metadata={"help": "Token forced as the first token in generation (for multilingual models)"}
     )
     metric_name: Optional[str] = field(
         default="sacrebleu",
-        metadata={"help": "Nombre de la métrica a utilizar (cualquier métrica soportada por evaluate.load())"}
+        metadata={"help": "Name of the metric to use (any metric supported by evaluate.load())"}
     )
 
     def __post_init__(self):
@@ -245,7 +245,7 @@ class DataTrainingArguments:
             self.val_max_target_length = self.max_target_length
 
 # -----------------------------
-# Funciones auxiliares para procesamiento y métricas
+# Helper functions for processing and metrics
 # -----------------------------
 def postprocess_text(preds, labels):
     preds = [pred.strip() for pred in preds]
@@ -256,7 +256,7 @@ def compute_metrics(eval_preds, tokenizer, metric):
     preds, labels = eval_preds
     if isinstance(preds, tuple):
         preds = preds[0]
-    # Reemplazar -100 (padding) por el token de padding real para decodificación.
+    # Replace -100 (padding) with the real padding token for decoding.
     preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
@@ -266,28 +266,28 @@ def compute_metrics(eval_preds, tokenizer, metric):
     result = dict(raw_result)
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
     result["gen_len"] = np.mean(prediction_lens)
-    # Convertir los valores a números redondeados o a cadena si es una lista.
+    # Convert values to rounded numbers or to a string if it is a list.
     result = {
-        k: (round(v, 4) if isinstance(v, (float, int)) 
-            else ", ".join(str(x) for x in v) if isinstance(v, list) 
+        k: (round(v, 4) if isinstance(v, (float, int))
+            else ", ".join(str(x) for x in v) if isinstance(v, list)
             else v)
         for k, v in result.items()
     }
     return result
 
 # -----------------------------
-# Función principal
+# Main function
 # -----------------------------
 def main():
-    # --- Lectura de archivo de configuración YAML ---
-    # Se permite pasar el parámetro "--config-path" para cargar los argumentos desde un YAML.
+    # --- Reading YAML configuration file ---
+    # Allows passing the "--config-path" parameter to load arguments from a YAML.
     extra_parser = argparse.ArgumentParser(add_help=False)
     extra_parser.add_argument("--config-path", type=str, help="Path to YAML config file")
     extra_parser.add_argument("--visualize_prediction_prob", type=float, default=0.0, help="Percentage of samples displaying their predictions during evaluation")
     extra_args, remaining_args = extra_parser.parse_known_args()
-    sys.argv = [sys.argv[0]] + remaining_args  # Se remueven los argumentos de configuración para el siguiente parser
+    sys.argv = [sys.argv[0]] + remaining_args  # Remove configuration arguments for the next parser
 
-    # --- Parseo de argumentos en dataclasses ---
+    # --- Parse arguments into dataclasses ---
     parser = HfArgumentParser((ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
     model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
     if extra_args.config_path:
@@ -296,13 +296,13 @@ def main():
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, remaining_args)
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, remaining_args)
 
-    # Se desactiva la remoción de columnas no utilizadas para asegurar la correcta evaluación.
+    # Disable removal of unused columns to ensure correct evaluation.
     setattr(training_args, "remove_unused_columns", False)
 
-    # Se envía telemetry para el seguimiento del uso (opcional).
+    # Send telemetry for usage tracking (optional).
     send_example_telemetry("run_translation", model_args, data_args)
 
-    # --- Configuración de logging ---
+    # --- Logging configuration ---
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
@@ -317,23 +317,23 @@ def main():
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
-    # --- Cargar el dataset de test ---
+    # --- Load the test dataset ---
     if data_args.dataset_dir is not None:
         raw_datasets = load_from_disk(data_args.dataset_dir)
     else:
-        raise ValueError("Debe especificar dataset_dir en la configuración o en la línea de comandos.")
+        raise ValueError("You must specify dataset_dir in the configuration or on the command line.")
     
     if "test" not in raw_datasets:
-        raise ValueError("El dataset no contiene una partición de test.")
+        raise ValueError("The dataset does not contain a test partition.")
     test_dataset = raw_datasets["test"]
     if data_args.max_predict_samples is not None:
         max_predict_samples = min(len(test_dataset), data_args.max_predict_samples)
         test_dataset = test_dataset.select(range(max_predict_samples))
 
-    # --- Establecer la semilla para reproducibilidad ---
+    # --- Set seed for reproducibility ---
     set_seed(training_args.seed)
 
-    # --- Cargar configuración y modelo ---
+    # --- Load configuration and model ---
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -350,7 +350,7 @@ def main():
 
     generation_config = GenerationConfig.from_model_config(config)
 
-    # --- Cargar tokenizador o procesador ---
+    # --- Load tokenizer or processor ---
     tokenizer = None
     processor = None
     if not processor_args.processor_name_or_path:
@@ -373,7 +373,7 @@ def main():
                 setattr(processor, key, processor_kwargs.pop(key))
         tokenizer = processor.tokenizer
 
-    # --- Cargar el modelo preentrenado ---
+    # --- Load the pretrained model ---
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_args.model_name_or_path,
         from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -384,13 +384,13 @@ def main():
         trust_remote_code=model_args.trust_remote_code,
     )
 
-    # --- Preprocesamiento del dataset de test ---
-    # Se tokeniza la columna 'translation' de forma genérica, sin gestionar manualmente source_lang/target_lang ni prefijos.
+    # --- Preprocess the test dataset ---
+    # Tokenize the 'translation' column in a generic way, without manually managing source_lang/target_lang or prefixes.
     padding = "max_length" if data_args.pad_to_max_length else False
     max_target_length = data_args.val_max_target_length
 
-    # --- Configuración del data collator ---
-    # Se encarga de agrupar y preparar los datos para la evaluación; internamente gestiona aspectos de idiomas.
+    # --- Configure the data collator ---
+    # Responsible for grouping and preparing data for evaluation; internally manages language aspects.
     label_pad_token_id = -100 if data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
     if processor is not None:
         data_collator = DataCollatorMultimodalSeq2Seq(
@@ -410,11 +410,11 @@ def main():
             pad_to_multiple_of=8 if training_args.fp16 else None,
         )
 
-    # --- Cargar la métrica para evaluación ---
+    # --- Load the evaluation metric ---
     metric = evaluate.load(data_args.metric_name, cache_dir=model_args.cache_dir)
     training_args.generation_config = generation_config if generation_config is not None else None
 
-    # --- Inicialización del Trainer ---
+    # --- Initialize the Trainer ---
     trainer = MultiLingualSeq2SeqTrainer(
         model=model,
         args=training_args,
@@ -429,9 +429,9 @@ def main():
     logger.info(f"\n{model}\n")
     logger.info(f"\n{print_module_details(model)}\n")
 
-    # --- Ejecución de la evaluación ---
-    # Se invoca predict para generar predicciones y calcular las métricas en el dataset de test.
-    logger.info("*** Evaluación en la partición de test ***")
+    # --- Execute evaluation ---
+    # Predict is invoked to generate predictions and calculate metrics on the test dataset.
+    logger.info("*** Evaluation on the test partition ***")
     max_length = training_args.generation_max_length if training_args.generation_max_length is not None else data_args.val_max_target_length
     num_beams = data_args.num_beams if data_args.num_beams is not None else training_args.generation_num_beams
 
