@@ -1,9 +1,12 @@
 # Standard libraries
 import logging
+import importlib
 
 # Third-party libraries
 import torch
 import torch.nn as nn
+from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
+from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES
 
 # Other
 from typing import Optional
@@ -42,3 +45,94 @@ class EncoderWrapper(nn.Module):
             output_hidden_states = output_hidden_states,
             return_dict = return_dict,
         )
+
+def get_backbone_config_class(model_type: str):
+    """
+    Retrieves the specific configuration class for the given `model_type`
+    using Hugging Face's CONFIG_MAPPING_NAMES mapping.
+
+    Args:
+        model_type (str): The model type (e.g., 'bert', 't5', etc.).
+
+    Returns:
+        The corresponding configuration class.
+
+    Raises:
+        ValueError: If `model_type` is not found in CONFIG_MAPPING_NAMES.
+        ImportError: If the configuration class cannot be imported.
+    """
+    if model_type not in CONFIG_MAPPING_NAMES:
+        raise ValueError(
+            f"Unknown model type '{model_type}'. Available options: {list(CONFIG_MAPPING_NAMES.keys())}"
+        )
+
+    config_class_name = CONFIG_MAPPING_NAMES[model_type]
+    # Assumes that the module is named using model_type, replacing dashes with underscores
+    module_name = model_type.replace("-", "_")
+
+    try:
+        module = importlib.import_module(f"transformers.models.{module_name}")
+    except ImportError:
+        # If it fails, try retrieving the class directly from the transformers package.
+        import transformers
+        if hasattr(transformers, config_class_name):
+            return getattr(transformers, config_class_name)
+        raise ImportError(f"Could not import module for model_type '{model_type}'.")
+
+    if hasattr(module, config_class_name):
+        return getattr(module, config_class_name)
+    else:
+        # Fallback: Try retrieving the class from the transformers package.
+        import transformers
+        if hasattr(transformers, config_class_name):
+            return getattr(transformers, config_class_name)
+    
+    raise ImportError(
+        f"The configuration class '{config_class_name}' was not found for model_type '{model_type}'."
+    )
+
+
+def get_backbone_model_class(model_type: str):
+    """
+    Retrieves the specific model (backbone) class for the given `model_type`
+    using Hugging Face's MODEL_WITH_LM_HEAD_MAPPING_NAMES mapping.
+
+    Args:
+        model_type (str): The model type (e.g., 'bert', 't5', etc.).
+
+    Returns:
+        The corresponding model class.
+
+    Raises:
+        ValueError: If `model_type` is not found in MODEL_WITH_LM_HEAD_MAPPING_NAMES.
+        ImportError: If the module or model class cannot be imported.
+    """
+    if model_type not in MODEL_WITH_LM_HEAD_MAPPING_NAMES:
+        raise ValueError(
+            f"Unknown model type '{model_type}'. Available options: {list(MODEL_WITH_LM_HEAD_MAPPING_NAMES.keys())}"
+        )
+    
+    model_class_name = MODEL_WITH_LM_HEAD_MAPPING_NAMES[model_type]
+    # Assumes that the module name corresponds to model_type, replacing dashes with underscores
+    module_name = model_type.replace("-", "_")
+    
+    try:
+        module = importlib.import_module(f"transformers.models.{module_name}")
+    except ImportError:
+        # Fallback: Try retrieving the class from the transformers package
+        import transformers
+        if hasattr(transformers, model_class_name):
+            return getattr(transformers, model_class_name)
+        raise ImportError(f"Could not import module for model_type '{model_type}'.")
+    
+    if hasattr(module, model_class_name):
+        return getattr(module, model_class_name)
+    else:
+        # Fallback: Try retrieving the class from the transformers package
+        import transformers
+        if hasattr(transformers, model_class_name):
+            return getattr(transformers, model_class_name)
+    
+    raise ImportError(
+        f"The model class '{model_class_name}' was not found for model_type '{model_type}'."
+    )

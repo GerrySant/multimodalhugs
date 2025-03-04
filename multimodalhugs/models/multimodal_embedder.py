@@ -1,7 +1,11 @@
+# Standard Library Imports
 import logging
 import math
 import importlib
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any, Tuple, Union
 
+# Third-Party Imports
 import torch
 from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
@@ -13,110 +17,16 @@ from transformers import (
 )
 from transformers.modeling_outputs import Seq2SeqLMOutput
 from accelerate.utils import find_tied_parameters
-
 from ruamel.yaml import YAML
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Tuple, Union
 
-from multimodalhugs.models import EncoderWrapper
+# Local Application Imports
+from multimodalhugs.models import EncoderWrapper, get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.models.registry import register_model
 from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities
 from multimodalhugs.utils import serialize_config
 
 logger = logging.getLogger(__name__)
-    
-def get_backbone_config_class(model_type: str):
-    """
-    Retrieves the specific configuration class for the given `model_type`
-    using Hugging Face's CONFIG_MAPPING_NAMES mapping.
-
-    Args:
-        model_type (str): The model type (e.g., 'bert', 't5', etc.).
-
-    Returns:
-        The corresponding configuration class.
-
-    Raises:
-        ValueError: If `model_type` is not found in CONFIG_MAPPING_NAMES.
-        ImportError: If the configuration class cannot be imported.
-    """
-    if model_type not in CONFIG_MAPPING_NAMES:
-        raise ValueError(
-            f"Unknown model type '{model_type}'. Available options: {list(CONFIG_MAPPING_NAMES.keys())}"
-        )
-
-    config_class_name = CONFIG_MAPPING_NAMES[model_type]
-    # Assumes that the module is named using model_type, replacing dashes with underscores
-    module_name = model_type.replace("-", "_")
-
-    try:
-        module = importlib.import_module(f"transformers.models.{module_name}")
-    except ImportError:
-        # If it fails, try retrieving the class directly from the transformers package.
-        import transformers
-        if hasattr(transformers, config_class_name):
-            return getattr(transformers, config_class_name)
-        raise ImportError(f"Could not import module for model_type '{model_type}'.")
-
-    if hasattr(module, config_class_name):
-        return getattr(module, config_class_name)
-    else:
-        # Fallback: Try retrieving the class from the transformers package.
-        import transformers
-        if hasattr(transformers, config_class_name):
-            return getattr(transformers, config_class_name)
-    
-    raise ImportError(
-        f"The configuration class '{config_class_name}' was not found for model_type '{model_type}'."
-    )
-
-
-def get_backbone_model_class(model_type: str):
-    """
-    Retrieves the specific model (backbone) class for the given `model_type`
-    using Hugging Face's MODEL_WITH_LM_HEAD_MAPPING_NAMES mapping.
-
-    Args:
-        model_type (str): The model type (e.g., 'bert', 't5', etc.).
-
-    Returns:
-        The corresponding model class.
-
-    Raises:
-        ValueError: If `model_type` is not found in MODEL_WITH_LM_HEAD_MAPPING_NAMES.
-        ImportError: If the module or model class cannot be imported.
-    """
-    if model_type not in MODEL_WITH_LM_HEAD_MAPPING_NAMES:
-        raise ValueError(
-            f"Unknown model type '{model_type}'. Available options: {list(MODEL_WITH_LM_HEAD_MAPPING_NAMES.keys())}"
-        )
-    
-    model_class_name = MODEL_WITH_LM_HEAD_MAPPING_NAMES[model_type]
-    # Assumes that the module name corresponds to model_type, replacing dashes with underscores
-    module_name = model_type.replace("-", "_")
-    
-    try:
-        module = importlib.import_module(f"transformers.models.{module_name}")
-    except ImportError:
-        # Fallback: Try retrieving the class from the transformers package
-        import transformers
-        if hasattr(transformers, model_class_name):
-            return getattr(transformers, model_class_name)
-        raise ImportError(f"Could not import module for model_type '{model_type}'.")
-    
-    if hasattr(module, model_class_name):
-        return getattr(module, model_class_name)
-    else:
-        # Fallback: Try retrieving the class from the transformers package
-        import transformers
-        if hasattr(transformers, model_class_name):
-            return getattr(transformers, model_class_name)
-    
-    raise ImportError(
-        f"The model class '{model_class_name}' was not found for model_type '{model_type}'."
-    )
-
 
 @dataclass
 class MultiModalEmbedderConfig(PretrainedConfig):
@@ -214,10 +124,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         self.is_encoder_decoder = True
         if kwargs:
             for key, value in kwargs.items():
-                if hasattr(self, key):
-                    setattr(self, key, value)
-                else:
-                    setattr(self, key, value)
+                setattr(self, key, value)
+                
         if kwargs and 'backbone_type' in kwargs and 'backbone_config' in kwargs:
             backbone_type = kwargs['backbone_type']
             BackboneConfigClass = get_backbone_config_class(backbone_type)
@@ -248,87 +156,60 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
-        
-        # Feature Extractor
-        self.feature_extractor = FeatureExtractor(
-            feature_extractor_type=config.feature_extractor_type, 
-            pretrained_module=config.pretrained_feature_extractor, 
-            config=config.feature_extractor_config, 
-        ) if config.feature_extractor_type is not None else None
-
-        # Freezes or unfreezes the feature_extractor parameters. 
-        if self.feature_extractor is not None:
-            if config.freeze_feature_extractor:
-                set_module_parameters(self.feature_extractor, freeze=True)
-            else:
-                set_module_parameters(self.feature_extractor, freeze=False)
-        # VL Mapper
-        self.vl_mapper = VLMapper(
-            feat_dim=config.feat_dim, 
-            output_dim=config.d_model, 
-            mapping_layer_type=config.vl_mapper_type, 
-            layer_norm_before=config.vl_mapper_layer_norm_before,
-            adapter_factor=config.vl_factor, 
-            p_dropout=config.vl_mapper_dropout, 
-            layer_norm=config.vl_mapper_layer_norm, 
-            activation=config.vl_mapper_activation,
-        )
-        # Freezes or unfreezes the vl_mapper parameters. 
-        if config.freeze_vl_mapper:
-            set_module_parameters(self.vl_mapper, freeze=True)
-        else:
-            set_module_parameters(self.vl_mapper, freeze=False)
-
+        self._init_feature_extractor(config)
+        self._init_vl_mapper(config)
         self.pad_token_id = config.pad_token_id
         self.eos_token_id = config.eos_token_id
+        self._init_backbone(config)
+        self.max_length = config.max_length
+        self.post_init()
 
-        # Backbone
+    def _init_feature_extractor(self, config):
+        if config.feature_extractor_type:
+            self.feature_extractor = FeatureExtractor(
+                feature_extractor_type=config.feature_extractor_type,
+                pretrained_module=config.pretrained_feature_extractor,
+                config=config.feature_extractor_config,
+            )
+            set_module_parameters(self.feature_extractor, freeze=config.freeze_feature_extractor)
+        else:
+            self.feature_extractor = None
+
+    def _init_vl_mapper(self, config):
+        self.vl_mapper = VLMapper(
+            feat_dim=config.feat_dim,
+            output_dim=config.d_model,
+            mapping_layer_type=config.vl_mapper_type,
+            layer_norm_before=config.vl_mapper_layer_norm_before,
+            adapter_factor=config.vl_factor,
+            p_dropout=config.vl_mapper_dropout,
+            layer_norm=config.vl_mapper_layer_norm,
+            activation=config.vl_mapper_activation,
+        )
+        set_module_parameters(self.vl_mapper, freeze=config.freeze_vl_mapper)
+
+    def _init_backbone(self, config):
         BackboneModelClass = get_backbone_model_class(config.backbone_type)
-
         if config.backbone_config is not None:
             self.backbone = BackboneModelClass(config.backbone_config)
         else:
             self.backbone = BackboneModelClass.from_pretrained(config.pretrained_backbone)
         
-        if type(config.backbone_tied_weights_keys) == list:
+        if isinstance(config.backbone_tied_weights_keys, list):
             self.backbone._tied_weights_keys = config.backbone_tied_weights_keys
+
+        set_module_parameters(self.backbone, freeze=config.freeze_backbone)
+        set_module_parameters(self.get_backbone_encoder.embed_tokens, freeze=config.freeze_encoder_embed_tokens)
+        set_module_parameters(self.get_backbone_decoder.embed_tokens, freeze=config.freeze_decoder_embed_tokens)
+        set_module_parameters(self.lm_head, freeze=config.freeze_lm_head)
         
-        # Freezes or unfreezes the backbone parameters.
-        if config.freeze_backbone:
-            set_module_parameters(self.backbone, freeze=True)
-        else:
-            set_module_parameters(self.backbone, freeze=False)
+        freeze_shared = (
+            config.freeze_decoder_embed_tokens or 
+            config.freeze_encoder_embed_tokens or 
+            config.freeze_lm_head
+        )
+        set_module_parameters(self.get_shared, freeze=freeze_shared, verbose=False)
 
-        # Freezes or unfreezes the encoder.embed_tokens parameters.
-        if config.freeze_encoder_embed_tokens:
-            set_module_parameters(self.get_backbone_encoder.embed_tokens, freeze=True)
-        else:
-            set_module_parameters(self.get_backbone_encoder.embed_tokens, freeze=False)
-
-        # Freezes or unfreezes the decoder.embed_tokens parameters.
-        if config.freeze_decoder_embed_tokens:
-            set_module_parameters(self.get_backbone_decoder.embed_tokens, freeze=True)
-        else:
-            set_module_parameters(self.get_backbone_decoder.embed_tokens, freeze=False)
-
-        # Freezes or unfreezes the lm_head parameters.
-        if config.freeze_lm_head:
-            set_module_parameters(self.lm_head, freeze=True)
-        else:
-            set_module_parameters(self.lm_head, freeze=False)
-
-        # If any of the embed_tokens layers or the lm_head are unfrozen, it unfreezes the decoder.embed_tokens parameters.
-        if config.freeze_decoder_embed_tokens or config.freeze_encoder_embed_tokens or config.freeze_lm_head:
-            set_module_parameters(self.get_shared, freeze=True, verbose=False)
-        else:
-            set_module_parameters(self.get_shared, freeze=False, verbose=False)
-
-        # Others
-        self.max_length = config.max_length
-        encoder = self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
-        self.padding_token = encoder.embed_tokens(torch.tensor([config.pad_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.pad_token_id is not None else config.pad_token_id
-        self.eos_token = encoder.embed_tokens(torch.tensor([config.eos_token_id], dtype=torch.long, device=self.backbone.device)).detach().numpy() if config.eos_token_id is not None else config.eos_token_id
-        self.post_init()
 
     def get_input_embeddings(self):
         if hasattr(self.backbone, 'shared'):
@@ -513,19 +394,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - labels: B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
             - decoder_attention_mask: B x T_text <- 0 indicates padding elements
         """
-        #print("-----------------------------------------------------------------")
-        #print(f"decoder_input_ids: \n{decoder_input_ids}\n")
-        #print(f"decoder_attention_mask: \n{decoder_attention_mask}\n")
-        if labels is not None: # During training, use backbone method to create decoder_input_ids from labels
+
+        if labels is not None: 
+            # During training, use backbone method to create decoder_input_ids from labels
             decoder_input_ids = None
             decoder_attention_mask = None
-
-        # if decoder_input_ids is not None:
-        #     print(f"decoder_input_ids_after: \n{decoder_input_ids}\n")
-        #print(f"decoder_attention_mask_after: \n{decoder_attention_mask}\n")
-        #print("-----------------------------------------------------------------")
-
-
 
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
