@@ -55,10 +55,8 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         """
         
         with open(pose_file, "rb") as pose_file:
-            if (source_end - source_start) == 0:
-                pose = Pose.read(pose_file.read()) # [t, people, d, xyz]
-            else:
-                pose = Pose.read(pose_file.read(), start_time=source_start, end_time=source_end) # [t, people, d, xyz]
+            # [t, people, d, xyz]
+            pose = Pose.read(pose_file, start_time=source_start or None, end_time=source_end or None) 
         
         pose_hide_legs(pose)
     
