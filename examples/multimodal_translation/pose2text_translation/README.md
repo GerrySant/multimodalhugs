@@ -5,6 +5,7 @@ This directory showcases how to prepare and train a **Pose2Text** translation mo
 1. **Dataset Preparation**  
 2. **Setting up the Training Environment**  
 3. **Launching the Training Process**
+4. **Evaluating the Trained Model**
 
 > **Note**: These scripts rely on MultimodalHugs’ internal “autoclasses” (e.g., `Pose2TextTranslationProcessor`, `MultiModalEmbedderModel`) and Hugging Face’s `Seq2SeqTrainer` to orchestrate dataset loading, tokenization, processing, and training.
 
@@ -125,13 +126,46 @@ The `--config-path` (Optional) parameter indicates that the training arguments d
 >**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 
 
-## Full Pipeline Example
+## Full Training Pipeline Example
 
 The script [how2sign_training_pipeline.sh](https://github.com/GerrySant/multimodalhugs/blob/master/examples/multimodal_translation/pose2text_translation/example_scripts/how2sign_training_pipeline.py) performs the entire pipeline, taking care of both the preprocessing of the dataset, the setup of the training modules and finally launches a training example. Simply run the following command:
 
 ```bash
 bash how2sign_training_pipeline.sh
 ```
+
+## 4. Evaluating the Trained Model
+
+**Goal**: Generate translations and evaluate model performance using evaluation metrics (e.g., sacreBLEU).
+
+After training, you can evaluate your model with the `multimodalhugs-generate` command. This command loads your trained checkpoint, processor, and dataset to generate translations and compute evaluation metrics.
+
+Below is a general bash script outline that you can adapt for evaluation. Replace the placeholder paths with your actual directories:
+
+```bash
+multimodalhugs-generate \
+    --task "translation" \                       # Identifier of the task to be evaluated.
+    --metric_name "sacrebleu" \                  # Evaluation metric identifier (e.g., 'sacrebleu').
+    --output_dir $OUTPUT_PATH \                  # Directory to store generation outputs and metrics.
+    --model_name_or_path $CKPT_PATH \            # Trained model checkpoint directory.
+    --processor_name_or_path $PROCESSOR_PATH \   # Directory to the processor created via multimodalhugs-setup.
+    --dataset_dir $DATA_PATH \                   # Directory of the dataset created by multimodalhugs-setup.
+    --config-path $CONFIG_PATH                   # (Optional) Additional configuration parameters.
+```
+
+**Key arguments explained:**
+- `--task "translation"`: Specifies the evaluation task.
+- `--metric_name "sacrebleu"`: Sets the evaluation metric to sacreBLEU (you may choose another metric as needed).
+- `--output_dir`: Directory where evaluation outputs (generated translations and metrics) will be saved.
+- `--model_name_or_path`: Path to your trained model checkpoint.
+- `--processor_name_or_path`: Path to the processor created during the setup phase.
+- `--dataset_dir`: Directory of your preprocessed dataset.
+- `--config-path`: (Optional) Path to a YAML configuration file containing additional parameters.
+  
+>**Tip**: As in training, the parameters  `model_name_or_path`, `processor_name_or_path` and `dataset_dir` can also be specified within the config.
+
+This evaluation process enables you to assess the quality of your model's translations and compare them against reference texts.
+
 
 ## Directory Overview
 ```kotlin
