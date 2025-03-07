@@ -60,7 +60,7 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-multimodalhugs-setup --modality "image2text" --config-path </path/to/example_config.yaml>
+multimodalhugs-setup --modality "image2text" --config_path </path/to/example_config.yaml>
 ```
 The script will automatically save the paths of each of the training actors created in their respective section of the configuration.
 
@@ -116,12 +116,12 @@ export WANDB_PROJECT="<my_prpject_name>" # To specify the WANDB project
 # ----------------------------------------------------------
 multimodalhugs-train \
     --task "translation" \
-    --config-path $CONFIG_PATH \
+    --config_path $CONFIG_PATH \
     --output_dir $OUTPUT_PATH \
     [--additional-arg <value> ...]  # Additional optional arguments can be specified here.
 ```
 **Note:**  
-The `--config-path` (Optional) parameter indicates that the training arguments defined in the configuration file will be used if they have not been specified on the command line.
+The `--config_path` (Optional) parameter indicates that the training arguments defined in the configuration file will be used if they have not been specified on the command line.
 
 >**Tip**: Adjust hyperparameters in the script or pass them via command line. MultimodalHugs integrates seamlessly with Hugging Face’s `Seq2SeqTrainer`, giving you flexibility for learning rates, batch sizes, evaluation intervals, etc.
 
@@ -149,7 +149,7 @@ multimodalhugs-generate \
     --model_name_or_path $CKPT_PATH \            # Trained model checkpoint directory.
     --processor_name_or_path $PROCESSOR_PATH \   # Directory to the processor created via multimodalhugs-setup.
     --dataset_dir $DATA_PATH \                   # Directory of the dataset created by multimodalhugs-setup.
-    --config-path $CONFIG_PATH                   # (Optional) Additional configuration parameters.
+    --config_path $CONFIG_PATH                   # (Optional) Additional configuration parameters.
 ```
 
 **Key arguments explained:**
@@ -159,7 +159,7 @@ multimodalhugs-generate \
 - `--model_name_or_path`: Path to your trained model checkpoint.
 - `--processor_name_or_path`: Path to the processor created during the setup phase.
 - `--dataset_dir`: Directory of your preprocessed dataset.
-- `--config-path`: (Optional) Path to a YAML configuration file containing additional parameters.
+- `--config_path`: (Optional) Path to a YAML configuration file containing additional parameters.
   
 >**Tip**: As in training, the parameters  `model_name_or_path`, `processor_name_or_path` and `dataset_dir` can also be specified within the config.
 

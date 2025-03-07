@@ -81,6 +81,6 @@ def main(config_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training setup for multimodal models")
-    parser.add_argument('--config-path', type=str, required=True, help="Path to the configuration file")
+    parser.add_argument('--config_path', type=str, required=True, help="Path to the configuration file")
     args = parser.parse_args()
     main(args.config_path)

@@ -19,7 +19,7 @@ def main():
         help="Specify the modality (e.g. 'pose2text', 'signwriting2text', or 'image2text')."
     )
     parser.add_argument(
-        "--config-path",
+        "--config_path",
         required=True,
         help="Path to the configuration file."
     )
@@ -29,16 +29,16 @@ def main():
     if args.modality == "pose2text":
         # Import the pose2text setup script from the new package.
         from multimodalhugs.training_setup.pose2sign_training_setup import main as pose2text_setup
-        # Reconstruct sys.argv so that the underlying script sees the remaining arguments and the --config-path.
-        sys.argv = [sys.argv[0]] + remaining_args + ["--config-path", args.config_path]
+        # Reconstruct sys.argv so that the underlying script sees the remaining arguments and the --config_path.
+        sys.argv = [sys.argv[0]] + remaining_args + ["--config_path", args.config_path]
         pose2text_setup(args.config_path)
     elif args.modality == "signwriting2text":
         from multimodalhugs.training_setup.signwriting2text_training_setup import main as signwriting_setup
-        sys.argv = [sys.argv[0]] + remaining_args + ["--config-path", args.config_path]
+        sys.argv = [sys.argv[0]] + remaining_args + ["--config_path", args.config_path]
         signwriting_setup(args.config_path)
     elif args.modality == "image2text":
         from multimodalhugs.training_setup.image2text_training_setup import main as image2text_setup
-        sys.argv = [sys.argv[0]] + remaining_args + ["--config-path", args.config_path]
+        sys.argv = [sys.argv[0]] + remaining_args + ["--config_path", args.config_path]
         image2text_setup(args.config_path)
     else:
         sys.exit(f"Unknown modality: {args.modality}")

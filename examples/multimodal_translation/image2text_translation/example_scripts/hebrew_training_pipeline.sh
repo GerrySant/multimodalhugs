@@ -57,5 +57,5 @@ multimodalhugs-setup --modality "image2text" --config_path $CONFIG_PATH
 # ----------------------------------------------------------
 multimodalhugs-train \
     --task "translation" \
-    --config-path $CONFIG_PATH \
+    --config_path $CONFIG_PATH \
     --output_dir $OUTPUT_PATH

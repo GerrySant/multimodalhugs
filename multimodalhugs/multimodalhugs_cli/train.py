@@ -2,39 +2,52 @@
 """
 Dispatcher for training.
 Usage example:
-    multimodalhugs-train \
-        --task "translation" \
-        --config-path $CONFIG_PATH \
-        --output_dir $OUTPUT_PATH \
-        [--additional-arg <value> ...] 
+    multimodalhugs-train --task translation --config_path $CONFIG_PATH --output_dir $OUTPUT_PATH [--additional-arg <value> ...]
 """
+
 import sys
 import argparse
 
+def print_global_help():
+    help_text = """usage: multimodalhugs-train [-h] --task {translation}
+
+MultimodalHugs Training CLI. Use --task to select the training task.
+
+options:
+  -h, --help            show this help message and exit
+  --task {translation}  Specify the training task (e.g. 'translation').
+
+For details on task-specific arguments, run:
+    multimodalhugs-train --task <selected_task> --help
+"""
+    print(help_text)
+
 def main():
-    # Create a parser for the global CLI options.
-    parser = argparse.ArgumentParser(
-        description="MultimodalHugs Training CLI. Use --task to select the training task."
+    # If only global help is requested, print it.
+    if len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help"):
+        print_global_help()
+        sys.exit(0)
+    
+    # Global parser without automatic help handling.
+    global_parser = argparse.ArgumentParser(
+        description="MultimodalHugs Training CLI. Use --task to select the training task.",
+        add_help=False
     )
-    parser.add_argument(
+    global_parser.add_argument(
         "--task",
         required=True,
-        choices=["translation"],  # More choises will be implemented as soon we implement them
+        choices=["translation"],  # More choices can be added in the future.
         help="Specify the training task (e.g. 'translation')."
     )
+    global_args, remaining_args = global_parser.parse_known_args()
     
-    # Parse out the --task argument. The remaining arguments will be task-specific.
-    args, remaining_args = parser.parse_known_args()
-    
-    if args.task == "translation":
-        # Import the translation runner.
+    if global_args.task == "translation":
         from multimodalhugs.tasks import translation_training_main
-        # Replace sys.argv with the remaining arguments so that the translation script's own parser sees them.
+        # Pass all remaining arguments (which can include --help) to the task-specific parser.
         sys.argv = [sys.argv[0]] + remaining_args
         translation_training_main()
     else:
-        # If you add more tasks, dispatch them accordingly.
-        print(f"Task {args.task} is not implemented.")
+        print(f"Task {global_args.task} is not implemented.")
         sys.exit(1)
 
 if __name__ == "__main__":

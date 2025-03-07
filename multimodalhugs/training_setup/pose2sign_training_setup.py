@@ -1,4 +1,4 @@
-### Usage: python training_setup.py --config-path path_to_your_config.yaml
+### Usage: python training_setup.py --config_path path_to_your_config.yaml
 
 import os
 import copy
@@ -78,7 +78,7 @@ def main(config_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training script for multimodal models")
-    parser.add_argument('--config-path', type=str, required=True, help="Path to the configuration file")
+    parser.add_argument('--config_path', type=str, required=True, help="Path to the configuration file")
     
     args = parser.parse_args()
     
