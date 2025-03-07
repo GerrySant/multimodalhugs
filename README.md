@@ -1,4 +1,6 @@
-# MultimodalHugs
+<div align="center">
+  <h1>🎨 MultiModalHugs</h1>
+</div>
 
 **MultimodalHugs** is a streamlined extension of [Hugging Face](https://huggingface.co/) designed for training, evaluating, and deploying multimodal AI models. Built atop Hugging Face’s powerful ecosystem, MultimodalHugs integrates seamlessly with standard pipelines while providing additional functionalities to handle multilingual and multimodal inputs—reducing boilerplate and simplifying your codebase.
 
