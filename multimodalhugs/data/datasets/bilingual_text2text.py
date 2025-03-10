@@ -13,8 +13,19 @@ from multimodalhugs.data import (
     duration_filter,
 )
 from multimodalhugs.utils.utils import get_num_proc
+from multimodalhugs.utils.registry import register_dataset
 
+@register_dataset("bilingual_text2text")
 class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
+    """
+    **BilingualText2TextDataset: A dataset class for bilingual text-to-text translation.**
+
+    This dataset class is designed for handling bilingual translation datasets 
+    where text input in one language is mapped to its corresponding translation.
+
+    Go to [MultimodalMTDataConfig documentation](multimodalhugs/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.
+
+    """
     def __init__(
         self,
         config: MultimodalMTDataConfig,
@@ -22,11 +33,33 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         *args,
         **kwargs
     ):
+        """
+        **Initialize the BilingualText2TextDataset.**
+
+        **Args:**
+        - `config` (MultimodalMTDataConfig): The dataset configuration containing metadata file paths.
+        - `info` (Optional[DatasetInfo], default=`None`): Dataset metadata. If `None`, 
+          a default `DatasetInfo` object is created.
+        - `*args`: Additional positional arguments.
+        - `**kwargs`: Additional keyword arguments.
+
+        """
         info = DatasetInfo(description="General Dataset class for bilingual translation datasets.") if info is None else info
         super().__init__(info=info, *args, **kwargs)
         self.config = config
     
     def _info(self):
+        """
+        **Get dataset information and feature structure.**
+
+        Defines the expected structure of the dataset, including input and output text fields.
+
+        **Returns:**
+        - `DatasetInfo`: A dataset metadata object containing:
+            - `description`: General dataset information.
+            - `features`: The dataset schema with data types.
+            - `supervised_keys`: `None` (no explicit supervised key pair).
+        """
         dataset_features = {
                 "source": str,
                 "source_prompt": Optional[str],
@@ -41,6 +74,15 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         )
 
     def _split_generators(self, dl_manager):
+        """
+        **Define dataset splits based on metadata files.**
+
+        **Args:**
+        - `dl_manager` (DownloadManager): The dataset download manager (not used here since data is local).
+
+        **Returns:**
+        - `List[datasets.SplitGenerator]`: A list of dataset splits (`train`, `validation`, `test`).
+        """
         splits = []
         if self.config.train_metadata_file is not None:
             splits.append(
@@ -76,7 +118,19 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
 
     def _generate_examples(self, **kwargs):
         """
-        Yields examples as (key, example) tuples.
+        **Generate dataset examples as (key, example) tuples.**
+
+        This method:
+        - Loads metadata from a `.csv` metafile.
+        - Iterates through each sample and extracts relevant text fields.
+
+        **Args:**
+        - `**kwargs`: Dictionary containing:
+            - `metafile_path` (str): Path to the metadata file.
+            - `split` (str): The dataset split (`train`, `validation`, or `test`).
+
+        **Yields:**
+        - `Tuple[int, dict]`: Index and dictionary containing processed sample data.
         """
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']

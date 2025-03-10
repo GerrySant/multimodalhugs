@@ -4,12 +4,12 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from multimodalhugs.data import (
+from multimodalhugs.data.datasets.bilingual_image2text import (
     BilingualImage2textMTDataConfig,
     BilingualImage2TextDataset,
 )
 from multimodalhugs.processors import Image2TextTranslationProcessor
-from multimodalhugs.models.registry import get_model_class
+from multimodalhugs.utils.registry import get_model_class
 from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
 from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 

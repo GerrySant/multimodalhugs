@@ -52,5 +52,4 @@ data:
   shuffle: True                                                                                                                 # Shuffle the dataset samples during loading.
   new_vocabulary: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"                     # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"                                                                                 # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
-  max_seq_length: 512                                                                                                           # Maximum number of tokens allowed in a sequence for tokenization/generation.
   max_frames: 300                                                                                                               # Maximum number of frames to consider in video samples; samples exceeding this are filtered.

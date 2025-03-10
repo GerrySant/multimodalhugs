@@ -7,9 +7,9 @@ import argparse
 from omegaconf import OmegaConf
 from pathlib import Path
 
-from multimodalhugs.data import Pose2TextDataset, Pose2TextDataConfig
+from multimodalhugs.data.datasets.pose2text import Pose2TextDataset, Pose2TextDataConfig
 from multimodalhugs.processors import Pose2TextTranslationProcessor
-from multimodalhugs.models.registry import get_model_class
+from multimodalhugs.utils.registry import get_model_class
 from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
 from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 

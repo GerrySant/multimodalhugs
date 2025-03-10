@@ -32,7 +32,7 @@ model:
   freeze_vl_mapper: false
   freeze_lang_embeddings: false
   freeze_backbone: false
-  feature_extractor_cfg:
+  feature_extractor_config:
     feature_extractor_argumnets: whatever
     projection_dim: 32  # Smaller projection dimension
     vision_config:

@@ -8,7 +8,7 @@ model:
   backbone_type: "<pretrained-backbone-model>"          # Identifier for the pretrained backbone model (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"  # Pretrained weights for the backbone (e.g., "facebook/m2m100_418M").
   feat_dim: 512                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
-  feature_extractor_cfg:                                 # Configuration for the feature extractor.
+  feature_extractor_config:                                 # Configuration for the feature extractor.
     feature_extractor_arguments: "<config-arguments>"   # Arguments to adjust the feature extractor's internal configuration.
 
 training:
@@ -52,7 +52,6 @@ data:
   shuffle: True                                          # Shuffle dataset samples during loading.
   new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  max_seq_length: 512                                    # Maximum token sequence length for text generation/tokenization.
   max_frames: 300                                       # Maximum number of frames to consider from the data.
   preprocess:                                          # Image preprocessing settings.
     width: 224                                         # Input image width in pixels.

@@ -21,7 +21,7 @@ from ruamel.yaml import YAML
 
 # Local Application Imports
 from multimodalhugs.models import EncoderWrapper, get_backbone_config_class, get_backbone_model_class
-from multimodalhugs.models.registry import register_model
+from multimodalhugs.utils.registry import register_model
 from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities
 from multimodalhugs.utils import serialize_config
@@ -30,14 +30,31 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MultiModalEmbedderConfig(PretrainedConfig):
+    r"""
+    This class extends transformers.PretrainedConfig to configure the MultiModalEmbedderModel model class.
+
+    This configuration includes parameters for the feature extractor, visual-language mapping, and backbone model.
+
+    Refer to the [transformers.PretrainedConfig documentation](https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/configuration#transformers.PretrainedConfig) to specify arguments of the parent class.
+    """
+
     model_type: str = field(
         default="multimodal_embedder", metadata={"help": "Name of the model to be used."}
+    )
+    d_model: Optional[int] = field(
+        default=None, metadata={"help": "Dimention of the model"}
     )
     feat_dim: int = field(
         default=512, metadata={"help": "Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features."}
     )
     feature_extractor_type: Optional[str] = field(
         default=None, metadata={"help": "Feature Extractor type to be used."}
+    )
+    feature_extractor_config: Optional[Dict[str, Any]] = field(
+        default=None, metadata={
+            "help": "Hyperparameters of the model class specified in feature_extractor_type. Those not specified are assumed to be the default values of the model class.", 
+            "extra_info": "In case of initializing the feature_extractor from a pre-trained model, the feature_extractor parameters will be defined automatically, modifying only those specified under this field."
+            },
     )
     pretrained_feature_extractor: Optional[str] = field(
         default=None, metadata={"help": "Pretrained Feature Extractor or path to the Pretrained Feature Extractor checkpoint."}
@@ -46,7 +63,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         default=False, metadata={"help": "if True, the feature_extractor parameters are frozen during training."}
     )
     vl_mapper_type: str = field(
-        default="linear", metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter'."}
+        default="linear", metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter'"}
     )
     vl_mapper_layer_norm_before: bool = field(
         default=False, metadata={"help": "if True, adds a LayerNorm before the vl_mapper"}
@@ -74,13 +91,16 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         default="m2m_100", metadata={"help": "Type of the model to be used as a backbone"}
     )
     backbone_config: Optional[Dict[str, Any]] = field(
-        default=None, metadata={"help": "Hyperparameters in case the backbone is inicialized from scratch."}
+        default=None, metadata={
+            "help": "Hyperparameters of the model class specified in backbone_type. Those not specified are assumed to be the default values of the model class.", 
+            "extra_info": "In case of initializing the backbone from a pre-trained model, the backbone parameters will be defined automatically, modifying only those specified under this field."
+            },
     )
     pretrained_backbone: Optional[str] = field(
         default=None, metadata={"help": "Pretrained Backbone or path to the Pretrained Backbone checkpoint."}
     )
     backbone_tied_weights_keys: Optional[Any] = field(
-        default=None, metadata={"help": "Name of the model to be used as a backbone"}
+        default=None, metadata={"help": "Keys of the model parameters that are tied to each other."}
     )
     freeze_backbone: bool = field(
         default=False, metadata={"help": "if True, the backbone parameters are frozen during training."}
@@ -94,32 +114,38 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     freeze_lm_head: bool = field(
         default=False, metadata={"help": "if True, the lm_head parameters are frozen during training."}
     )
-    d_model: Optional[int] = field(
-        default=None, metadata={"help": "Dimention of the model"}
-    )
-    feature_extractor_cfg: Optional[Dict[str, Any]] = field(
-        default=None, metadata={"help": "Hyperparameters in case the feature_extractor is inicialized from scratch."}
-    )
     is_encoder_decoder: bool = field(
-        default=True,
+        default=True, metadata={"help": "Whether the model is used as an encoder/decoder or not."}
     )
     decoder_start_token_id: Optional[int] = field(
-        default=None, metadata={"help": "Allows to specify the id for the decoder_start_token_id."}
+        default=None, metadata={"help": "If an encoder-decoder model starts decoding with a different token than _bos_, the id of that token."}
     )
     pad_token_id: Optional[int] = field(
-        default=None, metadata={"help": "Allows to specify the vocabulary index of the <pad> token to be added to the multimodal sequences."}
+        default=None, metadata={"help": "The id of the _padding_ token."}
     )
     bos_token_id: Optional[int] = field(
-        default=None, metadata={"help": "Allows to specify the vocabulary index of the <bos> token to be added to the multimodal sequences."}
+        default=None, metadata={"help": "The id of the _beginning-of-stream_ token."}
     )
     eos_token_id: Optional[int] = field(
-        default=None, metadata={"help": "Allows to specify the vocabulary index of the <eos> token to be added to the multimodal sequences."}
+        default=None, metadata={"help": "The id of the _end-of-stream_ token."}
     )
     max_length: int = field(
         default=1024, metadata={"help": "The maximum target length to use when predicting with the generate method."}
     )
 
     def __init__(self, **kwargs):
+        """
+        **Initialize the MultiModalEmbedderConfig.**
+
+        **Args:**
+        - `kwargs`: Additional keyword arguments to configure the model.
+
+        **Example:**
+        ```python
+        config = MultiModalEmbedderConfig(d_model=1024, backbone_type="m2m_100")
+        print(config.backbone_type)  # Output: "m2m_100"
+        ```
+        """
         super().__init__(**kwargs)
         self.is_encoder_decoder = True
         if kwargs:
@@ -144,17 +170,30 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         if kwargs and 'feature_extractor_type' in kwargs:
             feature_extractor_type = kwargs['feature_extractor_type']
             FeatureExtractorConfigClass = get_feature_extractor_class(feature_extractor_type)[1]
-            self.feature_extractor_config = FeatureExtractorConfigClass(**kwargs.get('feature_extractor_cfg', {}))
+            self.feature_extractor_config = FeatureExtractorConfigClass(**kwargs.get('feature_extractor_config', {}))
         else:
             self.feature_extractor_config = None
 
 # Define the custom model class
 @register_model("multimodal_embedder")
 class MultiModalEmbedderModel(PreTrainedModel):
+    """
+    **MultiModalEmbedderModel: A Transformer-based multimodal model.**
+
+    This model extends `transformers.PreTrainedModel`, integrating visual and textual 
+    inputs using a feature extractor, a Visual-Language Mapper (VL Mapper), and 
+    a backbone Transformer model.
+    """
     config_class = MultiModalEmbedderConfig
     base_model_prefix = "multimodal_embedder"
 
     def __init__(self, config):
+        """
+        **Initialize the MultiModalEmbedderModel.**
+
+        **Args:**
+        - `config` (MultiModalEmbedderConfig): Model configuration.
+        """
         super().__init__(config)
         self._init_feature_extractor(config)
         self._init_vl_mapper(config)
@@ -165,6 +204,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
         self.post_init()
 
     def _init_feature_extractor(self, config):
+        """
+        **Initialize the feature extractor.**
+
+        **Args:**
+        - `config` (MultiModalEmbedderConfig): Model configuration.
+        """
         if config.feature_extractor_type:
             self.feature_extractor = FeatureExtractor(
                 feature_extractor_type=config.feature_extractor_type,
@@ -176,6 +221,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
             self.feature_extractor = None
 
     def _init_vl_mapper(self, config):
+        """
+        **Initialize the Visual-Language (VL) Mapper.**
+
+        **Args:**
+        - `config` (MultiModalEmbedderConfig): Model configuration.
+        """
         self.vl_mapper = VLMapper(
             feat_dim=config.feat_dim,
             output_dim=config.d_model,
@@ -189,6 +240,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
         set_module_parameters(self.vl_mapper, freeze=config.freeze_vl_mapper)
 
     def _init_backbone(self, config):
+        """
+        **Initialize the Transformer backbone model.**
+
+        **Args:**
+        - `config` (MultiModalEmbedderConfig): Model configuration.
+        """
         BackboneModelClass = get_backbone_model_class(config.backbone_type)
         if config.backbone_config is not None:
             self.backbone = BackboneModelClass(config.backbone_config)
@@ -212,6 +269,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
 
     def get_input_embeddings(self):
+        """
+        **Retrieve the input embeddings.**
+
+        **Returns:**
+        - `torch.nn.Module`: Input embedding layer.
+        """
         if hasattr(self.backbone, 'shared'):
             return self.backbone.shared
         elif hasattr(self.backbone, 'model'):
@@ -221,6 +284,12 @@ class MultiModalEmbedderModel(PreTrainedModel):
             return None
 
     def set_input_embeddings(self, value):
+        """
+        **Set new input embeddings.**
+
+        **Args:**
+        - `value` (torch.nn.Module): New embedding module.
+        """
         # Set 'shared' attribute
         if hasattr(self.backbone, 'shared'):
             self.backbone.shared = value
@@ -246,24 +315,64 @@ class MultiModalEmbedderModel(PreTrainedModel):
             decoder.embed_tokens = value
 
     def get_output_embeddings(self):
+        """
+        **Retrieve the output embedding layer (LM Head).**
+
+        **Returns:**
+        - `torch.nn.Module`: LM head layer.
+        """
         return self.lm_head
 
     @property
     def lm_head(self):
+        """
+        **Retrieve the language modeling head.**
+
+        **Returns:**
+        - `torch.nn.Module`: LM head module.
+        """
         if hasattr(self.backbone, 'lm_head'):
             return self.backbone.lm_head
         return None
 
     @property
     def get_backbone_encoder(self):
+        """
+        **Retrieve the encoder module from the backbone.**
+
+        This method checks if the backbone model has a direct `encoder` attribute.
+        If not, it assumes the backbone has a `.model` submodule containing the encoder.
+
+        **Returns:**
+        - `torch.nn.Module`: The encoder module of the backbone model.
+        """
         return self.backbone.encoder if hasattr(self.backbone, 'encoder') else self.backbone.model.encoder
 
     @property
     def get_backbone_decoder(self):
+        """
+        **Retrieve the decoder module from the backbone.**
+
+        Similar to `get_backbone_encoder`, this method checks if the backbone model has a 
+        direct `decoder` attribute. If not, it assumes the backbone has a `.model` submodule 
+        containing the decoder.
+
+        **Returns:**
+        - `torch.nn.Module`: The decoder module of the backbone model.
+        """
         return self.backbone.decoder if hasattr(self.backbone, 'decoder') else self.backbone.model.decoder
     
     @property
     def get_shared(self):
+        """
+        **Retrieve the shared embedding layer of the backbone.**
+
+        This method returns the shared embedding layer, if present, which is commonly used 
+        to tie input and output embeddings in Transformer-based architectures.
+
+        **Returns:**
+        - `torch.nn.Module` or `None`: The shared embedding layer, if available.
+        """
         if hasattr(self.backbone, 'shared'):
             return self.backbone.shared
         elif hasattr(self.backbone, 'model'):
@@ -380,19 +489,116 @@ class MultiModalEmbedderModel(PreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple[torch.Tensor], Seq2SeqLMOutput]:
         """
-        The forward method inherited from the base class has a **kwargs
-        argument in its input, which is not supported in torchscript. This
-        method overwrites the forward method definition without **kwargs.
+        **Forward pass of the MultiModalEmbedderModel.**
 
-        INPUTS:
-            - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
-            - input_frames: B x N_frames x C x W x H <- Multimodal input minibatch
-            - source_prompt: B x prompt_n_tokens <- prompt to be added to 'inputs_embeds' before fitting them to the Language Model
-            - source_prompt_length_padding_mask: B x prompt_n_tokens <- source prompt padding_mask.
-            - attention_mask: B x N_frames <- 0 indicates padding elements
-            - decoder_input_ids: B x T_text <- Should look as ['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>'] if teacher forcing, otherwise None. In Generation: ['<s>', '<tgt_lang>']
-            - labels: B x T_text <- Just needed in training. Should look as: ['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']
-            - decoder_attention_mask: B x T_text <- 0 indicates padding elements
+        This method performs the forward propagation of the model, processing multimodal 
+        inputs including textual and video-based features. The method integrates visual 
+        embeddings, applies the Visual-Language Mapper (VL Mapper), and processes text 
+        tokens through the Transformer backbone.
+
+        ### **Args:**
+        - `input_frames` (Optional[torch.LongTensor], shape: `(B, N_frames, C, W, H)`):  
+        The batch of video input frames, where:
+            - `B` = batch size  
+            - `N_frames` = number of frames per sample  
+            - `C` = number of channels  
+            - `W` = frame width  
+            - `H` = frame height  
+
+        - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        A prompt consisting of tokenized text that is prepended to the model's input.
+
+        - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        Mask to indicate padding tokens in the source prompt.
+
+        - `input_ids` (Optional[torch.LongTensor], shape: `(B, S_text)`):  
+        Tokenized input sequence, where:
+            - `S_text` = sequence length (number of tokens)  
+        Padding tokens will be ignored.
+
+        - `attention_mask` (Optional[torch.Tensor], shape: `(B, N_frames)`):  
+        A mask that indicates which tokens or frames should be attended to (`1`) and 
+        which should be ignored (`0`).
+
+        - `decoder_input_ids` (Optional[torch.LongTensor], shape: `(B, T_text)`):  
+        Input IDs for the decoder during training or inference.  
+        - If using teacher forcing, should have the format: `['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>']`.  
+        - In generation mode: `['<s>', '<tgt_lang>']`.
+
+        - `decoder_attention_mask` (Optional[torch.LongTensor], shape: `(B, T_text)`):  
+        Mask for decoder inputs, where `0` indicates padding elements.
+
+        - `head_mask` (Optional[torch.Tensor], shape: `(num_layers, num_heads)`):  
+        Mask for attention heads in the encoder.
+
+        - `decoder_head_mask` (Optional[torch.Tensor], shape: `(num_layers, num_heads)`):  
+        Mask for attention heads in the decoder.
+
+        - `cross_attn_head_mask` (Optional[torch.Tensor], shape: `(num_layers, num_heads)`):  
+        Mask for cross-attention heads in the decoder.
+
+        - `encoder_outputs` (Optional[Tuple[Tuple[torch.FloatTensor]]]):  
+        Precomputed encoder outputs, useful when using cached values for efficiency.
+
+        - `past_key_values` (Optional[Tuple[Tuple[torch.FloatTensor]]]):  
+        Cached past key-value pairs for decoder self-attention and cross-attention.  
+        Used to speed up autoregressive generation.
+
+        - `inputs_embeds` (Optional[torch.FloatTensor], shape: `(B, S_text, hidden_dim)`):  
+        Precomputed input embeddings instead of `input_ids`.
+
+        - `decoder_inputs_embeds` (Optional[torch.FloatTensor], shape: `(B, T_text, hidden_dim)`):  
+        Precomputed embeddings for decoder inputs.
+
+        - `labels` (Optional[torch.LongTensor], shape: `(B, T_text)`):  
+        Target text token IDs, required during training.  
+        Should follow the format: `['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']`.
+
+        - `use_cache` (Optional[bool], default=`None`):  
+        If `True`, enables the use of `past_key_values` for faster decoding.
+
+        - `output_attentions` (Optional[bool], default=`None`):  
+        If `True`, the model outputs attention scores.
+
+        - `output_hidden_states` (Optional[bool], default=`None`):  
+        If `True`, the model outputs hidden states.
+
+        - `return_dict` (Optional[bool], default=`None`):  
+        If `True`, returns a `Seq2SeqLMOutput` instead of a tuple.
+
+        ### **Returns:**
+        - `Union[Tuple[torch.Tensor], Seq2SeqLMOutput]`:  
+        The model output, which includes:
+            - `logits` (torch.Tensor, shape `(B, T_text, vocab_size)`) → Model's output token probabilities.
+            - `past_key_values` (Optional[Tuple[Tuple[torch.FloatTensor]]]) → Cached attention states (if `use_cache=True`).
+            - `decoder_hidden_states` (Optional[Tuple[torch.FloatTensor]]) → Hidden states of the decoder (if `output_hidden_states=True`).
+            - `decoder_attentions` (Optional[Tuple[torch.FloatTensor]]) → Attention scores of the decoder (if `output_attentions=True`).
+
+        ### **Processing Steps:**
+        1. **Input Embedding:**  
+        - If `inputs_embeds` is not provided, compute it using `feature_extractor(input_frames)`.
+        - If a Visual-Language Mapper (`vl_mapper`) is present, apply it to the embeddings.
+        
+        2. **Modality Merging:**  
+        - Combine `inputs_embeds` with the `source_prompt`, if provided.
+        - Use the `merge_modalities()` function to ensure proper alignment.
+        
+        3. **Transformer Backbone Processing:**  
+        - The processed embeddings are fed into the backbone Transformer model.
+        
+        4. **Output Generation:**  
+        - The model produces token probabilities (`logits`) and optionally outputs attention states.
+
+        ### **Example Usage:**
+        ```python
+        model = MultiModalEmbedderModel(config)
+        input_frames = torch.randn(4, 16, 3, 224, 224)  # Batch of 4 video clips
+        input_ids = torch.randint(0, 50265, (4, 20))  # Random token IDs
+        labels = torch.randint(0, 50265, (4, 20))
+
+        outputs = model.forward(input_frames=input_frames, input_ids=input_ids, labels=labels)
+        print(outputs.logits.shape)  # Output: (4, 20, 50265)
+        ```
         """
 
         if labels is not None: 
@@ -451,12 +657,78 @@ class MultiModalEmbedderModel(PreTrainedModel):
         return_dict: Optional[bool] = None,
     ):
         """
-        INPUTS:
-            - input_ids (Text2Text): B x S_text <— Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide it.
-            - input_frames: B x N_frames x C x W x H <- Multimodal input minibatch
-            - source_prompt: B x prompt_n_tokens <- Language tokens to be added to 'inputs_embeds' before fitting them to the Language Model
-            - source_prompt_length_padding_mask: B x prompt_n_tokens <- source prompt padding_mask.
-            - attention_mask: B x N_frames <- 0 indicates padding elements
+        **Encodes the multimodal input and returns encoder outputs.**
+
+        This method processes multimodal inputs (video frames, text, and embeddings) 
+        to obtain `encoder_outputs`. It is primarily used during `model.generate()` 
+        to retrieve encoder representations before decoding.
+
+        ### **Args:**
+        - `input_frames` (Optional[torch.LongTensor], shape: `(B, N_frames, C, W, H)`):  
+        The batch of video input frames, where:
+            - `B` = batch size  
+            - `N_frames` = number of frames per sample  
+            - `C` = number of channels  
+            - `W` = frame width  
+            - `H` = frame height  
+
+        - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        A prompt consisting of tokenized text that is prepended to the model's input.
+
+        - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        Mask indicating padding tokens in the source prompt.
+
+        - `input_ids` (Optional[torch.Tensor], shape: `(B, S_text)`):  
+        Tokenized text input IDs.  
+        - If `None`, the model relies on `input_frames` for input embeddings.
+
+        - `attention_mask` (Optional[torch.Tensor], shape: `(B, N_frames)`):  
+        A mask indicating which frames should be attended to (`1`) and which should be ignored (`0`).
+
+        - `head_mask` (Optional[torch.Tensor], shape: `(num_layers, num_heads)`):  
+        Mask for attention heads in the encoder.
+
+        - `inputs_embeds` (Optional[torch.Tensor], shape: `(B, S_text, hidden_dim)`):  
+        Precomputed input embeddings instead of `input_ids`.  
+        - If `None`, embeddings are computed from `input_frames`.
+
+        - `output_attentions` (Optional[bool], default=`None`):  
+        If `True`, the model returns attention weights.
+
+        - `output_hidden_states` (Optional[bool], default=`None`):  
+        If `True`, the model returns hidden states of all layers.
+
+        - `return_dict` (Optional[bool], default=`None`):  
+        If `True`, returns a `BaseModelOutput` instead of a tuple.
+
+        ### **Returns:**
+        - `BaseModelOutput` or `Tuple`:  
+        The encoder outputs containing:
+            - `last_hidden_state` (torch.FloatTensor, shape `(B, S_text, hidden_dim)`) → Final encoder hidden states.
+            - `hidden_states` (Optional[Tuple[torch.FloatTensor]]) → Hidden states from all layers (if `output_hidden_states=True`).
+            - `attentions` (Optional[Tuple[torch.FloatTensor]]) → Attention scores (if `output_attentions=True`).
+
+        ### **Processing Steps:**
+        1. **Compute Input Embeddings:**  
+        - If `inputs_embeds` is not provided, extract features using `feature_extractor(input_frames)`.
+        - If a Visual-Language Mapper (`vl_mapper`) is available, apply it to the embeddings.
+
+        2. **Merge Modalities:**  
+        - Combine `inputs_embeds` with `source_prompt`, if available.
+        - Use `merge_modalities()` to align visual and text inputs before passing them to the encoder.
+
+        3. **Encode Input Representations:**  
+        - The processed embeddings are passed to the Transformer encoder to generate `encoder_outputs`.
+
+        ### **Example Usage:**
+        ```python
+        model = MultiModalEmbedderModel(config)
+        input_frames = torch.randn(2, 16, 3, 224, 224)  # Batch of 2 videos
+        source_prompt = torch.randint(0, 50265, (2, 5))  # Random tokenized prompt
+
+        encoder_outputs = model.input_to_encoder_outputs(input_frames=input_frames, source_prompt=source_prompt)
+        print(encoder_outputs.last_hidden_state.shape)  # Output: (2, sequence_length, hidden_dim)
+        ```
         """
         
         if inputs_embeds is None:
@@ -485,7 +757,55 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
 
     def prepare_inputs_for_generation(self, *args, **kwargs):
-        # Added a condition to handle empty `past_key_values` which occurred unpredictably in the final autoregression step, causing errors during generation. This ensures stability across all steps.
+        """
+        **Prepares model inputs for autoregressive text generation.**
+
+        This method adapts the inputs before passing them to the `backbone` model 
+        during text generation (e.g., beam search or greedy decoding). It ensures 
+        stability by handling empty `past_key_values` and properly structuring the 
+        inputs for multimodal generation.
+
+        ### **Args:**
+        - `*args`: Positional arguments passed to the backbone model.
+        - `**kwargs`: Keyword arguments containing:
+            - `past_key_values` (Optional[Tuple[Tuple[torch.FloatTensor]]]):  
+            Cached key-value states from previous decoding steps.  
+            - If empty (`()`), it is set to `None` to prevent errors in final autoregression steps.
+            - `input_frames` (Optional[torch.LongTensor], shape: `(B, N_frames, C, W, H)`):  
+            Video input frames.
+            - `inputs_embeds` (Optional[torch.Tensor], shape: `(B, S_text, hidden_dim)`):  
+            Precomputed input embeddings instead of `input_ids`.
+            - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+            Prompt prepended to the input sequence.
+            - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+            Padding mask for the source prompt.
+
+        ### **Returns:**
+        - `dict`: A dictionary containing all required inputs for the `backbone.generate()` function.
+
+        ### **Processing Steps:**
+        1. **Handle Empty `past_key_values`:**  
+        - If `past_key_values` is an empty tuple (`()`), it is replaced with `None`.
+        
+        2. **Retrieve Backbone Model Inputs:**  
+        - Calls `self.backbone.prepare_inputs_for_generation(*args, **kwargs)` to get base model inputs.
+        
+        3. **Add Multimodal Inputs:**  
+        - If `input_frames`, `inputs_embeds`, `source_prompt`, or `source_prompt_length_padding_mask` 
+            are present in `kwargs`, they are added to the model input dictionary.
+
+        ### **Example Usage:**
+        ```python
+        model = MultiModalEmbedderModel(config)
+        input_frames = torch.randn(2, 16, 3, 224, 224)
+        past_key_values = None  # First decoding step
+
+        model_inputs = model.prepare_inputs_for_generation(
+            past_key_values=past_key_values, input_frames=input_frames
+        )
+        print(model_inputs.keys())  # Output: dict_keys(['input_frames', 'past_key_values'])
+        ```
+        """
 
         if kwargs.get('past_key_values', ()) == ():
             kwargs['past_key_values'] = None
@@ -511,11 +831,33 @@ class MultiModalEmbedderModel(PreTrainedModel):
         return model_inputs
 
     def get_encoder(self):
+        """
+        **Retrieves the encoder component of the model.**
+
+        This method returns an `EncoderWrapper`, which encapsulates the model’s encoder 
+        for use in downstream tasks like sequence-to-sequence generation.
+
+        ### **Returns:**
+        - `EncoderWrapper`: The encoder module of the model.
+        """
         return EncoderWrapper(self)
-
-    def _reorder_cache(self, past_key_values, beam_idx):
-        return self.backbone._reorder_cache(past_key_values, beam_idx)
-
+    
     @staticmethod
-    def _reorder_cache(past_key_values, beam_idx):
-        return M2M100ForConditionalGeneration._reorder_cache(past_key_values, beam_idx)
+    def _reorder_cache(self, past_key_values, beam_idx):
+        """
+        **Reorders the past key-value cache for beam search decoding.**
+
+        During beam search, this method reorders `past_key_values` based on the 
+        surviving beams (`beam_idx`), ensuring that cached values remain aligned 
+        with the correct sequences.
+
+        ### **Args:**
+        - `past_key_values` (Tuple[Tuple[torch.FloatTensor]]):  
+        Cached self-attention and cross-attention key-value pairs from previous decoding steps.
+        - `beam_idx` (torch.LongTensor, shape `(num_beams,)`):  
+        The indices of the beams that survived the last decoding step.
+
+        ### **Returns:**
+        - `Tuple[Tuple[torch.FloatTensor]]`: The reordered past key-value states.
+        """
+        return self.backbone._reorder_cache(past_key_values, beam_idx)

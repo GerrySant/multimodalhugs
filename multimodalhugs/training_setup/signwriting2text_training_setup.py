@@ -14,7 +14,7 @@ from transformers import AutoTokenizer
 from transformers.models.clip.image_processing_clip import CLIPImageProcessor
 
 # Import the model registry helper (ensure this module exists)
-from multimodalhugs.models.registry import get_model_class
+from multimodalhugs.utils.registry import get_model_class
 from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
 from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 

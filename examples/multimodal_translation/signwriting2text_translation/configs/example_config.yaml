@@ -8,7 +8,7 @@ model:
   backbone_type: "<pretrained-backbone-model>"         # Identifier for the pretrained backbone model (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"  # Pretrained weights for the backbone (e.g., "facebook/m2m100_418M").
   feat_dim: 512                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
-  feature_extractor_cfg:                              # Configuration for modifying the feature extractor architecture.
+  feature_extractor_config:                              # Configuration for modifying the feature extractor architecture.
     feature_extractor_arguments: "<config-arguments>"  # Arguments to adjust the internal configuration of the feature extractor.
 
 
@@ -48,11 +48,9 @@ data:
   train_metadata_file: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
-  filter_empty_samples: True                                    # Filter out samples with empty fields.
   shuffle: True                                                # Shuffle dataset samples during loading.
   new_vocabulary: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"                 # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  max_seq_length: 512                                          # Maximum sequence length for tokenization.
   max_frames: 300                                             # Maximum number of frames to consider.
   preprocess:                                                 # Image preprocessing configuration.
     width: 224                                               # Target image width in pixels.
