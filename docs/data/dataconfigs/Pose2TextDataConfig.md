@@ -108,7 +108,7 @@ pose sequences in the Pose2Text dataset.</p>
       <td><code>Optional</code></td>
       <td><code>None</code></td>
       <td>Configuration for dataset-level preprocessing (e.g., resizing, normalization).</td>
-      <td>Check <a href="docs/data/dataconfigs/others/PreprocessArguments.md">PreprocessArguments documentation</a> to see which arguments are accepted.</td>
+      <td>Check <a href="others/PreprocessArguments.md">PreprocessArguments documentation</a> to see which arguments are accepted.</td>
     </tr>
     <tr>
       <td><strong>reduce_holistic_poses</strong></td>
