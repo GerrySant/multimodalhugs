@@ -65,6 +65,8 @@ Includes specifications for model architectures used in MultiModalHugs.
 <div class=\"section-header\">🚀 Getting Started</div>
 To set up, train and evaluate a model, follow these steps:
 
+![Steps Overview](media/steps.png)
+
 ## 1. Dataset Preparation
 For each partition (train, val, test), create a TSV file that captures essential sample details (input paths, timestamps, prompts, target texts) for consistency. 
 
@@ -77,7 +79,7 @@ The `metadata.tsv` files for each partition must include the following fields:
 - `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
 - `output_text`: The target text for translation.
 
-## 2. Create the dataset and processor instances:
+## 2. Setup Datasets, Model and Processors:
    ```bash
    multimodalhugs-setup --modality {{pose2text,signwriting2text,image2text}} --config_path CONFIG_PATH
    ```
