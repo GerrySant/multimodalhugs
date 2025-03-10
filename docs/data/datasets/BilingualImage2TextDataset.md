@@ -7,7 +7,7 @@
 This dataset class extends `BilingualText2TextDataset`, where the source input 
 is an image instead of raw text. It supports different configurations for handling images.
 
-Go to [BilingualImage2textMTDataConfig documentation](multimodalhugs/docs/data/dataconfigs/BilingualImage2textMTDataConfig.md) to find out what arguments to put in the config.</p>
+Go to [BilingualImage2textMTDataConfig documentation](/docs/data/dataconfigs/BilingualImage2textMTDataConfig.md) to find out what arguments to put in the config.</p>
 
 <h2>Constructor</h2>
 <pre><code>

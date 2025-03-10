@@ -7,7 +7,7 @@
 This dataset class is designed for handling bilingual translation datasets 
 where text input in one language is mapped to its corresponding translation.
 
-Go to [MultimodalMTDataConfig documentation](multimodalhugs/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.</p>
+Go to [MultimodalMTDataConfig documentation](/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.</p>
 
 <h2>Constructor</h2>
 <pre><code>

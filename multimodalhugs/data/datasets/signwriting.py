@@ -25,7 +25,7 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
     It loads structured datasets from metadata files and prepares examples for training, 
     validation, and testing.
 
-    Go to [MultimodalMTDataConfig documentation](multimodalhugs/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.
+    Go to [MultimodalMTDataConfig documentation](/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.
     """
 
     def __init__(

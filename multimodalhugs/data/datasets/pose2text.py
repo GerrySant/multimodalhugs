@@ -57,7 +57,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
     and generating text representations. It leverages metadata files to structure 
     the data into train, validation, and test splits.
 
-    Go to [Pose2TextDataConfig documentation](multimodalhugs/docs/data/dataconfigs/Pose2TextDataConfig.md) to find out what arguments to put in the config.
+    Go to [Pose2TextDataConfig documentation](/docs/data/dataconfigs/Pose2TextDataConfig.md) to find out what arguments to put in the config.
 
     """
     def __init__(

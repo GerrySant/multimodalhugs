@@ -8,7 +8,7 @@ This dataset class processes SignWriting samples for multimodal machine translat
 It loads structured datasets from metadata files and prepares examples for training, 
 validation, and testing.
 
-Go to [MultimodalMTDataConfig documentation](multimodalhugs/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.</p>
+Go to [MultimodalMTDataConfig documentation](/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.</p>
 
 <h2>Constructor</h2>
 <pre><code>

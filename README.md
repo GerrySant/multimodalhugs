@@ -48,28 +48,39 @@ Explore the [examples/multimodal_translation/](/examples/multimodal_translation/
 
 ## Directory Overview
 ```kotlin
-multimodalhugs
-├── examples
-│   └── multimodal_translation
-│       ├── image2text_translation
-│       ├── pose2text_translation
-│       └── signwriting2text_translation
-├── multimodalhugs
-│   ├── custom_datasets
-│   ├── data
-│   ├── models
-│   ├── modules
-│   ├── multimodalhugs_cli
-│   ├── processors
-│   ├── tasks
-│   ├── training_setup
-│   └── utils
-└── tests
+multimodalhugs/
+├── README.md               # Project overview
+├── LICENSE                 # License information
+├── pyproject.toml          # Package dependencies and setup
+├── docs/                   # Documentation
+│   ├── data/               # Data-related documentation
+│   └── models/             # Model-related documentation
+├── examples/               # Example scripts and configurations
+│   ├── multimodal_translation/
+│   │   ├── image2text_translation/
+│   │   ├── pose2text_translation/
+│   │   └── signwriting2text_translation/
+├── multimodalhugs/         # Core framework
+│   ├── data/               # Data handling utilities
+│   ├── models/             # Model implementations
+│   ├── modules/            # Custom components (adapters, embeddings, etc.)
+│   ├── processors/         # Preprocessing modules
+│   ├── tasks/              # Task-specific logic (e.g., translation)
+│   ├── training_setup/     # Training pipeline setup
+│   ├── multimodalhugs_cli/ # Command-line interface for training/inference
+│   └── utils/              # Helper functions
+├── scripts/                # Utility scripts (e.g., documentation generation)
+├── tests/                  # Unit tests
+└── .github/                # GitHub actions and workflows
+
 ```
 
+- `docs/`: Documentation files for data configurations, datasets, and models.
 - `examples/`: Contains ready-to-run demos for various multimodal tasks.
 - `multimodalhugs/`: Core library code (datasets, models, modules, etc.).
+- `scripts/`: Utility scripts for documentation generation and other automation tasks.
 - `tests/`: Automated tests to ensure code integrity.
+- `.github/`: GitHub Actions and workflows for CI/CD.
 
 ## Contributing
 All contributions—bug reports, feature requests, or pull requests—are welcome. Please see our [GitHub repository](https://github.com/GerrySant/multimodalhugs) to get involved.
