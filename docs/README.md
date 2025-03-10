@@ -1,25 +1,6 @@
 # MultiModalHugs Documentation
 
-<style>
-  body {
-    font-family: Arial, sans-serif;
-  }
-  .section-header {
-    font-size: 1.5em;
-    font-weight: bold;
-    margin-top: 20px;
-    padding-bottom: 5px;
-    border-bottom: 2px solid #ddd;
-  }
-  .note {
-    background-color: #f8f9fa;
-    border-left: 5px solid #ff7b00;
-    padding: 10px;
-    margin: 15px 0;
-  }
-</style>
-
-<div class="section-header">📂 Directory Structure</div>
+## 📂 Directory Structure
 
 The MultiModalHugs documentation is organized into the following sections:
 
@@ -51,7 +32,7 @@ Includes specifications for model architectures used in MultiModalHugs.
   - [`MultiModalEmbedderConfig`](models/multimodal_embedder/MultiModalEmbedderConfig.md)
   - [`MultiModalEmbedderModel`](models/multimodal_embedder/MultiModalEmbedderModel.md)
 
-<div class="section-header">🚀 Getting Started</div>
+## 🚀 Getting Started
 To set up, train and evaluate a model, follow these steps:
 
 ![Steps Overview](media/steps.png)
@@ -87,11 +68,11 @@ The `metadata.tsv` files for each partition must include the following fields:
   <b>Note:</b> For more detailed information on each command, refer to the <a href="general/CLI.md">CLI documentation</a>.
 </div>
 
-<div class="section-header">📁 Examples</div>
+## 📁 Examples
 
 To see concrete examples of dataset configurations and usage for different modalities, check out the [`examples/`](examples/) directory.
 
-<div class="section-header">📖 Additional Resources</div>
+## 📖 Additional Resources
 
 - Hugging Face `Trainer` API: [TrainingArguments Documentation](https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments)
 - MultiModalHugs Repository: (Include link if available)
