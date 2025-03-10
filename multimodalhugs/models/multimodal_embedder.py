@@ -842,7 +842,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         """
         return EncoderWrapper(self)
     
-    @staticmethod
     def _reorder_cache(self, past_key_values, beam_idx):
         """
         **Reorders the past key-value cache for beam search decoding.**
