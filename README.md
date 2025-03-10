@@ -84,7 +84,7 @@ For more details, refer to the [CLI documentation](docs/general/CLI.md).
 
 ## Directory Overview
 
-```kotlin
+```yaml
 multimodalhugs/
 ├── README.md               # Project overview
 ├── LICENSE                 # License information
