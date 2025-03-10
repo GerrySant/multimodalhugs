@@ -18,7 +18,7 @@ This section defines the model-related parameters.
 - **model_type** (*Required*): Specifies the type of model to use (e.g., `"multimodal_embedder"`).
 - **model_name_or_path** (*Optional*): If you already have a model instance created by `multimodalhugs-setup`, you can specify this field to load that model during training. If omitted, the `multimodalhugs-setup` command will automatically add it.
 
-> **Note:** For additional model-specific settings, refer to the <a href="docs/models/">models documentation</a>.
+> **Note:** For additional model-specific settings, refer to the <a href="/docs/models/">models documentation</a>.
 > 
 ---
 
@@ -28,7 +28,7 @@ This section handles dataset configuration.
 
 - **dataset_dir** (*General argument*): Points to the dataset instance created by `multimodalhugs-setup`. Although optional during setup, it is required when using `multimodalhugs-train` to load the dataset.
 
-> **Note:** Specific dataset-related arguments depend on the dataset type. See the <a href="docs/data/">data documentation</a> for details.
+> **Note:** Specific dataset-related arguments depend on the dataset type. See the <a href="/docs/data/">data documentation</a> for details.
 
 ---
 
