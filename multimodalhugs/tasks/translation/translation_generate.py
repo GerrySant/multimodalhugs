@@ -62,8 +62,8 @@ from transformers.utils import send_example_telemetry
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
-from .config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments
-from .utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args
+from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments
+from multimodalhugs.tasks.translation.utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args
 
 logger = logging.getLogger(__name__)
 

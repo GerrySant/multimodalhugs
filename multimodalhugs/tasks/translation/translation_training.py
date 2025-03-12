@@ -52,8 +52,8 @@ from transformers.utils import send_example_telemetry
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
-from .config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments
-from .utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args
+from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments
+from multimodalhugs.tasks.translation.utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args, check_t5_fp16_compatibility
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +172,7 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+    check_t5_fp16_compatibility(model, training_args.fp16)
 
     # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
     # on a small vocab and want a smaller embedding size, remove this test.

@@ -22,7 +22,7 @@ This directory showcases how to prepare and train an **Image2Text** translation 
 
 For each partition (train, val, test), run the script:
 ```bash
-python hebrew_dataset_preprocessing_script.py /path/to/source.txt /path/to/target.txt __vhe__ __en__ /path/to/output.tsv
+python hebrew_dataset_preprocessing_script.py "/path/to/source.txt" "/path/to/target.txt" "__vhe__" "__en__" "/path/to/output.tsv"
 ```
 
 #### Metadata File Requirements

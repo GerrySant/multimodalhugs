@@ -114,3 +114,40 @@ def merge_config_and_command_args(config_path, class_type, section, _args, remai
         yaml_arg_keys=yaml_keys
     )
     return _args
+
+def check_t5_fp16_compatibility(model, fp16: bool):
+    """
+    Checks if the provided model or its submodules are instances of any T5-related class,
+    and if fp16 training is enabled.
+
+    Args:
+        model (nn.Module): The model instance to check.
+        fp16 (bool): Flag indicating whether FP16 training is enabled.
+
+    Raises:
+        ValueError: If a T5-related model is detected and FP16 is True.
+    """
+    from transformers.models.t5.modeling_t5 import (
+        T5Model, T5PreTrainedModel, T5ForConditionalGeneration, T5EncoderModel,
+        T5ForSequenceClassification, T5ForTokenClassification, T5ForQuestionAnswering,
+        T5LayerNorm, T5DenseActDense, T5DenseGatedActDense, T5LayerFF, T5Attention,
+        T5LayerSelfAttention, T5LayerCrossAttention, T5Block, T5ClassificationHead, T5Stack
+    )
+
+    t5_classes = (
+        T5Model, T5PreTrainedModel, T5ForConditionalGeneration, T5EncoderModel,
+        T5ForSequenceClassification, T5ForTokenClassification, T5ForQuestionAnswering,
+        T5LayerNorm, T5DenseActDense, T5DenseGatedActDense, T5LayerFF, T5Attention,
+        T5LayerSelfAttention, T5LayerCrossAttention, T5Block, T5ClassificationHead, T5Stack
+    )
+
+    def contains_t5_module(module):
+        return isinstance(module, t5_classes)
+
+    if fp16 and (contains_t5_module(model) or any(contains_t5_module(m) for m in model.modules())):
+        raise ValueError(
+            "Currently training a T5 using fp16 is not supported by the HuggingFace code. "
+            "Please set fp16=False in the training arguments if you want to continue using a T5. "
+            "You can find out more information on "
+            "https://github.com/huggingface/transformers/issues?q=is%3Aissue%20t5%20NaN"
+        )

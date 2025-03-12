@@ -230,7 +230,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
                 "source": item['source'],
                 "source_start": item['source_start'],
                 "source_end": item['source_end'],
-                "source_prompt": item['source_prompt'] if item.get('source_prompt', "") is not None else "",
-                "generation_prompt": item.get('generation_prompt', "") if item.get('generation_prompt', "") is not None else "",
+                "source_prompt": item.get("source_prompt") or "",
+                "generation_prompt": item.get("generation_prompt") or "",
                 "output_text": item['output_text'],
             }

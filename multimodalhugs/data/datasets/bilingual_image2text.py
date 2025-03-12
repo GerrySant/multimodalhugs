@@ -157,9 +157,9 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         for idx, item in enumerate(dataset):
             yield idx, {
                 "source": item.get('source', item['source_signal']),
-                "source_start": item.get('start_time', 0),
-                "source_end": item.get('end_time', 0),
-                "source_prompt": item.get('source_prompt', ""),
-                "generation_prompt": item.get('generation_prompt', ""),
+                "source_start": item.get("start_time") or 0,
+                "source_end": item.get("end_time") or 0,
+                "source_prompt": item.get("source_prompt") or "",
+                "generation_prompt": item.get("generation_prompt") or "",
                 "output_text": item['output_text'],
             }
