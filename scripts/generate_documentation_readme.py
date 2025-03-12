@@ -60,6 +60,8 @@ The `metadata.tsv` files for each partition must include the following fields:
 - `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
 - `output_text`: The target text for translation.
 
+> **Note:** If using a pretrained model, ensure you understand how the model expects the `generation_prompt`. Some models, such as T5, automatically assume this prompt is always the `<pad>` token and prepend it by default. Therefore, explicitly specifying `<pad>`in this field is unnecessary and would result in unexpected behaviour.
+
 ## 2. Setup Datasets, Model and Processors:
    ```bash
    multimodalhugs-setup --modality {{pose2text,signwriting2text,image2text}} --config_path CONFIG_PATH
