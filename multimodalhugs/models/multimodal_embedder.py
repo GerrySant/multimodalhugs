@@ -174,6 +174,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         else:
             self.feature_extractor_config = None
 
+        self.bos_token_id = self.bos_token_id if self.bos_token_id is not None else self.decoder_start_token_id
+
 # Define the custom model class
 @register_model("multimodal_embedder")
 class MultiModalEmbedderModel(PreTrainedModel):
@@ -197,8 +199,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         super().__init__(config)
         self._init_feature_extractor(config)
         self._init_vl_mapper(config)
+        self.decoder_start_token_id = config.decoder_start_token_id
         self.pad_token_id = config.pad_token_id
         self.eos_token_id = config.eos_token_id
+        self.bos_token_id = config.bos_token_id if config.bos_token_id is not None else config.decoder_start_token_id
         self._init_backbone(config)
         self.max_length = config.max_length
         self.post_init()
@@ -522,8 +526,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         - `decoder_input_ids` (Optional[torch.LongTensor], shape: `(B, T_text)`):  
         Input IDs for the decoder during training or inference.  
-        - If using teacher forcing, should have the format: `['</s>', '<tgt_lang>', '<token_a>', '<token_b>', '<token_c>']`.  
-        - In generation mode: `['<s>', '<tgt_lang>']`.
+        - If using teacher forcing, should have the format: `['<prompt_1>', '<prompt_2>,  ..., <prompt_N>', '<token_a>', '<token_b>', '<token_c>']`.  
+        - In generation mode: `['<prompt_1>', '<prompt_2>,  ..., <prompt_N>']`.
 
         - `decoder_attention_mask` (Optional[torch.LongTensor], shape: `(B, T_text)`):  
         Mask for decoder inputs, where `0` indicates padding elements.
@@ -552,7 +556,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         - `labels` (Optional[torch.LongTensor], shape: `(B, T_text)`):  
         Target text token IDs, required during training.  
-        Should follow the format: `['<tgt_lang>', '<token_a>', '<token_b>', '<token_c>', '</s>']`.
+        Should follow the format: `['<prompt_1>', '<prompt_2>,  ..., <prompt_N>', '<token_a>', '<token_b>', '<token_c>', '</s>']`.
 
         - `use_cache` (Optional[bool], default=`None`):  
         If `True`, enables the use of `past_key_values` for faster decoding.
@@ -606,6 +610,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             decoder_input_ids = None
             decoder_attention_mask = None
 
+
         if inputs_embeds is None:
             inputs_embeds = self.feature_extractor(input_frames)
 
@@ -621,7 +626,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
             pad_idx=self.pad_token_id, 
             eos_idx=self.eos_token_id, 
         )
-
         outputs = self.backbone(
             input_ids = input_ids,
             attention_mask = attention_mask,

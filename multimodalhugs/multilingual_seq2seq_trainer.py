@@ -28,6 +28,8 @@ if TYPE_CHECKING:
     from transformers.training_args import TrainingArguments
 
 def all_values_equal(tensor):
+    if tensor.numel() == 0:  # Check if the tensor is empty, thus, no generation_prompt specified.
+        return False
     return torch.all(tensor == tensor.flatten()[0])
 
 class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
@@ -149,6 +151,12 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
 
         if all_values_equal(generation_inputs['decoder_attention_mask']):
             # If all decoder_prompts have the same number of tokens, we can pass the whole batch in the model.generate()
+            generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
+
+        elif generation_inputs['decoder_attention_mask'].numel() == 0:
+            # If decoder_prompts are empty, remove the empty tensors from generation_inputs before calling model.generate()
+            generation_inputs.pop("decoder_input_ids", None)
+            generation_inputs.pop("decoder_attention_mask", None)
             generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
 
         else:
