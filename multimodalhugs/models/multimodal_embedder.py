@@ -62,8 +62,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     freeze_feature_extractor: bool = field(
         default=False, metadata={"help": "if True, the feature_extractor parameters are frozen during training."}
     )
-    vl_mapper_type: str = field(
-        default="linear", metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter'"}
+    vl_mapper_type: Optional[str] = field(
+        default=None, metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter'"}
     )
     vl_mapper_layer_norm_before: bool = field(
         default=False, metadata={"help": "if True, adds a LayerNorm before the vl_mapper"}
@@ -188,6 +188,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
     """
     config_class = MultiModalEmbedderConfig
     base_model_prefix = "multimodal_embedder"
+    is_parallelizable = True
+    _keep_in_fp32_modules = []
+    _no_split_modules = []
 
     def __init__(self, config):
         """
@@ -224,6 +227,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
         else:
             self.feature_extractor = None
 
+        if self.feature_extractor is not None:
+            self.is_parallelizable = self.is_parallelizable and getattr(self.feature_extractor, "is_parallelizable", True)
+            self._no_split_modules = self._no_split_modules + (getattr(self.feature_extractor, "_no_split_modules", []) or [])
+            self._keep_in_fp32_modules = self._keep_in_fp32_modules + (getattr(self.feature_extractor, "_keep_in_fp32_modules", []) or [])
+
     def _init_vl_mapper(self, config):
         """
         **Initialize the Visual-Language (VL) Mapper.**
@@ -231,17 +239,20 @@ class MultiModalEmbedderModel(PreTrainedModel):
         **Args:**
         - `config` (MultiModalEmbedderConfig): Model configuration.
         """
-        self.vl_mapper = VLMapper(
-            feat_dim=config.feat_dim,
-            output_dim=config.d_model,
-            mapping_layer_type=config.vl_mapper_type,
-            layer_norm_before=config.vl_mapper_layer_norm_before,
-            adapter_factor=config.vl_factor,
-            p_dropout=config.vl_mapper_dropout,
-            layer_norm=config.vl_mapper_layer_norm,
-            activation=config.vl_mapper_activation,
-        )
-        set_module_parameters(self.vl_mapper, freeze=config.freeze_vl_mapper)
+        if config.vl_mapper_type is not None:
+            self.vl_mapper = VLMapper(
+                feat_dim=config.feat_dim,
+                output_dim=config.d_model,
+                mapping_layer_type=config.vl_mapper_type,
+                layer_norm_before=config.vl_mapper_layer_norm_before,
+                adapter_factor=config.vl_factor,
+                p_dropout=config.vl_mapper_dropout,
+                layer_norm=config.vl_mapper_layer_norm,
+                activation=config.vl_mapper_activation,
+            )
+            set_module_parameters(self.vl_mapper, freeze=config.freeze_vl_mapper)
+        else:
+            self.vl_mapper = None
 
     def _init_backbone(self, config):
         """
@@ -270,7 +281,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
             config.freeze_lm_head
         )
         set_module_parameters(self.get_shared, freeze=freeze_shared, verbose=False)
-
+        self.is_parallelizable = self.is_parallelizable and getattr(self.backbone, "is_parallelizable", True)
+        self._no_split_modules = self._no_split_modules + (getattr(self.backbone, "_no_split_modules", []) or [])
+        self._keep_in_fp32_modules = self._keep_in_fp32_modules + (getattr(self.backbone, "_keep_in_fp32_modules", []) or [])
 
     def get_input_embeddings(self):
         """
@@ -610,12 +623,15 @@ class MultiModalEmbedderModel(PreTrainedModel):
             decoder_input_ids = None
             decoder_attention_mask = None
 
-
-        if inputs_embeds is None:
+        if inputs_embeds is None and input_frames is not None:
             inputs_embeds = self.feature_extractor(input_frames)
 
-        if self.vl_mapper is not None:
+        if self.vl_mapper is not None and inputs_embeds is not None:
             inputs_embeds = self.vl_mapper(inputs_embeds)
+
+        if inputs_embeds is None:
+            inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
+            input_ids = None
 
         inputs_embeds, attention_mask = merge_modalities(
             x=inputs_embeds, 
@@ -735,10 +751,14 @@ class MultiModalEmbedderModel(PreTrainedModel):
         ```
         """
         
-        if inputs_embeds is None:
+        if inputs_embeds is None and input_frames is not None:
             inputs_embeds = self.feature_extractor(input_frames)
-        if self.vl_mapper is not None:
+        if self.vl_mapper is not None and inputs_embeds is not None:
             inputs_embeds = self.vl_mapper(inputs_embeds)
+
+        if inputs_embeds is None:
+            inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
+            input_ids = None
 
         inputs_embeds, attention_mask = merge_modalities(
             x=inputs_embeds, 

@@ -18,6 +18,7 @@ from multimodalhugs.processors import (
     SignwritingProcessor,
     Pose2TextTranslationProcessor,
     Image2TextTranslationProcessor,
+    Text2TextTranslationProcessor
 )
 from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
 from multimodalhugs import MultiLingualSeq2SeqTrainer
@@ -34,6 +35,10 @@ AutoProcessor.register("signwritting_processor", SignwritingProcessor)
 
 Image2TextTranslationProcessor.register_for_auto_class()
 AutoProcessor.register("image2text_translation_processor", Image2TextTranslationProcessor)
+
+Text2TextTranslationProcessor.register_for_auto_class()
+AutoProcessor.register("text2text_translation_processor", Text2TextTranslationProcessor)
+
 
 import logging
 import os
@@ -171,6 +176,7 @@ def main():
         revision=model_args.model_revision,
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
+        device_map='auto'
     )
     check_t5_fp16_compatibility(model, training_args.fp16)
 
