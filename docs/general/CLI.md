@@ -128,6 +128,8 @@ MultimodalHugs Generation CLI. Use --task to specify the generation objective.
 options:
   -h, --help            show this help message and exit
   --task {translation}  Specify the evaluation task (currently only "translation" is supported).
+  --metric_name METRIC_NAME
+                        Name of the metric to use (any metric supported by evaluate.load())
   --config_path CONFIG_PATH
                         Path to the configuration file.
   --model_name_or_path MODEL_NAME_OR_PATH

@@ -23,7 +23,7 @@ from ruamel.yaml import YAML
 from multimodalhugs.models import EncoderWrapper, get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.utils.registry import register_model
 from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
-from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities
+from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, correct_mask
 from multimodalhugs.utils import serialize_config
 
 logger = logging.getLogger(__name__)
@@ -618,30 +618,42 @@ class MultiModalEmbedderModel(PreTrainedModel):
         ```
         """
 
-        if labels is not None: 
-            # During training, use backbone method to create decoder_input_ids from labels
-            decoder_input_ids = None
-            decoder_attention_mask = None
+        if encoder_outputs is None:
+            if labels is not None: 
+                # During training, use backbone method to create decoder_input_ids from labels
+                decoder_input_ids = None
+                decoder_attention_mask = None
 
-        if inputs_embeds is None and input_frames is not None:
-            inputs_embeds = self.feature_extractor(input_frames)
+            if inputs_embeds is None and input_frames is not None:
+                inputs_embeds = self.feature_extractor(input_frames)
 
-        if self.vl_mapper is not None and inputs_embeds is not None:
-            inputs_embeds = self.vl_mapper(inputs_embeds)
+            if self.vl_mapper is not None and inputs_embeds is not None:
+                inputs_embeds = self.vl_mapper(inputs_embeds)
 
-        if inputs_embeds is None:
-            inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
-            input_ids = None
+            if inputs_embeds is None:
+                inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
+                input_ids = None
 
-        inputs_embeds, attention_mask = merge_modalities(
-            x=inputs_embeds, 
-            padding_mask=attention_mask, 
-            prompt=source_prompt, 
-            prompt_length_padding_mask=source_prompt_length_padding_mask,
-            embeddings_module=self.get_backbone_encoder.embed_tokens, 
-            pad_idx=self.pad_token_id, 
-            eos_idx=self.eos_token_id, 
-        )
+            inputs_embeds, attention_mask = merge_modalities(
+                x=inputs_embeds, 
+                padding_mask=attention_mask, 
+                prompt=source_prompt, 
+                prompt_length_padding_mask=source_prompt_length_padding_mask,
+                embeddings_module=self.get_backbone_encoder.embed_tokens, 
+                pad_idx=self.pad_token_id, 
+                eos_idx=self.eos_token_id, 
+            )
+        else:
+            # When encoder_outputs is not None, we still have to correct the mask with the proper
+            attention_mask = correct_mask(
+                padding_mask=attention_mask, 
+                prompt=source_prompt, 
+                prompt_length_padding_mask=source_prompt_length_padding_mask,
+                embeddings_module=self.get_backbone_encoder.embed_tokens, 
+                pad_idx=self.pad_token_id, 
+                eos_idx=self.eos_token_id, 
+            )
+            
         outputs = self.backbone(
             input_ids = input_ids,
             attention_mask = attention_mask,

@@ -78,6 +78,47 @@ def set_module_parameters(module, freeze=True, verbose=True):
     if verbose:
         logger.info(f" The parameters of the module {module.__class__.__name__} have been {action}.")
 
+def correct_mask(padding_mask, prompt, prompt_length_padding_mask, embeddings_module, pad_idx, eos_idx):
+    """
+    Adjusts the padding mask for generation when x is None.
+    
+    This function simulates the mask correction that would normally be applied
+    when merging modalities. It takes into account:
+      - Prepending prompt tokens (using prompt_length_padding_mask, or ones if not provided).
+      - Adding a special token column (for EOS, as done in the training merge).
+    
+    Parameters:
+        padding_mask (Tensor): Original padding mask of shape [B, N_tokens] (0 indicates padding).
+        prompt (Tensor or None): Prompt tensor of shape [B, N_tokens_prompt] or None.
+        prompt_length_padding_mask (Tensor or None): Mask for prompt tokens of shape [B, N_tokens_prompt] or None.
+        embeddings_module (Callable): Unused here, kept for interface consistency.
+        pad_idx (int or None): Index of the <pad> token.
+        eos_idx (int or None): Index of the </s> (EOS) token.
+    
+    Returns:
+        Tensor: The corrected padding mask reflecting the addition of prompt and special tokens.
+    """
+    # If a prompt is provided, prepend its corresponding mask.
+    if prompt is not None:
+        if prompt_length_padding_mask is None:
+            prompt_length = prompt.size(1)
+            prompt_length_padding_mask = torch.ones(
+                (padding_mask.size(0), prompt_length),
+                dtype=padding_mask.dtype,
+                device=padding_mask.device
+            )
+        padding_mask = torch.cat([prompt_length_padding_mask, padding_mask], dim=1)
+    
+    # If special token indices are provided, prepend a column to account for the special token (e.g. EOS)
+    if pad_idx is not None and eos_idx is not None:
+        new_mask_entry = torch.ones(
+            (padding_mask.size(0), 1),
+            dtype=padding_mask.dtype,
+            device=padding_mask.device
+        )
+        padding_mask = torch.cat([new_mask_entry, padding_mask], dim=1)
+    
+    return padding_mask
 
 def merge_modalities(x, padding_mask, prompt, prompt_length_padding_mask,
                                        embeddings_module, pad_idx, eos_idx):

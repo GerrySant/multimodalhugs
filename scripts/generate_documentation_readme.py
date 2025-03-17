@@ -74,7 +74,7 @@ The `metadata.tsv` files for each partition must include the following fields:
 
 ## 4. Generate outputs with a trained model:
    ```bash
-   multimodalhugs-generate --task translation --config_path CONFIG_PATH --model_name_or_path MODEL_PATH --processor_name_or_path PROCESSOR_PATH --dataset_dir DATASET_PATH --output_dir OUTPUT_DIR
+   multimodalhugs-generate --task translation --metric_name METRIC_NAME --config_path CONFIG_PATH --model_name_or_path MODEL_PATH --processor_name_or_path PROCESSOR_PATH --dataset_dir DATASET_PATH --output_dir OUTPUT_DIR
    ```
 
 > **Note:** For more detailed information on each command, refer to the <a href=\"general/CLI.md\">CLI documentation</a>.

@@ -4,6 +4,7 @@ Dispatcher for Evaluation.
 Usage example:
     multimodalhugs-generate \
         --task "translation" \
+        --metric_name METRIC_NAME \
         --config_path $CONFIG_PATH \
         --output_dir $OUTPUT_PATH \
         [--additional-arg <value> ...] 

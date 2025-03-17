@@ -19,7 +19,6 @@ This section defines the model-related parameters.
 - **model_name_or_path** (*Optional*): If you already have a model instance created by `multimodalhugs-setup`, you can specify this field to load that model during training. If omitted, the `multimodalhugs-setup` command will automatically add it.
 
 > **Note:** For additional model-specific settings, refer to the <a href="/docs/models/">models documentation</a>.
-> 
 ---
 
 ## Data Section
