@@ -2,6 +2,8 @@ import os
 import math
 import torch
 import datasets
+import numpy as np
+
 
 from pathlib import Path
 from pose_format import Pose
@@ -19,25 +21,21 @@ from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
 
 @dataclass
-class Pose2TextDataConfig(MultimodalMTDataConfig):
+class Features2TextDataConfig(MultimodalMTDataConfig):
     """
-    **Pose2TextDataConfig: Configuration class for the Pose-to-Text dataset.**
+    **Features2TextDataConfig: Configuration class for the Feature-to-Text dataset.**
 
     This configuration class defines parameters for processing sign language 
-    pose sequences in the Pose2Text dataset.
+    pose sequences in the Feature2Text dataset.
     """
-    name: str = "Pose2TextDataConfig"
-    reduce_holistic_poses: bool = field(
-        default=True, 
-        metadata={"help": "If True, it reduces holistic poses. See https://github.com/sign-language-processing/pose for more information."}
-    )
+    name: str = "Features2TextDataConfig"
     max_frames: Optional[int] = field(
         default=None, 
-        metadata={"help": "Pose related samples larger than this value will be filtered"}
+        metadata={"help": "Feature related samples larger than this value will be filtered"}
     )
     def __init__(self, cfg=None, **kwargs):
         """
-        **Initialize the Pose2TextDataConfig.**
+        **Initialize the Features2TextDataConfig.**
 
         This constructor assigns configuration parameters based on the provided 
         `cfg` object, if available. If no configuration is given, it falls back 
@@ -45,40 +43,39 @@ class Pose2TextDataConfig(MultimodalMTDataConfig):
         """
         super().__init__(cfg=cfg, **kwargs)
         # Assign new arguments from config if available
-        self.reduce_holistic_poses = getattr(cfg.data, 'reduce_holistic_poses', self.reduce_holistic_poses)
         self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
 
-@register_dataset("pose2text")
-class Pose2TextDataset(datasets.GeneratorBasedBuilder):
+@register_dataset("features2text")
+class Features2TextDataset(datasets.GeneratorBasedBuilder):
     """
-    **Pose2TextDataset: A dataset class for Pose-to-Text tasks.**
+    **Features2TextDataset: A dataset class for Feature-to-Text tasks.**
 
-    This dataset class is designed for processing sign language pose sequences 
+    This dataset class is designed for processing sign language features sequences 
     and generating text representations. It leverages metadata files to structure 
     the data into train, validation, and test splits.
 
-    Go to [Pose2TextDataConfig documentation](/docs/data/dataconfigs/Pose2TextDataConfig.md) to find out what arguments to put in the config.
+    Go to [Features2TextDataConfig documentation](/docs/data/dataconfigs/Features2TextDataConfig.md) to find out what arguments to put in the config.
 
     """
     def __init__(
         self,
-        config: Pose2TextDataConfig, 
+        config: Features2TextDataConfig, 
         *args,
         **kwargs
     ):
         """
-        **Initialize the Pose2TextDataset.**
+        **Initialize the Features2TextDataset.**
 
         **Args:**
-        - `config` (Pose2TextDataConfig): The dataset configuration.
+        - `config` (Features2TextDataConfig): The dataset configuration.
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
 
         """
-        dataset_info = DatasetInfo(description="Dataset class for Pose2Text.")
+        dataset_info = DatasetInfo(description="Dataset class for Features2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
 
-        self.name = "pose2text"
+        self.name = "feature2text"
         self.config = config
         self.max_frames = config.max_frames
 
@@ -103,7 +100,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
         dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
-            description="Pose2TextDataset sign language related task dataset",
+            description="Features2TextDataset related task dataset",
             features=dataset_features,
             supervised_keys=None,
         )
@@ -150,29 +147,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
                 )
             )
         return splits
-
-    _last_buffer = None
-    _last_file_path = None
     
-    def _read_pose(self, file_path):
-        """
-        **Read and cache the pose buffer from a file.**
-
-        If the same file is requested sequentially, reuse the cached buffer to optimize performance.
-
-        **Args:**
-        - `file_path` (str): Path to the pose data file.
-
-        **Returns:**
-        - `bytes`: The binary pose data buffer.
-        """
-        if self._last_file_path != file_path:
-            with open(file_path, "rb") as pose_file:
-                buffer = pose_file.read()
-                self._last_buffer = buffer
-                self._last_file_path = file_path
-        return self._last_buffer
-
     def _generate_examples(self, **kwargs):
         """
         **Generate dataset examples as (key, example) tuples.**
@@ -197,23 +172,19 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
         def mapping_function(sample):
             """
-            **Process each sample by reading the pose buffer and calculating duration.**
+            **Process each sample by reading the features and extracting the duration.**
 
             **Args:**
             - `sample` (dict): A dictionary containing sample metadata.
 
             **Returns:**
-            - `dict`: The updated sample with the pose data duration.
+            - `dict`: The updated sample with the features data duration.
             """
-            sample['source'] = sample['source_signal']
-            
-            buffer = self._read_pose(sample['source'])
-            if (sample['source_end'] - sample['source_start']) == 0:
-                pose = Pose.read(buffer) # [t, people, d, xyz]
-            else:
-                pose = Pose.read(buffer, start_time=sample['source_start'], end_time=sample['source_end']) # [t, people, d, xyz]
-            sample['DURATION'] = len(pose.body.data)
 
+            sample['source'] = sample['source_signal']
+            with open(sample['source'], "rb") as f:
+                features = np.load(f)
+                sample['DURATION'] = int(features.shape[0])
             return sample
 
         # Filter out samples where the file path does not exist
@@ -228,8 +199,8 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         for idx, item in enumerate(dataset):
             yield idx, {
                 "source": item['source'],
-                "source_start": item['source_start'],
-                "source_end": item['source_end'],
+                "source_start": item.get("source_start") or 0,
+                "source_end": item.get("source_end") or 0,
                 "source_prompt": item.get("source_prompt") or "",
                 "generation_prompt": item.get("generation_prompt") or "",
                 "output_text": item['output_text'],

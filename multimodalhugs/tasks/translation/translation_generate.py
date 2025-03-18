@@ -28,7 +28,8 @@ from multimodalhugs.processors import (
     SignwritingProcessor,
     Pose2TextTranslationProcessor,
     Image2TextTranslationProcessor,
-    Text2TextTranslationProcessor
+    Text2TextTranslationProcessor,
+    Features2TextTranslationProcessor
 )
 from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
 from multimodalhugs import MultiLingualSeq2SeqTrainer
@@ -39,6 +40,9 @@ AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel
 
 Pose2TextTranslationProcessor.register_for_auto_class()
 AutoProcessor.register("pose2text_translation_processor", Pose2TextTranslationProcessor)
+
+Features2TextTranslationProcessor.register_for_auto_class()
+AutoProcessor.register("features2text_translation_processor", Features2TextTranslationProcessor)
 
 SignwritingProcessor.register_for_auto_class()
 AutoProcessor.register("signwritting_processor", SignwritingProcessor)

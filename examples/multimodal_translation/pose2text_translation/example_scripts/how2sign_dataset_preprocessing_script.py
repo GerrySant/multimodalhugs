@@ -47,7 +47,6 @@ def main():
     data['source_start'] = data.apply(set_as_0, axis=1)
     data['source_end'] = data.apply(set_as_0, axis=1)
     data['source_prompt'] = data.apply(construct_source_prompt, axis=1)
-    data['input_text'] = data.apply(leave_blank, axis=1)
     data['generation_prompt'] = data.apply(construct_generation_prompt, axis=1)
     data['output_text'] = data.apply(leave_blank, axis=1)
     
@@ -62,7 +61,6 @@ def main():
         'source_signal',
         'source_start',
         'source_end',
-        'input_text',
         'source_prompt',
         'generation_prompt',
         'output_text'
