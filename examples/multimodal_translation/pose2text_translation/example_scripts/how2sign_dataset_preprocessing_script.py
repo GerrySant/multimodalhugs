@@ -10,6 +10,8 @@ def parse_arguments():
     parser.add_argument("input_file", type=str, help="Path to the input CSV file.")
     parser.add_argument("pose_directory", type=str, help="Path to the pose files.")
     parser.add_argument("output_file", type=str, help="Path to the output CSV file.")
+    parser.add_argument("--source_prompt", type=str, default="__asl__", help="Source prompt string.")
+    parser.add_argument("--generation_prompt", type=str, default="__en__", help="Generation prompt string.")
     return parser.parse_args()
 
 # Placeholder functions for constructing new fields
@@ -19,11 +21,11 @@ def leave_blank(row):
 def set_as_0(row):
     return 0
 
-def construct_source_prompt(row):
-    return "__asl__"
+def construct_source_prompt(row, source_prompt):
+    return source_prompt
 
-def construct_generation_prompt(row):
-    return "__en__"
+def construct_generation_prompt(row, generation_prompt):
+    return generation_prompt
 
 def map_column_to_new_field(original_column, new_column_name, data):
     if original_column in data.columns:
@@ -46,8 +48,8 @@ def main():
     data['source_signal'] = data.apply(leave_blank, axis=1)
     data['source_start'] = data.apply(set_as_0, axis=1)
     data['source_end'] = data.apply(set_as_0, axis=1)
-    data['source_prompt'] = data.apply(construct_source_prompt, axis=1)
-    data['generation_prompt'] = data.apply(construct_generation_prompt, axis=1)
+    data['source_prompt'] = data.apply(lambda row: construct_source_prompt(row, args.source_prompt), axis=1)
+    data['generation_prompt'] = data.apply(lambda row: construct_generation_prompt(row, args.generation_prompt), axis=1)
     data['output_text'] = data.apply(leave_blank, axis=1)
     
     # Example of mapping original columns to new ones

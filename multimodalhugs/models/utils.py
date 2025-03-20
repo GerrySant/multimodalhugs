@@ -6,7 +6,7 @@ import importlib
 import torch
 import torch.nn as nn
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
-from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES
+from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES
 
 # Other
 from typing import Optional
@@ -95,7 +95,8 @@ def get_backbone_config_class(model_type: str):
 def get_backbone_model_class(model_type: str):
     """
     Retrieves the specific model (backbone) class for the given `model_type`
-    using Hugging Face's MODEL_WITH_LM_HEAD_MAPPING_NAMES mapping.
+    using Hugging Face's MODEL_WITH_LM_HEAD_MAPPING_NAMES and 
+    MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES mappings.
 
     Args:
         model_type (str): The model type (e.g., 'bert', 't5', etc.).
@@ -104,16 +105,29 @@ def get_backbone_model_class(model_type: str):
         The corresponding model class.
 
     Raises:
-        ValueError: If `model_type` is not found in MODEL_WITH_LM_HEAD_MAPPING_NAMES.
+        ValueError: If `model_type` is not found in either mapping.
         ImportError: If the module or model class cannot be imported.
     """
-    if model_type not in MODEL_WITH_LM_HEAD_MAPPING_NAMES:
-        raise ValueError(
-            f"Unknown model type '{model_type}'. Available options: {list(MODEL_WITH_LM_HEAD_MAPPING_NAMES.keys())}"
-        )
+    model_class_name = None
     
-    model_class_name = MODEL_WITH_LM_HEAD_MAPPING_NAMES[model_type]
-    # Assumes that the module name corresponds to model_type, replacing dashes with underscores
+    if model_type in MODEL_WITH_LM_HEAD_MAPPING_NAMES:
+        model_class_name = MODEL_WITH_LM_HEAD_MAPPING_NAMES[model_type]
+
+    if model_type in MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES:
+        # If the model appears in both, you could log a warning or choose a default behavior.
+        if model_class_name:
+            logger.info(
+                f"Model type '{model_type}' found in both mappings. Using MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES."
+            )
+        model_class_name = MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES[model_type]
+
+    if not model_class_name:
+        raise ValueError(
+            f"Unknown model type '{model_type}'. Available options: "
+            f"{list(MODEL_WITH_LM_HEAD_MAPPING_NAMES.keys())} and "
+            f"{list(MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES.keys())}"
+        )
+
     module_name = model_type.replace("-", "_")
     
     try:
@@ -124,7 +138,7 @@ def get_backbone_model_class(model_type: str):
         if hasattr(transformers, model_class_name):
             return getattr(transformers, model_class_name)
         raise ImportError(f"Could not import module for model_type '{model_type}'.")
-    
+
     if hasattr(module, model_class_name):
         return getattr(module, model_class_name)
     else:
@@ -132,7 +146,7 @@ def get_backbone_model_class(model_type: str):
         import transformers
         if hasattr(transformers, model_class_name):
             return getattr(transformers, model_class_name)
-    
+
     raise ImportError(
         f"The model class '{model_class_name}' was not found for model_type '{model_type}'."
     )
