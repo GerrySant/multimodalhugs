@@ -33,6 +33,10 @@ class Features2TextDataConfig(MultimodalMTDataConfig):
         default=None, 
         metadata={"help": "Feature related samples larger than this value will be filtered"}
     )
+    preload_features: bool = field(
+        default=False, 
+        metadata={"help": "If True, the feature files are read at the dataset level instead of at the processor level."}
+    )
     def __init__(self, cfg=None, **kwargs):
         """
         **Initialize the Features2TextDataConfig.**
@@ -44,6 +48,7 @@ class Features2TextDataConfig(MultimodalMTDataConfig):
         super().__init__(cfg=cfg, **kwargs)
         # Assign new arguments from config if available
         self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
+        self.preload_features = getattr(cfg.data, 'preload_features', self.preload_features)
 
 @register_dataset("features2text")
 class Features2TextDataset(datasets.GeneratorBasedBuilder):
@@ -78,6 +83,7 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
         self.name = "feature2text"
         self.config = config
         self.max_frames = config.max_frames
+        self.preload_features = config.preload_features
 
     def _info(self):
         """
@@ -90,7 +96,7 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
             - `supervised_keys`: `None` (no explicit supervised key pair).
         """
         dataset_features = {
-                "source": str,
+                "source": Union[str, np.ndarray],
                 "source_start": Optional[int],
                 "source_end": Optional[int],
                 "source_prompt": Optional[str],
@@ -180,11 +186,12 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
             **Returns:**
             - `dict`: The updated sample with the features data duration.
             """
-
-            sample['source'] = sample['source_signal']
-            with open(sample['source'], "rb") as f:
-                features = np.load(f)
-                sample['DURATION'] = int(features.shape[0])
+            features = np.load(sample['source_signal'])
+            sample['DURATION'] = int(features.shape[0])
+            if self.preload_features:
+                sample['source'] = np.array(features, dtype=np.float32)  # Ensure it remains a NumPy array
+            else:
+                sample['source'] = sample['source_signal']
             return sample
 
         # Filter out samples where the file path does not exist

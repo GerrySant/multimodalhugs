@@ -2,30 +2,15 @@ import os
 import cv2
 import torch
 import pyarrow
-import logging
 import numpy as np
+import logging
 
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Callable, Union
+from typing import List, Any, Optional
 
-from signwriting.tokenizer import normalize_signwriting
-from signwriting.visualizer.visualize import signwriting_to_image
-
-from transformers.feature_extraction_utils import BatchFeature, FeatureExtractionMixin
-from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
-from transformers.processing_utils import ProcessorMixin
-
-from multimodalhugs.data import (
-    pad_and_create_mask,
-    center_image_on_white_background,
-    get_images
-)
+from multimodalhugs.data import pad_and_create_mask, get_images
 from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
-from pose_format import Pose
-from pose_format.utils.generic import reduce_holistic, pose_hide_legs
 
 logger = logging.getLogger(__name__)
-
 
 class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
     attributes = ["tokenizer"]

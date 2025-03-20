@@ -35,10 +35,11 @@ def main(config_path):
         training_output_dir=config.training.output_dir, 
         model_name=config.training.run_name
     )
-
+    processor_use_cache = not dataset_config.preload_features
     # The preprocessor is created
     input_processor = Features2TextTranslationProcessor(
             tokenizer=tokenizer,
+            use_cache=processor_use_cache
     )
 
     # Save processor and set PROCESSOR_PATH environment variable
