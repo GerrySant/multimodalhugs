@@ -22,11 +22,14 @@ def main(config_path):
     dataset = Features2TextDataset(config=dataset_config)
 
     # Download, prepare, and save dataset
-    data_path = Path(config.training.output_dir) / config.training.run_name / "datasets" / dataset.name
-    if not data_path.exists():
-        # Download, prepare, and save dataset only if data_path doesn't exist
-        dataset.download_and_prepare(data_path)
-        dataset.as_dataset().save_to_disk(data_path)
+    if getattr(dataset_config, 'dataset_dir', None) is not None and os.path.exists(dataset_config.dataset_dir):
+        data_path = dataset_config.dataset_dir
+    else:
+        data_path = Path(config.training.output_dir) / config.training.run_name / "datasets" / dataset.name
+        if not data_path.exists():
+            # Download, prepare, and save dataset only if data_path doesn't exist
+            dataset.download_and_prepare(data_path)
+            dataset.as_dataset().save_to_disk(data_path)
 
     # Load the tokenizer (here, we use AutoTokenizer)
     pretrained_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
