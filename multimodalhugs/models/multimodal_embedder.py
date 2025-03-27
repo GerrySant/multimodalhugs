@@ -23,7 +23,7 @@ from ruamel.yaml import YAML
 from multimodalhugs.models import EncoderWrapper, get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.utils.registry import register_model
 from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
-from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, correct_mask
+from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, merge_modalities_mask_correction
 from multimodalhugs.utils import serialize_config
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         default=False, metadata={"help": "if True, the feature_extractor parameters are frozen during training."}
     )
     vl_mapper_type: Optional[str] = field(
-        default=None, metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter'"}
+        default=None, metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter', 'cnn_adapter'"}
     )
     vl_mapper_layer_norm_before: bool = field(
         default=False, metadata={"help": "if True, adds a LayerNorm before the vl_mapper"}
@@ -80,6 +80,14 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     )
     vl_mapper_dropout: Optional[float] = field(
         default=None, metadata={"help": "Dropout probabilty for the vl_mapper"}
+    )
+    adapter_ksize: Optional[Tuple[int, ...]] = field(
+        default=None,
+        metadata={"help": "If specified, indicates kernel sizes to use on the cnn_adapter. Can be a single integer or a tuple of integers."}
+    )
+    adapter_stride: Optional[Tuple[int, ...]] = field(
+        default=None,
+        metadata={"help": "If specified, indicates the stride to use by the cnn_adapter. Can be a single integer or a tuple of integers."}
     )
     freeze_vl_mapper: bool = field(
         default=False, metadata={"help": "if True, the vl_mapper parameters are frozen during training."}
@@ -174,6 +182,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         else:
             self.feature_extractor_config = None
 
+        self.adapter_ksize = eval(self.adapter_ksize) if isinstance(self.adapter_ksize, str) else self.adapter_ksize
+        self.adapter_stride = eval(self.adapter_stride) if isinstance(self.adapter_stride, str) else self.adapter_stride
         self.bos_token_id = self.bos_token_id if self.bos_token_id is not None else self.decoder_start_token_id
 
 # Define the custom model class
@@ -249,6 +259,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 p_dropout=config.vl_mapper_dropout,
                 layer_norm=config.vl_mapper_layer_norm,
                 activation=config.vl_mapper_activation,
+                adapter_ksize=config.adapter_ksize,
+                adapter_stride=config.adapter_stride
             )
             set_module_parameters(self.vl_mapper, freeze=config.freeze_vl_mapper)
         else:
@@ -628,7 +640,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 inputs_embeds = self.feature_extractor(input_frames)
 
             if self.vl_mapper is not None and inputs_embeds is not None:
-                inputs_embeds = self.vl_mapper(inputs_embeds)
+                inputs_embeds, attention_mask = self.vl_mapper(inputs_embeds, attention_mask)
 
             if inputs_embeds is None:
                 inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
@@ -644,8 +656,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 eos_idx=self.eos_token_id, 
             )
         else:
+            if self.vl_mapper is not None:
+                attention_mask = self.vl_mapper.mask_correction(attention_mask)
+
             # When encoder_outputs is not None, we still have to correct the mask with the proper
-            attention_mask = correct_mask(
+            attention_mask = merge_modalities_mask_correction(
                 padding_mask=attention_mask, 
                 prompt=source_prompt, 
                 prompt_length_padding_mask=source_prompt_length_padding_mask,
@@ -765,8 +780,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         
         if inputs_embeds is None and input_frames is not None:
             inputs_embeds = self.feature_extractor(input_frames)
+            
         if self.vl_mapper is not None and inputs_embeds is not None:
-            inputs_embeds = self.vl_mapper(inputs_embeds)
+            inputs_embeds, attention_mask = self.vl_mapper(inputs_embeds, attention_mask)
 
         if inputs_embeds is None:
             inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)

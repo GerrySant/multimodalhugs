@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
-from multimodalhugs.modules import Adapter
+from multimodalhugs.modules import Adapter, CNNAdapter
 
 class VLMapper(nn.Module):
     def __init__(self, feat_dim, output_dim, mapping_layer_type, layer_norm_before,
-                 adapter_factor=None, p_dropout=None, layer_norm=None, activation=None):
+                 adapter_factor=None, adapter_ksize=None, adapter_stride=None, 
+                 p_dropout=None, layer_norm=None, activation=None):
         super(VLMapper, self).__init__()
 
         if layer_norm_before and mapping_layer_type != 'adapter':
@@ -20,6 +21,20 @@ class VLMapper(nn.Module):
                 factor=adapter_factor,
                 layernorm_before=layer_norm_before
             )
+
+        if mapping_layer_type == 'cnn_adapter':
+            kwargs = {}
+            if adapter_ksize is not None:
+                kwargs["kernel_sizes"] = adapter_ksize
+            if adapter_stride is not None:
+                kwargs["strides"] = adapter_stride
+            self.mapping_layer = CNNAdapter(
+                input_dim=feat_dim,
+                output_dim=output_dim,
+                factor=adapter_factor,
+                **kwargs
+            )
+
         elif mapping_layer_type == 'linear':
             self.mapping_layer = nn.Linear(feat_dim, output_dim)
         else:
@@ -40,13 +55,16 @@ class VLMapper(nn.Module):
         else:
             self.activation = None
 
-    def forward(self, x):
+    def forward(self, x, mask):
         if self.layer_norm_before is not None:
             x = self.layer_norm_before(x)
         
         if self.mapping_layer is not None:
-            x = self.mapping_layer(x)
-        
+            if isinstance(self.mapping_layer, CNNAdapter):
+                x, mask = self.mapping_layer(x, mask)
+            else:
+                x = self.mapping_layer(x)
+
         if self.dropout is not None:
             x = self.dropout(x)
         
@@ -55,4 +73,9 @@ class VLMapper(nn.Module):
         
         if self.activation is not None:
             x = self.activation(x)
-        return x
+        return x, mask
+
+    def mask_correction(self, mask):
+        if isinstance(self.mapping_layer, CNNAdapter):
+            return self.mapping_layer.get_out_mask_tensor(mask)
+        return mask

@@ -78,7 +78,7 @@ def set_module_parameters(module, freeze=True, verbose=True):
     if verbose:
         logger.info(f" The parameters of the module {module.__class__.__name__} have been {action}.")
 
-def correct_mask(padding_mask, prompt, prompt_length_padding_mask, embeddings_module, pad_idx, eos_idx):
+def merge_modalities_mask_correction(padding_mask, prompt, prompt_length_padding_mask, embeddings_module, pad_idx, eos_idx):
     """
     Adjusts the padding mask for generation when x is None.
     
