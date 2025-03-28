@@ -56,7 +56,7 @@ This command initiates training using Hugging Face's `Trainer`, supporting vario
 #### Usage:
 
 ```bash
-multimodalhugs-train --task {translation} [additional arguments...]
+multimodalhugs-train --task <task_name> [additional arguments...]
 ```
 
 #### Arguments:
@@ -67,7 +67,7 @@ multimodalhugs-train --task {translation} [additional arguments...]
 To view all available training options, run:
 
 ```bash
-multimodalhugs-train --task translation --help
+multimodalhugs-train --task <task_name> --help
 ```
 
 > **Note:** Refer to the [Hugging Face TrainingArguments documentation](https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.TrainingArguments) for a complete list of training options.
@@ -82,7 +82,7 @@ MultimodalHugs Training CLI. Use --task to define the training objective.
 
 options:
   -h, --help            show this help message and exit
-  --task {translation}  Specify the training task (currently only "translation" is supported).
+  --task <task_name>  Specify the training task (currently only "translation" is supported).
   --config_path CONFIG_PATH
                         Path to the configuration file.
   --learning_rate LEARNING_RATE
@@ -100,28 +100,30 @@ This command is used for evaluation and generating predictions.
 #### Usage:
 
 ```bash
-multimodalhugs-generate --task {translation} [additional arguments...]
+multimodalhugs-generate --task <task_name> [additional arguments...]
 ```
 
 #### Arguments:
 
 - **--task** (*Required*): Specifies the evaluation task (currently only "translation" is supported).
-- **--config_path** (*Required*): Path to the YAML configuration file.
-- **--model_name_or_path** (*Required*): Path to the trained model.
-- **--processor_name_or_path** (*Required*): Path to the processor instance.
-- **--dataset_dir** (*Required*): Path to the dataset.
-- **--output_dir** (*Required*): Directory to save generated outputs.
+- **--config_path** (*Optional*): Path to the YAML configuration file.
+- **--model_name_or_path** (*Required*):\* Path to the trained model. 
+- **--processor_name_or_path** (*Required*):\* Path to the processor instance.
+- **--dataset_dir** (*Required*):\* Path to the dataset.
+- **--output_dir** (*Required*):\* Directory to save generated outputs.
+  
+  > **\*** This field can be either specified in the config or as argument
 
 To view all available options, run:
 
 ```bash
-multimodalhugs-generate --task translation --help
+multimodalhugs-generate --task <task_name> --help
 ```
 
 #### Example Help Output:
 
 ```bash
-usage: multimodalhugs-generate [-h] --task {translation} [additional arguments...]
+usage: multimodalhugs-generate [-h] --task <task_name> [additional arguments...]
 
 MultimodalHugs Generation CLI. Use --task to specify the generation objective.
 

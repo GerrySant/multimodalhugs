@@ -38,18 +38,18 @@ To set up, train and evaluate a model, follow these steps:
 ![Steps Overview](media/steps.png)
 
 ## 1. Dataset Preparation
-For each partition (train, val, test), create a TSV file that captures essential sample details (input paths, timestamps, prompts, target texts) for consistency. 
+For each partition (train, val, test), create a TSV file that captures essential sample details for consistency. 
 
 #### Metadata File Requirements
 
 The `metadata.tsv` files for each partition must include the following fields:
 
-- `signal`: The signal text for the translation from which the images will be created / The path of the images to be uploaded (currently with support for `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.npy`)
+- `signal`: The primary input to the model, either as raw text or a file path pointing to a multimodal resource (e.g., an image, pose sequence, or audio file).
 - `signal_start`: Start timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
 - `signal_end`: End timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
-- `encoder_prompt`: A text string (e.g., `__vhe__`) that helps the model distinguish the signal language or modality. Can be empty if not used.
-- `decoder_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
-- `output`: The target text for translation.
+- `encoder_prompt`: An optional text field providing additional context to the input; this may include instructions (e.g., `Translate the pose to English`), modality tags (e.g., `__asl__` for American Sign Languge, ASL), or any text relevant to the task.
+- `decoder_prompt`: An optional textual prompt used during decoding to guide the model’s output generation, corresponding to Hugging Face’s `decoder_input_ids`.
+- `output`: The expected textual output corresponding to the input signal.
 
 > **Note:** If using a pretrained model, ensure you understand how the model expects the `decoder_prompt`. Some models, such as T5, automatically assume this prompt is always the `<pad>` token and prepend it by default. Therefore, explicitly specifying `<pad>`in this field is unnecessary and would result in unexpected behaviour.
 
@@ -60,12 +60,18 @@ The `metadata.tsv` files for each partition must include the following fields:
 
 ## 3. Train a model:
    ```bash
-   multimodalhugs-train --task translation --config_path CONFIG_PATH
+   multimodalhugs-train --task <task_name> --config_path CONFIG_PATH
    ```
 
 ## 4. Generate outputs with a trained model:
    ```bash
-   multimodalhugs-generate --task translation --metric_name METRIC_NAME --config_path CONFIG_PATH --model_name_or_path MODEL_PATH --processor_name_or_path PROCESSOR_PATH --dataset_dir DATASET_PATH --output_dir OUTPUT_DIR
+   multimodalhugs-generate --task <task_name> \
+        --metric_name METRIC_NAME \
+        --config_path CONFIG_PATH \
+        --model_name_or_path MODEL_PATH \
+        --processor_name_or_path PROCESSOR_PATH \
+        --dataset_dir DATASET_PATH \
+        --output_dir OUTPUT_DIR
    ```
 
 > **Note:** For more detailed information on each command, refer to the <a href="general/CLI.md">CLI documentation</a>.

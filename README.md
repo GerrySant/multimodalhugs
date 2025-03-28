@@ -2,17 +2,21 @@
   <h1>🎨 MultiModalHugs</h1>
 </div>
 
-**MultimodalHugs** is a streamlined extension of [Hugging Face](https://huggingface.co/) designed for training, evaluating, and deploying multimodal AI models. Built atop Hugging Face’s powerful ecosystem, MultimodalHugs integrates seamlessly with standard pipelines while providing additional functionalities to handle multilingual and multimodal inputs—reducing boilerplate and simplifying your codebase.
+**MultimodalHugs** is a lightweight, modular framework built on top of [Hugging Face](https://huggingface.co/) for training, evaluating, and deploying **multimodal AI models** with minimal code.
+
+It supports diverse input modalities—including text, images, video, and pose sequences—and integrates seamlessly with the Hugging Face ecosystem (Trainer API, model hub, `evaluate`, etc.).
 
 ---
 
 ## Key Features
 
-- **Unified Framework**: Train and evaluate multimodal models (e.g., image-to-text, pose-to-text, signwriting-to-text) using a consistent API.
-- **Minimal Code Changes**: Leverage Hugging Face’s pipelines with only minor modifications.
-- **Data in TSV**: Avoid the complexity of numerous hyperparameters by maintaining data splits in `.tsv` files—easily specify prompts, languages, targets, or other attributes in dedicated columns.
-- **Modular Design**: Use or extend any of the components (datasets, models, modules, processors) to suit your custom tasks.
+- ✅ **Minimal boilerplate**: Standardized TSV format for datasets and YAML-based configuration.
+- 🔁 **Reproducible pipelines**: Consistent setup for training, evaluation, and inference.
+- 🔌 **Modular design**: Easily extend or swap models, processors, and modalities.
+- 📦 **Hugging Face native**: Built to work out-of-the-box with existing models and tools.
 - **Examples Included**: Refer to the `examples/` directory for guided scripts, configurations, and best practices.
+  
+Whether you're working on sign language translation, image-to-text, or token-free language modeling, MultimodalHugs simplifies experimentation while keeping your codebase clean.
 
 For more details, refer to the [documentation](docs/README.md).
 
@@ -49,16 +53,19 @@ To set up, train, and evaluate a model, follow these steps:
 
 ### 1. Dataset Preparation
 
-For each partition (train, val, test), create a TSV file that captures essential sample details (input paths, timestamps, prompts, target texts) for consistency.
+For each partition (train, val, test), create a TSV file that captures essential sample details for consistency.
 
 #### Metadata File Requirements
 
 The `metadata.tsv` files for each partition must include the following fields:
 
-- `signal`: The signal text for the translation from which the images will be created / The path of the images to be uploaded (supports `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.npy`)
-- `encoder_prompt`: A text string (e.g., `__vhe__`) that helps the model distinguish the signal language or modality. Can be empty if not used.
-- `decoder_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
-- `output`: The target text for translation.
+- `signal`: The primary input to the model, either as raw text or a file path pointing to a multimodal resource (e.g., an image, pose sequence, or audio file).
+- `signal_start`: Start timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
+- `signal_end`: End timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
+- `encoder_prompt`: An optional text field providing additional context to the input; this may include instructions (e.g., `Translate the pose to English`), modality tags (e.g., `__asl__` for American Sign Languge, ASL), or any text relevant to the task.
+- `decoder_prompt`: An optional textual prompt used during decoding to guide the model’s output generation, corresponding to Hugging Face’s `decoder_input_ids`.
+- `output`: The expected textual output corresponding to the input signal.
+
 
 ### 2. Setup Datasets, Model, and Processors
 
@@ -69,14 +76,21 @@ multimodalhugs-setup --modality {pose2text,signwriting2text,image2text} --config
 ### 3. Train a Model
 
 ```bash
-multimodalhugs-train --task translation --config_path CONFIG_PATH
+multimodalhugs-train --task <task_name> --config_path CONFIG_PATH
 ```
 
 ### 4. Generate Outputs with a Trained Model
 
 ```bash
-multimodalhugs-generate --task translation --config_path CONFIG_PATH --model_name_or_path MODEL_PATH --processor_name_or_path PROCESSOR_PATH --dataset_dir DATASET_PATH --output_dir OUTPUT_DIR
+multimodalhugs-generate --task <task_name> \
+      --metric_name METRIC_NAME \
+      --config_path CONFIG_PATH \
+      --model_name_or_path MODEL_PATH \
+      --processor_name_or_path PROCESSOR_PATH \
+      --dataset_dir DATASET_PATH \
+      --output_dir OUTPUT_DIR
 ```
+
 
 For more details, refer to the [CLI documentation](docs/general/CLI.md).
 

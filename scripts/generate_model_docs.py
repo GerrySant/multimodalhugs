@@ -146,3 +146,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+cp /Users/sant/Desktop/Future_training_workflow.png /Users/sant/repositories/multimodalhugs/docs/media/Future_training_workflow.png
+cp /Users/sant/Desktop/current_training_workflow.pdf /Users/sant/repositories/multimodalhugs/docs/media/current_training_workflow.pdf

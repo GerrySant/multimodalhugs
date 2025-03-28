@@ -13,34 +13,24 @@ model:
 
 training:
   run_name: "hebrew_multimodalhugs"                # The name or identifier of the model configuration.
-  logging_dir: "/path/to/output/logs"              # Directory to store training logs.
-  do_train: True                                   # Whether to run training.
-  do_eval: True                                    # Whether to run evaluation on the validation set.
-  predict_with_generate: true                      # Use generate to compute generative metrics.
-  overwrite_output_dir: True                       # Do not overwrite the output directory if it exists.
-  save_strategy: "steps"                           # Checkpoint save strategy during training.
-  eval_strategy: "steps"                     # Evaluation strategy ("steps" or "epoch").
-  eval_steps: 128                                  # Number of training steps between evaluations.
-  logging_steps: 128                               # Interval (in steps) at which training metrics are logged.
-  save_steps: 128                                  # Interval (in steps) at which model checkpoints are saved.
+  output_dir: "/path/to/output/"                   # Directory to store training outputs.
+  do_train: true                                   # Whether to run training.
+  do_eval: true                                    # Whether to run evaluation on the validation set.
+  eval_strategy: "steps"                           # Evaluation strategy ("steps" or "epoch").
+  max_steps: 200000                                # Maximum number of training steps (overrides num_train_epochs if set).
   per_device_train_batch_size: 8                   # Batch size per device during training.
-  per_device_eval_batch_size: 8                    # Batch size per device for evaluation.
-  gradient_accumulation_steps: 3                   # Number of steps to accumulate gradients before weight updates.
+  gradient_accumulation_steps: 8                   # Number of steps to accumulate gradients before weight updates.
+  per_device_eval_batch_size: 4                    # Batch size per device for evaluation.
   learning_rate: 5e-05                             # Initial learning rate for the optimizer.
-  load_best_model_at_end: True                     # Load the best model found during training at the end.
-  metric_for_best_model: 'bleu'                    # Metric used to determine the best model.
-  weight_decay: 0                                  # Weight decay factor (L2 regularization).
-  adam_beta1: 0.9                                  # Beta1 parameter for the Adam optimizer.
-  adam_beta2: 0.998                                # Beta2 parameter for the Adam optimizer.
   max_grad_norm: 0.0                               # Maximum gradient norm for clipping (0 means no clipping).
-  num_train_epochs: 1                              # Number of full passes through the training dataset.
-  max_steps: 500000                                # Maximum number of training steps (overrides num_train_epochs if set).
   lr_scheduler_type: "inverse_sqrt"                # Type of learning rate scheduler.
-  warmup_steps: 8000                               # Number of warmup steps to gradually increase the learning rate.
-  save_total_limit: 10                             # Maximum number of checkpoints to retain (older ones are deleted).
+  warmup_steps: 20000                              # Number of warmup steps to gradually increase the learning rate.
+  predict_with_generate: true                      # Use generate to compute generative metrics.
+  overwrite_output_dir: true                       # Do not overwrite the output directory if it exists.
+  metric_for_best_model: 'bleu'                    # Metric used to determine the best model.
+  greater_is_better: true                          # Use in conjunction with load_best_model_at_end and metric_for_best_model to specify if better models should have a greater metric or not.
+  load_best_model_at_end: true                     # Load the best model found during training at the end.
   seed: 3435                                       # Random seed for reproducibility.
-  dataloader_drop_last: false                      # Drop the last incomplete batch in the dataloader.
-  fp16: True                                       # Enable mixed-precision (FP16) training for faster computation.
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
 
 data:
@@ -48,11 +38,8 @@ data:
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"    # Path to the test metadata file.
   font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
-  as_numpy: false                                        # Whether to create images as numpy arrays (false means on-the-fly image generation).
-  shuffle: True                                          # Shuffle dataset samples during loading.
   new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  max_frames: 300                                       # Maximum number of frames to consider from the data.
   preprocess:                                          # Image preprocessing settings.
     width: 224                                         # Input image width in pixels.
     height: 224                                        # Input image height in pixels.
