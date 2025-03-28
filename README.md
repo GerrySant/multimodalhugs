@@ -143,11 +143,6 @@ This project is licensed under the terms of the MIT License.
 If you use MultimodalHugs in your research or applications, please cite:
 
 ```bibtex
-@misc{multimodalhugs2024,
-    title={MultimodalHugs: A Reproducibility-Driven Framework for Multimodal Machine Translation},
-    author={Sant, Gerard and Moryossef, Amit and Jiang, Zifan and Escolano, Carlos},
-    howpublished={\url{https://github.com/GerrySant/multimodalhugs}},
-    year={2024}
-}
+<bibtex citation>
 ```
 
