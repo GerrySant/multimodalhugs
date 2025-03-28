@@ -58,12 +58,12 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
             - `supervised_keys`: `None` (no explicit supervised key pair).
         """
         dataset_features = {
-                "source": str,
-                "source_start": Optional[int],
-                "source_end": Optional[int],
-                "source_prompt": Optional[str],
-                "generation_prompt": Optional[str],
-                "output_text": Optional[str],
+                "signal": str,
+                "signal_start": Optional[int],
+                "signal_end": Optional[int],
+                "encoder_prompt": Optional[str],
+                "decoder_prompt": Optional[str],
+                "output": Optional[str],
             }
         dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
@@ -142,10 +142,10 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item.get('source_signal', ''),
-                "source_start": item.get("start_time") or 0,
-                "source_end": item.get("end_time") or 0,
-                "source_prompt": item.get("source_prompt") or "",
-                "generation_prompt": item.get("generation_prompt") or "",
-                "output_text": item['output_text'],
+                "signal": item.get('signal', ''),
+                "signal_start": item.get("start_time") or 0,
+                "signal_end": item.get("end_time") or 0,
+                "encoder_prompt": item.get("encoder_prompt") or "",
+                "decoder_prompt": item.get("decoder_prompt") or "",
+                "output": item['output'],
             }

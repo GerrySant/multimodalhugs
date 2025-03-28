@@ -42,7 +42,7 @@ class Text2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         # Tokenize the prompts with padding
         tokenized_output = self.tokenizer(
-            [sample['source'] for sample in batch],
+            [sample['signal'] for sample in batch],
             add_special_tokens=False,
             padding=True,  # Automatically add padding
             truncation=False,  # Do not truncate sequences
@@ -50,10 +50,10 @@ class Text2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         )
 
         # Obtain prompt tensors and the mask
-        padded_source = tokenized_output["input_ids"]
-        source_length_padding_mask = tokenized_output["attention_mask"]
+        padded_signal = tokenized_output["input_ids"]
+        signal_length_padding_mask = tokenized_output["attention_mask"]
 
         return {
-            "input_ids": padded_source,                         # torch.Size([batch_size, n_frames)
-            "attention_mask": source_length_padding_mask         # torch.Size([batch_size, n_frames]) 0 indicates padding elements
+            "input_ids": padded_signal,                         # torch.Size([batch_size, n_frames)
+            "attention_mask": signal_length_padding_mask         # torch.Size([batch_size, n_frames]) 0 indicates padding elements
         }, kwargs

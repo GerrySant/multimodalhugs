@@ -2,9 +2,9 @@ model:
   type: "multimodal_embedder" 
   feature_extractor_type: "<feature_extractor_type>"     # Type of the feature extractor to use (e.g., "clip" for CLIP).
   pretrained_feature_extractor: "<pretrained-clip-model>" # Pretrained weights/checkpoint for the feature extractor (e.g., "openai/clip-vit-base-patch32").
-  vl_mapper_type: "linear"                               # Visual-language mapper type (e.g., "linear" or "adapter").
-  vl_mapper_layer_norm_before: true                      # Apply Layer Normalization before the VL mapper.
-  vl_mapper_dropout: 0.1                                 # Dropout probability for the VL mapper.
+  multimodal_mapper_type: "linear"                               # Multimodal Mapper type (e.g., "linear" or "adapter").
+  multimodal_mapper_layer_norm_before: true                      # Apply Layer Normalization before the Multimodal Mapper.
+  multimodal_mapper_dropout: 0.1                                 # Dropout probability for the Multimodal Mapper.
   backbone_type: "<pretrained-backbone-model>"          # Identifier for the pretrained backbone model (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"  # Pretrained weights for the backbone (e.g., "facebook/m2m100_418M").
   feat_dim: 512                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.

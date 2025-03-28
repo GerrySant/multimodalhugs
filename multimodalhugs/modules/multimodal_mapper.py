@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 from multimodalhugs.modules import Adapter, CNNAdapter
 
-class VLMapper(nn.Module):
+class MultimodalMapper(nn.Module):
     def __init__(self, feat_dim, output_dim, mapping_layer_type, layer_norm_before,
                  adapter_factor=None, adapter_ksize=None, adapter_stride=None, 
                  p_dropout=None, layer_norm=None, activation=None):
-        super(VLMapper, self).__init__()
+        super(MultimodalMapper, self).__init__()
 
         if layer_norm_before and mapping_layer_type != 'adapter':
             self.layer_norm_before = nn.LayerNorm(feat_dim)

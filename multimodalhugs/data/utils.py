@@ -107,7 +107,7 @@ def contains_empty(sample):
     return any(v == "" or v is None for v in sample.values())
 
 
-def sample_source_exists(sample):
+def sample_signal_exists(sample):
     return any(v == "" or v is None for v in sample.values())
 
 

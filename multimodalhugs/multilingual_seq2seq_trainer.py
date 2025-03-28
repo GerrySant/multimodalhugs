@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from transformers.training_args import TrainingArguments
 
 def all_values_equal(tensor):
-    if tensor.numel() == 0:  # Check if the tensor is empty, thus, no generation_prompt specified.
+    if tensor.numel() == 0:  # Check if the tensor is empty, thus, no decoder_prompt specified.
         return False
     return torch.all(tensor == tensor.flatten()[0])
 

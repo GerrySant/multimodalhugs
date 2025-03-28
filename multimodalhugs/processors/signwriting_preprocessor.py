@@ -81,7 +81,7 @@ class SignwritingProcessor(MultimodalSecuence2TextTranslationProcessor):  # Feat
         return signs_concatenated
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
-        tensor_secuences = [self._ascii_to_tensor(sample["source"]) for sample in batch]
+        tensor_secuences = [self._ascii_to_tensor(sample["signal"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_secuences)
         return {
             "input_frames": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])

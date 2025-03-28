@@ -29,10 +29,10 @@ python signbankplus_dataset_preprocessing_script.py /path/to/input.csv /path/to/
 
 The `metadata.tsv` files must contain the following fields:
 
-- `source_signal`: The SignWriting source sequence.
-- `source_prompt`: A text string (e.g., `__signwriting__ __en__`) to guide modality and language processing.
-- `generation_prompt`: A prompt for the target language.
-- `output_text`: The corresponding text translation.
+- `signal`: The SignWriting source sequence.
+- `encoder_prompt`: A text string (e.g., `__signwriting__ __en__`) to guide modality and language processing.
+- `decoder_prompt`: A prompt for the target language.
+- `output`: The corresponding text translation.
 
 These fields ensure compatibility with the **SignWriting2Text** processing pipeline.
 
@@ -40,7 +40,7 @@ These fields ensure compatibility with the **SignWriting2Text** processing pipel
 
 Below is an example of how your metadata file should be structured. Each row represents one sample, and the columns correspond to the required fields:
 
-| **source_signal**   | **source_prompt**         | **generation_prompt** | **output_text**                                                                   |
+| **signal**   | **encoder_prompt**         | **decoder_prompt** | **output**                                                                   |
 |-----------------------------------------------------------|---------------------------|-----------------------|-----------------------------------------------------------------------------------|
 | `M526x565S30004482x483S20710484x522S15d52499x546`           | `__ncs__`     |           `__es__`            | `dificil`                                                                               |
 | `M521x530S1f540506x489S1f502481x471S20e00484x499S22f14479x516`                    | `__ase__`     |              `__en__`           | `Every book has been stolen.`                       |

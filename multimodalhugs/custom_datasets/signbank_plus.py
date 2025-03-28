@@ -50,10 +50,10 @@ def properly_format_signbank_plus(path: Union[str, Path], save_corrected: bool =
     if str(path)[-4:] == ".csv":
         dict_list = load_sign_writting_data(path)
         df = pd.DataFrame(dict_list)
-        df['tgt_lang'] = df['source'].apply(lambda x: x.split(' ')[0][1:])
+        df['tgt_lang'] = df['signal'].apply(lambda x: x.split(' ')[0][1:])
         df['tgt_lang'] = df['tgt_lang'].apply(lambda x: x.split('-')[0])
-        df['src_lang'] = df['source'].apply(lambda x: x.split(' ')[1][1:])
-        df['source'] = df['source'].apply(lambda x: ' '.join(x.split(' ')[2:]))
+        df['src_lang'] = df['signal'].apply(lambda x: x.split(' ')[1][1:])
+        df['signal'] = df['signal'].apply(lambda x: ' '.join(x.split(' ')[2:]))
     elif str(path)[-4:] == ".tsv":
         df = pd.read_csv(path, sep='\t')
         df['tgt_lang'] = df['tgt_lang'].apply(lambda x: x[1:])

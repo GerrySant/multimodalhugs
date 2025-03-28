@@ -52,12 +52,12 @@ class SpecialTokensEmbeddings(nn.Module):
             module.special_tokens_embeddings = custom_embeddings
         return module
         
-    def forward(self, x, encoder_padding_mask, src_prompt, source_prompt_length_padding_mask):
+    def forward(self, x, encoder_padding_mask, src_prompt, encoder_prompt_length_padding_mask):
         return merge_modalities(
             x=x, 
             padding_mask=encoder_padding_mask, 
             prompt=src_prompt, 
-            prompt_length_padding_mask=source_prompt_length_padding_mask,
+            prompt_length_padding_mask=encoder_prompt_length_padding_mask,
             embeddings_module=self.special_tokens_embeddings, 
             pad_idx=self.pad_idx, 
             eos_idx=self.eos_idx, 

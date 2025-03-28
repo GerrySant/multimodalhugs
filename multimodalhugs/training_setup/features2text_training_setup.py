@@ -25,7 +25,7 @@ def main(config_path):
     if getattr(dataset_config, 'dataset_dir', None) is not None and os.path.exists(dataset_config.dataset_dir):
         data_path = dataset_config.dataset_dir
     else:
-        data_path = Path(config.training.output_dir) / config.training.run_name / "datasets" / dataset.name
+        data_path = Path(config.training.output_dir) / "datasets" / dataset.name
         if not data_path.exists():
             # Download, prepare, and save dataset only if data_path doesn't exist
             dataset.download_and_prepare(data_path)
@@ -46,7 +46,7 @@ def main(config_path):
     )
 
     # Save processor and set PROCESSOR_PATH environment variable
-    processor_path = config.training.output_dir + f"/{config.training.run_name}" + f"/features2text_translation_processor"
+    processor_path = os.path.join(config.training.output_dir, "features2text_translation_processor")
     input_processor.save_pretrained(save_directory=processor_path, push_to_hub=False)
 
     # --- Model creation becomes model-independent ---
@@ -71,7 +71,7 @@ def main(config_path):
     # Build the model. Each model class can decide which arguments to use.
     model = model_class.build_model(**model_kwargs)
 
-    model_path = os.path.join(config.training.output_dir, config.training.run_name, "trained_model")
+    model_path = os.path.join(config.training.output_dir, config.training.run_name)
     model.save_pretrained(model_path)
 
     add_argument_to_the_config(config_path, "processor", "processor_name_or_path", str(processor_path))

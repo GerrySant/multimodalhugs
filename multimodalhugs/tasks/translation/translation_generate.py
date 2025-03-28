@@ -129,6 +129,8 @@ def main():
     # Disable removal of unused columns to ensure correct evaluation.
     setattr(training_args, "remove_unused_columns", False)
     setattr(training_args, "do_predict", True)
+    setattr(training_args, "report_to", [])
+    setattr(data_args, "visualize_prediction_prob", 0)
 
     # Send telemetry for usage tracking (optional).
     send_example_telemetry("run_translation", model_args, data_args)

@@ -96,12 +96,12 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
             - `supervised_keys`: `None` (no explicit supervised key pair).
         """
         dataset_features = {
-                "source": Union[str, np.ndarray],
-                "source_start": Optional[int],
-                "source_end": Optional[int],
-                "source_prompt": Optional[str],
-                "generation_prompt": Optional[str],
-                "output_text": Optional[str],
+                "signal": Union[str, np.ndarray],
+                "signal_start": Optional[int],
+                "signal_end": Optional[int],
+                "encoder_prompt": Optional[str],
+                "decoder_prompt": Optional[str],
+                "output": Optional[str],
             }
 
         dataset_features = datasets.Features(dataset_features)
@@ -186,16 +186,16 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
             **Returns:**
             - `dict`: The updated sample with the features data duration.
             """
-            features = np.load(sample['source_signal'])
+            features = np.load(sample['signal'])
             sample['DURATION'] = int(features.shape[0])
             if self.preload_features:
-                sample['source'] = np.array(features, dtype=np.float32)  # Ensure it remains a NumPy array
+                sample['signal'] = np.array(features, dtype=np.float32)  # Ensure it remains a NumPy array
             else:
-                sample['source'] = sample['source_signal']
+                sample['signal'] = sample['signal']
             return sample
 
         # Filter out samples where the file path does not exist
-        dataset = dataset.filter(lambda sample: file_exists_filter('source_signal', sample), num_proc=get_num_proc())
+        dataset = dataset.filter(lambda sample: file_exists_filter('signal', sample), num_proc=get_num_proc())
 
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
@@ -205,10 +205,10 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item['source'],
-                "source_start": item.get("source_start") or 0,
-                "source_end": item.get("source_end") or 0,
-                "source_prompt": item.get("source_prompt") or "",
-                "generation_prompt": item.get("generation_prompt") or "",
-                "output_text": item['output_text'],
+                "signal": item['signal'],
+                "signal_start": item.get("signal_start") or 0,
+                "signal_end": item.get("signal_end") or 0,
+                "encoder_prompt": item.get("encoder_prompt") or "",
+                "decoder_prompt": item.get("decoder_prompt") or "",
+                "output": item['output'],
             }

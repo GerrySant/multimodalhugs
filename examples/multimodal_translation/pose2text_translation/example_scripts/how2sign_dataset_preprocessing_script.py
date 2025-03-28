@@ -10,8 +10,8 @@ def parse_arguments():
     parser.add_argument("input_file", type=str, help="Path to the input CSV file.")
     parser.add_argument("pose_directory", type=str, help="Path to the pose files.")
     parser.add_argument("output_file", type=str, help="Path to the output CSV file.")
-    parser.add_argument("--source_prompt", type=str, default="__asl__", help="Source prompt string.")
-    parser.add_argument("--generation_prompt", type=str, default="__en__", help="Generation prompt string.")
+    parser.add_argument("--encoder_prompt", type=str, default="__asl__", help="encoder prompt string.")
+    parser.add_argument("--decoder_prompt", type=str, default="__en__", help="decoder prompt string.")
     return parser.parse_args()
 
 # Placeholder functions for constructing new fields
@@ -21,11 +21,11 @@ def leave_blank(row):
 def set_as_0(row):
     return 0
 
-def construct_source_prompt(row, source_prompt):
-    return source_prompt
+def construct_encoder_prompt(row, encoder_prompt):
+    return encoder_prompt
 
-def construct_generation_prompt(row, generation_prompt):
-    return generation_prompt
+def construct_decoder_prompt(row, decoder_prompt):
+    return decoder_prompt
 
 def map_column_to_new_field(original_column, new_column_name, data):
     if original_column in data.columns:
@@ -45,27 +45,27 @@ def main():
     data = pd.read_csv(args.input_file, delimiter="\t")
 
     # Create new columns using the placeholder functions
-    data['source_signal'] = data.apply(leave_blank, axis=1)
-    data['source_start'] = data.apply(set_as_0, axis=1)
-    data['source_end'] = data.apply(set_as_0, axis=1)
-    data['source_prompt'] = data.apply(lambda row: construct_source_prompt(row, args.source_prompt), axis=1)
-    data['generation_prompt'] = data.apply(lambda row: construct_generation_prompt(row, args.generation_prompt), axis=1)
-    data['output_text'] = data.apply(leave_blank, axis=1)
+    data['signal'] = data.apply(leave_blank, axis=1)
+    data['signal_start'] = data.apply(set_as_0, axis=1)
+    data['signal_end'] = data.apply(set_as_0, axis=1)
+    data['encoder_prompt'] = data.apply(lambda row: construct_encoder_prompt(row, args.encoder_prompt), axis=1)
+    data['decoder_prompt'] = data.apply(lambda row: construct_decoder_prompt(row, args.decoder_prompt), axis=1)
+    data['output'] = data.apply(leave_blank, axis=1)
     
     # Example of mapping original columns to new ones
-    map_column_to_new_field('SENTENCE_NAME', 'source_signal', data)
-    map_column_to_new_field('SENTENCE', 'output_text', data)
+    map_column_to_new_field('SENTENCE_NAME', 'signal', data)
+    map_column_to_new_field('SENTENCE', 'output', data)
     
-    data['source_signal'] = data['source_signal'].apply(lambda x: f"{args.pose_directory}/{x}.pose")
+    data['signal'] = data['signal'].apply(lambda x: f"{args.pose_directory}/{x}.pose")
 
     # Select the desired columns for the new dataset
     output_columns = [
-        'source_signal',
-        'source_start',
-        'source_end',
-        'source_prompt',
-        'generation_prompt',
-        'output_text'
+        'signal',
+        'signal_start',
+        'signal_end',
+        'encoder_prompt',
+        'decoder_prompt',
+        'output'
     ]
 
     # Save the transformed dataset to a new file, determining format by extension

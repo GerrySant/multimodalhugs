@@ -19,7 +19,7 @@ class PreprocessArguments:
     width: int = field(default=224, metadata={"help": "Target width (in pixels) for images/frames after preprocessing."})
     height: int = field(default=224, metadata={"help": "Target height (in pixels) for images/frames after preprocessing."})
     channels: int = field(default=3, metadata={"help": "Number of color channels in the images/frames (e.g., 3 for RGB)."})
-    invert_frame: bool = field(default=True, metadata={"help": "If True, inverts pixel values for preprocessing."})
+    invert_frame: bool = field(default=False, metadata={"help": "If True, inverts pixel values for preprocessing."})
     dataset_mean: Optional[str] = field(default="[0.9819, 0.9819, 0.9819]",
                                          metadata={"help": "Mean pixel values for dataset normalization, specified as a list."})
     dataset_std: Optional[str] = field(default="[0.1283, 0.1283, 0.1283]",

@@ -84,7 +84,7 @@ class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProces
             raise ValueError(f"Unsupported type for features_file: {type(features_file)}")
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
-        tensor_sequences = [self._features_file_to_tensor(sample["source"]) for sample in batch]
+        tensor_sequences = [self._features_file_to_tensor(sample["signal"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_sequences)
         return {
             "inputs_embeds": padded_inputs,

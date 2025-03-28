@@ -55,10 +55,10 @@ For each partition (train, val, test), create a TSV file that captures essential
 
 The `metadata.tsv` files for each partition must include the following fields:
 
-- `source_signal`: The source text for the translation from which the images will be created / The path of the images to be uploaded (supports `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.npy`)
-- `source_prompt`: A text string (e.g., `__vhe__`) that helps the model distinguish the source language or modality. Can be empty if not used.
-- `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
-- `output_text`: The target text for translation.
+- `signal`: The signal text for the translation from which the images will be created / The path of the images to be uploaded (supports `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.npy`)
+- `encoder_prompt`: A text string (e.g., `__vhe__`) that helps the model distinguish the signal language or modality. Can be empty if not used.
+- `decoder_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
+- `output`: The target text for translation.
 
 ### 2. Setup Datasets, Model, and Processors
 

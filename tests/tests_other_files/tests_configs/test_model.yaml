@@ -2,12 +2,12 @@ model:
   name: small_multimodal_embedder
   feature_extractor_type: clip
   pretrained_feature_extractor:
-  vl_mapper_type: linear
-  vl_mapper_layer_norm_before: true
-  vl_mapper_layer_norm: false
-  vl_mapper_activation: false
+  multimodal_mapper_type: linear
+  multimodal_mapper_layer_norm_before: true
+  multimodal_mapper_layer_norm: false
+  multimodal_mapper_activation: false
   vl_factor: 1  # Reduce the vl_factor to decrease complexity
-  vl_mapper_dropout: 0.0  # Remove dropout for fast overfitting
+  multimodal_mapper_dropout: 0.0  # Remove dropout for fast overfitting
   backbone_type: m2m_100
   backbone_config:
     vocab_size: 8039
@@ -29,7 +29,7 @@ model:
   no_scale_embedding: false
   init_lang_abbr: avg
   freeze_feature_extractor: false
-  freeze_vl_mapper: false
+  freeze_multimodal_mapper: false
   freeze_lang_embeddings: false
   freeze_backbone: false
   feature_extractor_config:

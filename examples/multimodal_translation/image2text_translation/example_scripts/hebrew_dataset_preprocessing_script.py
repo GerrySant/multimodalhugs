@@ -15,7 +15,7 @@ def read_file_lines(filepath):
             lines.append(line.rstrip('\n'))  # Remove newline characters
     return lines
 
-def create_dataframe(sources_file, targets_file, source_prompts, generation_prompts):
+def create_dataframe(sources_file, targets_file, encoder_prompts, decoder_prompts):
     # Read the source and target files
     sources = read_file_lines(sources_file)
     targets = read_file_lines(targets_file)
@@ -27,34 +27,34 @@ def create_dataframe(sources_file, targets_file, source_prompts, generation_prom
             f"Source lines: {len(sources)}, Target lines: {len(targets)}."
         )
 
-    # Handle source prompts
-    if os.path.exists(source_prompts):
-        source_prompt = read_file_lines(source_prompts)
-        if len(source_prompt) != len(sources):
+    # Handle encoder prompts
+    if os.path.exists(encoder_prompts):
+        encoder_prompt = read_file_lines(encoder_prompts)
+        if len(encoder_prompt) != len(sources):
             raise ValueError(
-                f"Source prompts file must have the same number of lines as the source file. "
-                f"Source lines: {len(sources)}, Prompt lines: {len(source_prompt)}."
+                f"encoder prompts file must have the same number of lines as the source file. "
+                f"Source lines: {len(sources)}, Prompt lines: {len(encoder_prompt)}."
             )
     else:
-        source_prompt = [source_prompts] * len(sources)
+        encoder_prompt = [encoder_prompts] * len(sources)
 
-    # Handle generation prompts
-    if os.path.exists(generation_prompts):
-        generation_prompts = read_file_lines(generation_prompts)
-        if len(generation_prompts) != len(sources):
+    # Handle decoder prompts
+    if os.path.exists(decoder_prompts):
+        decoder_prompts = read_file_lines(decoder_prompts)
+        if len(decoder_prompts) != len(sources):
             raise ValueError(
-                f"Generation prompts file must have the same number of lines as the source file. "
-                f"Source lines: {len(sources)}, Prompt lines: {len(generation_prompts)}."
+                f"decoder prompts file must have the same number of lines as the source file. "
+                f"Source lines: {len(sources)}, Prompt lines: {len(decoder_prompts)}."
             )
     else:
-        generation_prompts = [generation_prompts] * len(sources)
+        decoder_prompts = [decoder_prompts] * len(sources)
 
     # Create the DataFrame
     dataframe = pd.DataFrame({
-        'source_signal': sources,
-        'source_prompt': source_prompt,
-        'generation_prompt': generation_prompts,
-        'output_text': targets
+        'signal': sources,
+        'encoder_prompt': encoder_prompt,
+        'decoder_prompt': decoder_prompts,
+        'output': targets
     })
 
     return dataframe
@@ -64,8 +64,8 @@ def main():
     parser = argparse.ArgumentParser(description="Process and transform a CSV file.")
     parser.add_argument("sources_file", type=str, help="Path to the file containing source texts.")
     parser.add_argument("targets_file", type=str, help="Path to the file containing target texts.")
-    parser.add_argument("source_prompts", type=str, help="Path to the file containing source prompt texts. If the prompt is fixed, it can be also written here.")
-    parser.add_argument("generation_prompts", type=str, help="Path to the file containing generation prompt texts. If the prompt is fixed, it can be also written here.")
+    parser.add_argument("encoder_prompts", type=str, help="Path to the file containing encoder prompt texts. If the prompt is fixed, it can be also written here.")
+    parser.add_argument("decoder_prompts", type=str, help="Path to the file containing decoder prompt texts. If the prompt is fixed, it can be also written here.")
     parser.add_argument("output_file", type=str, help="Path to the output TSV file.")
     args = parser.parse_args()
 
@@ -78,8 +78,8 @@ def main():
         data = create_dataframe(
             args.sources_file, 
             args.targets_file, 
-            args.source_prompts, 
-            args.generation_prompts
+            args.encoder_prompts, 
+            args.decoder_prompts
         )
     except Exception as e:
         print(f"Error: {e}")
@@ -87,10 +87,10 @@ def main():
 
     # Select the desired columns for the new dataset
     output_columns = [
-        'source_signal',
-        'source_prompt',
-        'generation_prompt',
-        'output_text'
+        'signal',
+        'encoder_prompt',
+        'decoder_prompt',
+        'output'
     ]
 
     # Save the transformed dataset to a new file

@@ -29,16 +29,16 @@ python hebrew_dataset_preprocessing_script.py "/path/to/source.txt" "/path/to/ta
 
 The `metadata.tsv` files for each partition must include the following fields:
 
-- `source_signal`: The source text for the translation from which the images will be created / The path of the images to be uploaded (currently with support for `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.npy`)
-- `source_prompt`: A text string (e.g., `__vhe__`) that helps the model distinguish the source language or modality. Can be empty if not used.
-- `generation_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
-- `output_text`: The target text for translation.
+- `signal`: The source text for the translation from which the images will be created / The path of the images to be uploaded (currently with support for `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.npy`)
+- `encoder_prompt`: A text string (e.g., `__vhe__`) that helps the model distinguish the source language or modality. Can be empty if not used.
+- `decoder_prompt`: A text prompt appended during decoding to guide the model’s generation. Useful for specifying style or language; can be empty if not used.
+- `output`: The target text for translation.
 
 ##### Example Metadata File Format
 
 Below is an example of how your metadata file should be structured. Each row represents one sample, and the columns correspond to the required fields:
 
-| **source_signal**   | **source_prompt**         | **generation_prompt** | **output_text**                                                                   |
+| **signal**   | **encoder_prompt**         | **decoder_prompt** | **output**                                                                   |
 |-----------------------------------------------------------|---------------------------|-----------------------|-----------------------------------------------------------------------------------|
 | `/path/to/your/image_1.jpg /path/to/your/image_2.jpg ... /path/to/your/image_N.jpg`         | `__vhe__`     |           `__en__`            | `No one was inside the apartment`                                                                               |
 | `הטייס זוהה כמפקד הטייסת דילוקריט פאטאבי.`                    | `__vhe__`     |              `__en__`           | `The pilot was identified as Squadron Leader Dilokrit Pattavee.`                       |

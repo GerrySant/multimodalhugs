@@ -61,10 +61,10 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
             - `supervised_keys`: `None` (no explicit supervised key pair).
         """
         dataset_features = {
-                "source": str,
-                "source_prompt": Optional[str],
-                "generation_prompt": Optional[str],
-                "output_text": Optional[str],
+                "signal": str,
+                "encoder_prompt": Optional[str],
+                "decoder_prompt": Optional[str],
+                "output": Optional[str],
             }
         dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
@@ -138,8 +138,8 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
 
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item['source_signal'],
-                "source_prompt": item.get("source_prompt") or "",
-                "generation_prompt": item.get("generation_prompt") or "",
-                "output_text": item['output_text'],
+                "signal": item['signal'],
+                "encoder_prompt": item.get("encoder_prompt") or "",
+                "decoder_prompt": item.get("decoder_prompt") or "",
+                "output": item['output'],
             }

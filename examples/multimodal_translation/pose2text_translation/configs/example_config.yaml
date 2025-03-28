@@ -5,9 +5,9 @@
 model:
   # Model-specific settings:
   type: "multimodal_embedder" 
-  vl_mapper_type: "linear"                                # Type of visual-language mapper (e.g., "linear" or "adapter").
-  vl_mapper_layer_norm_before: true                       # Whether to apply Layer Normalization before the VL mapper.
-  vl_mapper_dropout: 0.1                                  # Dropout probability for the VL mapper to prevent overfitting.
+  multimodal_mapper_type: "linear"                                # Type of Multimodal Mapper (e.g., "linear" or "adapter").
+  multimodal_mapper_layer_norm_before: true                       # Whether to apply Layer Normalization before the Multimodal Mapper.
+  multimodal_mapper_dropout: 0.1                                  # Dropout probability for the Multimodal Mapper to prevent overfitting.
   backbone_type: "<pretrained-backbone-model>"            # Identifier for the pretrained backbone (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"    # Weights or checkpoint identifier for the pretrained backbone.
   feat_dim: 534                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.

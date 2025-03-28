@@ -22,7 +22,7 @@ from ruamel.yaml import YAML
 # Local Application Imports
 from multimodalhugs.models import EncoderWrapper, get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.utils.registry import register_model
-from multimodalhugs.modules import VLMapper, FeatureExtractor, get_feature_extractor_class
+from multimodalhugs.modules import MultimodalMapper, FeatureExtractor, get_feature_extractor_class
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, merge_modalities_mask_correction
 from multimodalhugs.utils import serialize_config
 
@@ -62,24 +62,24 @@ class MultiModalEmbedderConfig(PretrainedConfig):
     freeze_feature_extractor: bool = field(
         default=False, metadata={"help": "if True, the feature_extractor parameters are frozen during training."}
     )
-    vl_mapper_type: Optional[str] = field(
-        default=None, metadata={"help": "Chose the VL Mapper type. Options: 'linear', 'adapter', 'cnn_adapter'"}
+    multimodal_mapper_type: Optional[str] = field(
+        default=None, metadata={"help": "Chose the Multimodal Mapper type. Options: 'linear', 'adapter', 'cnn_adapter'"}
     )
-    vl_mapper_layer_norm_before: bool = field(
-        default=False, metadata={"help": "if True, adds a LayerNorm before the vl_mapper"}
+    multimodal_mapper_layer_norm_before: bool = field(
+        default=False, metadata={"help": "if True, adds a LayerNorm before the multimodal_mapper"}
     )
-    vl_mapper_layer_norm: bool = field(
-        default=False, metadata={"help": "if True, adds a LayerNorm inside the vl_mapper"}
+    multimodal_mapper_layer_norm: bool = field(
+        default=False, metadata={"help": "if True, adds a LayerNorm inside the multimodal_mapper"}
     )
-    vl_mapper_activation: bool = field(
-        default=False, metadata={"help": "if True, applies a ReLu at the vl_mapper output"}
+    multimodal_mapper_activation: bool = field(
+        default=False, metadata={"help": "if True, applies a ReLu at the multimodal_mapper output"}
     )
-    vl_factor: Optional[int] = field(
+    multimodal_mapper_factor: Optional[int] = field(
         default=None,
-        metadata={"help": "If specified, use an adapter as V-L mapper whose overparameterization is given by the given factor"}
+        metadata={"help": "If specified, use an adapter as Multimodal mapper whose overparameterization is given by the given factor"}
     )
-    vl_mapper_dropout: Optional[float] = field(
-        default=None, metadata={"help": "Dropout probabilty for the vl_mapper"}
+    multimodal_mapper_dropout: Optional[float] = field(
+        default=None, metadata={"help": "Dropout probabilty for the multimodal_mapper"}
     )
     adapter_ksize: Optional[Tuple[int, ...]] = field(
         default=None,
@@ -89,8 +89,8 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         default=None,
         metadata={"help": "If specified, indicates the stride to use by the cnn_adapter. Can be a single integer or a tuple of integers."}
     )
-    freeze_vl_mapper: bool = field(
-        default=False, metadata={"help": "if True, the vl_mapper parameters are frozen during training."}
+    freeze_multimodal_mapper: bool = field(
+        default=False, metadata={"help": "if True, the multimodal_mapper parameters are frozen during training."}
     )
     backbone_used_vocab_size: Optional[int] = field(
         default=None, metadata={"help": "Original vocab_size of the backbone excluding garbage embeddings"}
@@ -193,7 +193,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
     **MultiModalEmbedderModel: A Transformer-based multimodal model.**
 
     This model extends `transformers.PreTrainedModel`, integrating visual and textual 
-    inputs using a feature extractor, a Visual-Language Mapper (VL Mapper), and 
+    inputs using a feature extractor, a Multimodal Mapper (Multimodal Mapper), and 
     a backbone Transformer model.
     """
     config_class = MultiModalEmbedderConfig
@@ -211,7 +211,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         """
         super().__init__(config)
         self._init_feature_extractor(config)
-        self._init_vl_mapper(config)
+        self._init_multimodal_mapper(config)
         self.decoder_start_token_id = config.decoder_start_token_id
         self.pad_token_id = config.pad_token_id
         self.eos_token_id = config.eos_token_id
@@ -242,29 +242,29 @@ class MultiModalEmbedderModel(PreTrainedModel):
             self._no_split_modules = self._no_split_modules + (getattr(self.feature_extractor, "_no_split_modules", []) or [])
             self._keep_in_fp32_modules = self._keep_in_fp32_modules + (getattr(self.feature_extractor, "_keep_in_fp32_modules", []) or [])
 
-    def _init_vl_mapper(self, config):
+    def _init_multimodal_mapper(self, config):
         """
         **Initialize the Visual-Language (VL) Mapper.**
 
         **Args:**
         - `config` (MultiModalEmbedderConfig): Model configuration.
         """
-        if config.vl_mapper_type is not None:
-            self.vl_mapper = VLMapper(
+        if config.multimodal_mapper_type is not None:
+            self.multimodal_mapper = MultimodalMapper(
                 feat_dim=config.feat_dim,
                 output_dim=config.d_model,
-                mapping_layer_type=config.vl_mapper_type,
-                layer_norm_before=config.vl_mapper_layer_norm_before,
-                adapter_factor=config.vl_factor,
-                p_dropout=config.vl_mapper_dropout,
-                layer_norm=config.vl_mapper_layer_norm,
-                activation=config.vl_mapper_activation,
+                mapping_layer_type=config.multimodal_mapper_type,
+                layer_norm_before=config.multimodal_mapper_layer_norm_before,
+                adapter_factor=config.multimodal_mapper_factor,
+                p_dropout=config.multimodal_mapper_dropout,
+                layer_norm=config.multimodal_mapper_layer_norm,
+                activation=config.multimodal_mapper_activation,
                 adapter_ksize=config.adapter_ksize,
                 adapter_stride=config.adapter_stride
             )
-            set_module_parameters(self.vl_mapper, freeze=config.freeze_vl_mapper)
+            set_module_parameters(self.multimodal_mapper, freeze=config.freeze_multimodal_mapper)
         else:
-            self.vl_mapper = None
+            self.multimodal_mapper = None
 
     def _init_backbone(self, config):
         """
@@ -498,8 +498,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
     def forward(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        source_prompt: Optional[torch.LongTensor] = None,
-        source_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
+        encoder_prompt: Optional[torch.LongTensor] = None,
+        encoder_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         decoder_input_ids: Optional[torch.LongTensor] = None,
@@ -522,7 +522,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         This method performs the forward propagation of the model, processing multimodal 
         inputs including textual and video-based features. The method integrates visual 
-        embeddings, applies the Visual-Language Mapper (VL Mapper), and processes text 
+        embeddings, applies the Multimodal Mapper (Multimodal Mapper), and processes text 
         tokens through the Transformer backbone.
 
         ### **Args:**
@@ -534,11 +534,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - `W` = frame width  
             - `H` = frame height  
 
-        - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        - `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
         A prompt consisting of tokenized text that is prepended to the model's input.
 
-        - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
-        Mask to indicate padding tokens in the source prompt.
+        - `encoder_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        Mask to indicate padding tokens in the encoder prompt.
 
         - `input_ids` (Optional[torch.LongTensor], shape: `(B, S_text)`):  
         Tokenized input sequence, where:
@@ -606,10 +606,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         ### **Processing Steps:**
         1. **Input Embedding:**  
         - If `inputs_embeds` is not provided, compute it using `feature_extractor(input_frames)`.
-        - If a Visual-Language Mapper (`vl_mapper`) is present, apply it to the embeddings.
+        - If a Multimodal Mapper (`multimodal_mapper`) is present, apply it to the embeddings.
         
         2. **Modality Merging:**  
-        - Combine `inputs_embeds` with the `source_prompt`, if provided.
+        - Combine `inputs_embeds` with the `encoder_prompt`, if provided.
         - Use the `merge_modalities()` function to ensure proper alignment.
         
         3. **Transformer Backbone Processing:**  
@@ -639,8 +639,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
             if inputs_embeds is None and input_frames is not None:
                 inputs_embeds = self.feature_extractor(input_frames)
 
-            if self.vl_mapper is not None and inputs_embeds is not None:
-                inputs_embeds, attention_mask = self.vl_mapper(inputs_embeds, attention_mask)
+            if self.multimodal_mapper is not None and inputs_embeds is not None:
+                inputs_embeds, attention_mask = self.multimodal_mapper(inputs_embeds, attention_mask)
 
             if inputs_embeds is None:
                 inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
@@ -649,21 +649,21 @@ class MultiModalEmbedderModel(PreTrainedModel):
             inputs_embeds, attention_mask = merge_modalities(
                 x=inputs_embeds, 
                 padding_mask=attention_mask, 
-                prompt=source_prompt, 
-                prompt_length_padding_mask=source_prompt_length_padding_mask,
+                prompt=encoder_prompt, 
+                prompt_length_padding_mask=encoder_prompt_length_padding_mask,
                 embeddings_module=self.get_backbone_encoder.embed_tokens, 
                 pad_idx=self.pad_token_id, 
                 eos_idx=self.eos_token_id, 
             )
         else:
-            if self.vl_mapper is not None:
-                attention_mask = self.vl_mapper.mask_correction(attention_mask)
+            if self.multimodal_mapper is not None:
+                attention_mask = self.multimodal_mapper.mask_correction(attention_mask)
 
             # When encoder_outputs is not None, we still have to correct the mask with the proper
             attention_mask = merge_modalities_mask_correction(
                 padding_mask=attention_mask, 
-                prompt=source_prompt, 
-                prompt_length_padding_mask=source_prompt_length_padding_mask,
+                prompt=encoder_prompt, 
+                prompt_length_padding_mask=encoder_prompt_length_padding_mask,
                 embeddings_module=self.get_backbone_encoder.embed_tokens, 
                 pad_idx=self.pad_token_id, 
                 eos_idx=self.eos_token_id, 
@@ -693,8 +693,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
     def input_to_encoder_outputs(
         self,
         input_frames: Optional[torch.LongTensor] = None,
-        source_prompt: Optional[torch.LongTensor] = None,
-        source_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
+        encoder_prompt: Optional[torch.LongTensor] = None,
+        encoder_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         head_mask: Optional[torch.Tensor] = None,
@@ -719,11 +719,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
             - `W` = frame width  
             - `H` = frame height  
 
-        - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        - `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
         A prompt consisting of tokenized text that is prepended to the model's input.
 
-        - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
-        Mask indicating padding tokens in the source prompt.
+        - `encoder_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+        Mask indicating padding tokens in the encoder prompt.
 
         - `input_ids` (Optional[torch.Tensor], shape: `(B, S_text)`):  
         Tokenized text input IDs.  
@@ -758,10 +758,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         ### **Processing Steps:**
         1. **Compute Input Embeddings:**  
         - If `inputs_embeds` is not provided, extract features using `feature_extractor(input_frames)`.
-        - If a Visual-Language Mapper (`vl_mapper`) is available, apply it to the embeddings.
+        - If a Multimodal Mapper (`multimodal_mapper`) is available, apply it to the embeddings.
 
         2. **Merge Modalities:**  
-        - Combine `inputs_embeds` with `source_prompt`, if available.
+        - Combine `inputs_embeds` with `encoder_prompt`, if available.
         - Use `merge_modalities()` to align visual and text inputs before passing them to the encoder.
 
         3. **Encode Input Representations:**  
@@ -771,9 +771,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         ```python
         model = MultiModalEmbedderModel(config)
         input_frames = torch.randn(2, 16, 3, 224, 224)  # Batch of 2 videos
-        source_prompt = torch.randint(0, 50265, (2, 5))  # Random tokenized prompt
+        encoder_prompt = torch.randint(0, 50265, (2, 5))  # Random tokenized prompt
 
-        encoder_outputs = model.input_to_encoder_outputs(input_frames=input_frames, source_prompt=source_prompt)
+        encoder_outputs = model.input_to_encoder_outputs(input_frames=input_frames, encoder_prompt=encoder_prompt)
         print(encoder_outputs.last_hidden_state.shape)  # Output: (2, sequence_length, hidden_dim)
         ```
         """
@@ -781,8 +781,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if inputs_embeds is None and input_frames is not None:
             inputs_embeds = self.feature_extractor(input_frames)
             
-        if self.vl_mapper is not None and inputs_embeds is not None:
-            inputs_embeds, attention_mask = self.vl_mapper(inputs_embeds, attention_mask)
+        if self.multimodal_mapper is not None and inputs_embeds is not None:
+            inputs_embeds, attention_mask = self.multimodal_mapper(inputs_embeds, attention_mask)
 
         if inputs_embeds is None:
             inputs_embeds = self.get_backbone_encoder.embed_tokens(input_ids)
@@ -791,8 +791,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         inputs_embeds, attention_mask = merge_modalities(
             x=inputs_embeds, 
             padding_mask=attention_mask, 
-            prompt=source_prompt, 
-            prompt_length_padding_mask=source_prompt_length_padding_mask,
+            prompt=encoder_prompt, 
+            prompt_length_padding_mask=encoder_prompt_length_padding_mask,
             embeddings_module=self.get_backbone_encoder.embed_tokens, 
             pad_idx=self.pad_token_id, 
             eos_idx=self.eos_token_id, 
@@ -827,10 +827,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
             Video input frames.
             - `inputs_embeds` (Optional[torch.Tensor], shape: `(B, S_text, hidden_dim)`):  
             Precomputed input embeddings instead of `input_ids`.
-            - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+            - `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
             Prompt prepended to the input sequence.
-            - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
-            Padding mask for the source prompt.
+            - `encoder_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+            Padding mask for the encoder prompt.
 
         ### **Returns:**
         - `dict`: A dictionary containing all required inputs for the `backbone.generate()` function.
@@ -843,7 +843,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         - Calls `self.backbone.prepare_inputs_for_generation(*args, **kwargs)` to get base model inputs.
         
         3. **Add Multimodal Inputs:**  
-        - If `input_frames`, `inputs_embeds`, `source_prompt`, or `source_prompt_length_padding_mask` 
+        - If `input_frames`, `inputs_embeds`, `encoder_prompt`, or `encoder_prompt_length_padding_mask` 
             are present in `kwargs`, they are added to the model input dictionary.
 
         ### **Example Usage:**
@@ -872,13 +872,13 @@ class MultiModalEmbedderModel(PreTrainedModel):
         if inputs_embeds is not None:
             model_inputs["inputs_embeds"] = inputs_embeds
 
-        source_prompt = kwargs.get('source_prompt', None)
-        if source_prompt is not None:
-            model_inputs["source_prompt"] = source_prompt
+        encoder_prompt = kwargs.get('encoder_prompt', None)
+        if encoder_prompt is not None:
+            model_inputs["encoder_prompt"] = encoder_prompt
 
-        source_prompt_length_padding_mask = kwargs.get('source_prompt_length_padding_mask', None)
-        if source_prompt_length_padding_mask is not None:
-            model_inputs["source_prompt_length_padding_mask"] = source_prompt_length_padding_mask
+        encoder_prompt_length_padding_mask = kwargs.get('encoder_prompt_length_padding_mask', None)
+        if encoder_prompt_length_padding_mask is not None:
+            model_inputs["encoder_prompt_length_padding_mask"] = encoder_prompt_length_padding_mask
 
         return model_inputs
 

@@ -5,7 +5,7 @@
 **MultiModalEmbedderModel: A Transformer-based multimodal model.**
 
 This model extends `transformers.PreTrainedModel`, integrating visual and textual 
-inputs using a feature extractor, a Visual-Language Mapper (VL Mapper), and 
+inputs using a feature extractor, a Multimodal Mapper (Multimodal Mapper), and 
 a backbone Transformer model.
 
 </p>
@@ -47,7 +47,7 @@ MultiModalEmbedderModel(self, config)
 </p></td>
     </tr>
     <tr>
-      <td><code>_init_vl_mapper(self, config)</code></td>
+      <td><code>_init_multimodal_mapper(self, config)</code></td>
       <td><p>
 
 **Initialize the Visual-Language (VL) Mapper.**
@@ -79,14 +79,14 @@ The indices of the beams that survived the last decoding step.
 </p></td>
     </tr>
     <tr>
-      <td><code>forward(self, input_frames: Optional[torch.LongTensor] = None, source_prompt: Optional[torch.LongTensor] = None, source_prompt_length_padding_mask: Optional[torch.LongTensor] = None, input_ids: Optional[torch.LongTensor] = None, attention_mask: Optional[torch.Tensor] = None, decoder_input_ids: Optional[torch.LongTensor] = None, decoder_attention_mask: Optional[torch.LongTensor] = None, head_mask: Optional[torch.Tensor] = None, decoder_head_mask: Optional[torch.Tensor] = None, cross_attn_head_mask: Optional[torch.Tensor] = None, encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]] = None, past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None, inputs_embeds: Optional[torch.FloatTensor] = None, decoder_inputs_embeds: Optional[torch.FloatTensor] = None, labels: Optional[torch.LongTensor] = None, use_cache: Optional[bool] = None, output_attentions: Optional[bool] = None, output_hidden_states: Optional[bool] = None, return_dict: Optional[bool] = None) -> Union[Tuple[torch.Tensor], transformers.modeling_outputs.Seq2SeqLMOutput]</code></td>
+      <td><code>forward(self, input_frames: Optional[torch.LongTensor] = None, encoder_prompt: Optional[torch.LongTensor] = None, encoder_prompt_length_padding_mask: Optional[torch.LongTensor] = None, input_ids: Optional[torch.LongTensor] = None, attention_mask: Optional[torch.Tensor] = None, decoder_input_ids: Optional[torch.LongTensor] = None, decoder_attention_mask: Optional[torch.LongTensor] = None, head_mask: Optional[torch.Tensor] = None, decoder_head_mask: Optional[torch.Tensor] = None, cross_attn_head_mask: Optional[torch.Tensor] = None, encoder_outputs: Optional[Tuple[Tuple[torch.FloatTensor]]] = None, past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None, inputs_embeds: Optional[torch.FloatTensor] = None, decoder_inputs_embeds: Optional[torch.FloatTensor] = None, labels: Optional[torch.LongTensor] = None, use_cache: Optional[bool] = None, output_attentions: Optional[bool] = None, output_hidden_states: Optional[bool] = None, return_dict: Optional[bool] = None) -> Union[Tuple[torch.Tensor], transformers.modeling_outputs.Seq2SeqLMOutput]</code></td>
       <td><p>
 
 **Forward pass of the MultiModalEmbedderModel.**
 
 This method performs the forward propagation of the model, processing multimodal 
 inputs including textual and video-based features. The method integrates visual 
-embeddings, applies the Visual-Language Mapper (VL Mapper), and processes text 
+embeddings, applies the Multimodal Mapper (Multimodal Mapper), and processes text 
 tokens through the Transformer backbone.
 
 ### **Args:**
@@ -98,11 +98,11 @@ The batch of video input frames, where:
     - `W` = frame width  
     - `H` = frame height  
 
-- `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+- `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
 A prompt consisting of tokenized text that is prepended to the model's input.
 
-- `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
-Mask to indicate padding tokens in the source prompt.
+- `encoder_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+Mask to indicate padding tokens in the encoder prompt.
 
 - `input_ids` (Optional[torch.LongTensor], shape: `(B, S_text)`):  
 Tokenized input sequence, where:
@@ -170,10 +170,10 @@ The model output, which includes:
 ### **Processing Steps:**
 1. **Input Embedding:**  
 - If `inputs_embeds` is not provided, compute it using `feature_extractor(input_frames)`.
-- If a Visual-Language Mapper (`vl_mapper`) is present, apply it to the embeddings.
+- If a Multimodal Mapper (`multimodal_mapper`) is present, apply it to the embeddings.
 
 2. **Modality Merging:**  
-- Combine `inputs_embeds` with the `source_prompt`, if provided.
+- Combine `inputs_embeds` with the `encoder_prompt`, if provided.
 - Use the `merge_modalities()` function to ensure proper alignment.
 
 3. **Transformer Backbone Processing:**  
@@ -232,7 +232,7 @@ for use in downstream tasks like sequence-to-sequence generation.
 </p></td>
     </tr>
     <tr>
-      <td><code>input_to_encoder_outputs(self, input_frames: Optional[torch.LongTensor] = None, source_prompt: Optional[torch.LongTensor] = None, source_prompt_length_padding_mask: Optional[torch.LongTensor] = None, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, head_mask: Optional[torch.Tensor] = None, inputs_embeds: Optional[torch.Tensor] = None, output_attentions: Optional[bool] = None, output_hidden_states: Optional[bool] = None, return_dict: Optional[bool] = None)</code></td>
+      <td><code>input_to_encoder_outputs(self, input_frames: Optional[torch.LongTensor] = None, encoder_prompt: Optional[torch.LongTensor] = None, encoder_prompt_length_padding_mask: Optional[torch.LongTensor] = None, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, head_mask: Optional[torch.Tensor] = None, inputs_embeds: Optional[torch.Tensor] = None, output_attentions: Optional[bool] = None, output_hidden_states: Optional[bool] = None, return_dict: Optional[bool] = None)</code></td>
       <td><p>
 
 **Encodes the multimodal input and returns encoder outputs.**
@@ -250,11 +250,11 @@ The batch of video input frames, where:
     - `W` = frame width  
     - `H` = frame height  
 
-- `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+- `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
 A prompt consisting of tokenized text that is prepended to the model's input.
 
-- `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
-Mask indicating padding tokens in the source prompt.
+- `encoder_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+Mask indicating padding tokens in the encoder prompt.
 
 - `input_ids` (Optional[torch.Tensor], shape: `(B, S_text)`):  
 Tokenized text input IDs.  
@@ -289,10 +289,10 @@ The encoder outputs containing:
 ### **Processing Steps:**
 1. **Compute Input Embeddings:**  
 - If `inputs_embeds` is not provided, extract features using `feature_extractor(input_frames)`.
-- If a Visual-Language Mapper (`vl_mapper`) is available, apply it to the embeddings.
+- If a Multimodal Mapper (`multimodal_mapper`) is available, apply it to the embeddings.
 
 2. **Merge Modalities:**  
-- Combine `inputs_embeds` with `source_prompt`, if available.
+- Combine `inputs_embeds` with `encoder_prompt`, if available.
 - Use `merge_modalities()` to align visual and text inputs before passing them to the encoder.
 
 3. **Encode Input Representations:**  
@@ -302,9 +302,9 @@ The encoder outputs containing:
 ```python
 model = MultiModalEmbedderModel(config)
 input_frames = torch.randn(2, 16, 3, 224, 224)  # Batch of 2 videos
-source_prompt = torch.randint(0, 50265, (2, 5))  # Random tokenized prompt
+encoder_prompt = torch.randint(0, 50265, (2, 5))  # Random tokenized prompt
 
-encoder_outputs = model.input_to_encoder_outputs(input_frames=input_frames, source_prompt=source_prompt)
+encoder_outputs = model.input_to_encoder_outputs(input_frames=input_frames, encoder_prompt=encoder_prompt)
 print(encoder_outputs.last_hidden_state.shape)  # Output: (2, sequence_length, hidden_dim)
 ```
 
@@ -331,10 +331,10 @@ inputs for multimodal generation.
     Video input frames.
     - `inputs_embeds` (Optional[torch.Tensor], shape: `(B, S_text, hidden_dim)`):  
     Precomputed input embeddings instead of `input_ids`.
-    - `source_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+    - `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
     Prompt prepended to the input sequence.
-    - `source_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
-    Padding mask for the source prompt.
+    - `encoder_prompt_length_padding_mask` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
+    Padding mask for the encoder prompt.
 
 ### **Returns:**
 - `dict`: A dictionary containing all required inputs for the `backbone.generate()` function.
@@ -347,7 +347,7 @@ inputs for multimodal generation.
 - Calls `self.backbone.prepare_inputs_for_generation(*args, **kwargs)` to get base model inputs.
 
 3. **Add Multimodal Inputs:**  
-- If `input_frames`, `inputs_embeds`, `source_prompt`, or `source_prompt_length_padding_mask` 
+- If `input_frames`, `inputs_embeds`, `encoder_prompt`, or `encoder_prompt_length_padding_mask` 
     are present in `kwargs`, they are added to the model input dictionary.
 
 ### **Example Usage:**

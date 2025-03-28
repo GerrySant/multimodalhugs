@@ -37,10 +37,10 @@ class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
         super().__init__(tokenizer=tokenizer, **kwargs)
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
-        if isinstance(batch[0]["source"], pyarrow.lib.StringScalar):
+        if isinstance(batch[0]["signal"], pyarrow.lib.StringScalar):
             tensor_secuences = [torch.from_numpy(
                 get_images(
-                    src_text=sample["source"].as_py(),
+                    src_text=sample["signal"].as_py(),
                     font_path=self.font_path,
                     width=self.width,
                     height=self.height,
@@ -49,10 +49,10 @@ class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
                     std=self.std,
                 )) for sample in batch]
 
-        elif isinstance(batch[0]["source"], str):
+        elif isinstance(batch[0]["signal"], str):
             tensor_secuences = []
             for sample in batch:
-                src_text_or_path = sample["source"]
+                src_text_or_path = sample["signal"]
                 if os.path.exists(src_text_or_path):
                     # Determine the file extension
                     _, ext = os.path.splitext(src_text_or_path)
@@ -87,10 +87,10 @@ class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
                             std=self.std,
                         )))
 
-        elif isinstance(batch[0]["source"], numpy.ndarray):
-            tensor_secuences = [torch.from_numpy(sample["source"]) for sample in batch]
+        elif isinstance(batch[0]["signal"], numpy.ndarray):
+            tensor_secuences = [torch.from_numpy(sample["signal"]) for sample in batch]
         else:
-            raise TypeError("Unsupported type for 'source'.")
+            raise TypeError("Unsupported type for 'signal'.")
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_secuences)
         return {
             "input_frames": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])

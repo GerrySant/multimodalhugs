@@ -24,7 +24,7 @@ class BilingualImage2textMTDataConfig(MultimodalMTDataConfig):
     **BilingualImage2textMTDataConfig: Configuration for Bilingual Image-to-Text Machine Translation datasets.**
 
     This configuration class extends `MultimodalMTDataConfig` to support datasets 
-    where the source input is an **image representation of text**, rather than raw text. 
+    where the signal input is an **image representation of text**, rather than raw text. 
     It includes additional parameters for font selection and image generation mode.
     """
     name: str = "BilingualImage2textMTDataConfig"
@@ -48,7 +48,7 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
     """
     **BilingualImage2TextDataset: Dataset for Bilingual Image-to-Text Translation.**
 
-    This dataset class extends `BilingualText2TextDataset`, where the source input 
+    This dataset class extends `BilingualText2TextDataset`, where the signal input 
     is an image instead of raw text. It supports different configurations for handling images.
 
     Go to [BilingualImage2textMTDataConfig documentation](/docs/data/dataconfigs/BilingualImage2textMTDataConfig.md) to find out what arguments to put in the config.
@@ -86,17 +86,17 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
             - `supervised_keys`: `None` (no explicit supervised key pair).
         """
         dataset_features = {
-                "source": str,
-                "source_start": Optional[int],
-                "source_end": Optional[int],
-                "source_prompt": Optional[str],
-                "generation_prompt": Optional[str],
-                "output_text": Optional[str],
+                "signal": str,
+                "signal_start": Optional[int],
+                "signal_end": Optional[int],
+                "encoder_prompt": Optional[str],
+                "decoder_prompt": Optional[str],
+                "output": Optional[str],
             }
         if self.as_numpy:
-            dataset_features["source"] = np.ndarray
+            dataset_features["signal"] = np.ndarray
         else:
-            dataset_features["source"] = str
+            dataset_features["signal"] = str
         dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
             description="General class for bilingual image2Text translation datasets",
@@ -123,19 +123,19 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         """
         def create_image_secuences(sample):
             """
-            **Generate an image representation of the text source.**
+            **Generate an image representation of the text signal.**
 
-            This function converts the text source into an image using 
+            This function converts the text signal into an image using 
             the specified font and preprocessing parameters.
 
             **Args:**
-            - `sample` (dict): Dictionary containing the source text.
+            - `sample` (dict): Dictionary containing the signal text.
 
             **Returns:**
-            - `dict`: Updated sample with `source` replaced by an image representation.
+            - `dict`: Updated sample with `signal` replaced by an image representation.
             """
-            sample['source'] = get_images(
-                src_text=sample['source'],
+            sample['signal'] = get_images(
+                src_text=sample['signal'],
                 font_path=self.config.font_path,
                 width=self.config.preprocess.width,
                 height=self.config.preprocess.height,
@@ -156,10 +156,10 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item.get('source', item['source_signal']),
-                "source_start": item.get("start_time") or 0,
-                "source_end": item.get("end_time") or 0,
-                "source_prompt": item.get("source_prompt") or "",
-                "generation_prompt": item.get("generation_prompt") or "",
-                "output_text": item['output_text'],
+                "signal": item.get('signal', item['signal']),
+                "signal_start": item.get("start_time") or 0,
+                "signal_end": item.get("end_time") or 0,
+                "encoder_prompt": item.get("encoder_prompt") or "",
+                "decoder_prompt": item.get("decoder_prompt") or "",
+                "output": item['output'],
             }

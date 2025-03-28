@@ -21,13 +21,13 @@ def main():
     def construct_input(row):
         return ""  # Replace with the actual implementation or keep empty
 
-    def construct_source_prompt(row):
+    def construct_encoder_prompt(row):
         return row['src_lang']  # Replace with the actual implementation or keep empty
 
-    def construct_generation_prompt(row):
+    def construct_decoder_prompt(row):
         return row['tgt_lang']  # Replace with the actual implementation or keep empty
 
-    def construct_output_text(row):
+    def construct_output(row):
         return ""  # Replace with the actual implementation or keep empty
 
     def map_column_to_new_field(original_column, new_column_name, data):
@@ -40,19 +40,19 @@ def main():
     data = properly_format_signbank_plus(args.metadata_file, False)
 
     # Construct new fields
-    data['source_prompt'] = data.apply(construct_source_prompt, axis=1)
-    data['generation_prompt'] = data.apply(construct_generation_prompt, axis=1)
+    data['encoder_prompt'] = data.apply(construct_encoder_prompt, axis=1)
+    data['decoder_prompt'] = data.apply(construct_decoder_prompt, axis=1)
 
     # Map original columns to new ones
-    map_column_to_new_field('source', 'source_signal', data)
-    map_column_to_new_field('target', 'output_text', data)
+    map_column_to_new_field('source', 'signal', data)
+    map_column_to_new_field('target', 'output', data)
 
     # Select the desired columns for the new dataset
     output_columns = [
-        'source_signal',
-        'source_prompt',
-        'generation_prompt',
-        'output_text'
+        'signal',
+        'encoder_prompt',
+        'decoder_prompt',
+        'output'
     ]
 
     # Save the transformed dataset to a new file, determining format by extension

@@ -45,8 +45,8 @@ class DataCollatorMultimodalSeq2Seq:
         no_padding = self.padding is False or self.padding == PaddingStrategy.DO_NOT_PAD
 
         labels = [
-            self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['generation_prompt']))
-            + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['output_text']))
+            self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['decoder_prompt']))
+            + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['output']))
             + [self.tokenizer.eos_token_id]
             for sample in samples
         ]

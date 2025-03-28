@@ -68,31 +68,31 @@ Refer to the [transformers.PretrainedConfig documentation](https://huggingface.c
       <td></td>
     </tr>
     <tr>
-      <td><strong>vl_mapper_type</strong></td>
+      <td><strong>multimodal_mapper_type</strong></td>
       <td><code>str</code></td>
       <td><code>linear</code></td>
-      <td>Chose the VL Mapper type. Options: 'linear', 'adapter'</td>
+      <td>Chose the Multimodal Mapper type. Options: 'linear', 'adapter'</td>
       <td></td>
     </tr>
     <tr>
-      <td><strong>vl_mapper_layer_norm_before</strong></td>
+      <td><strong>multimodal_mapper_layer_norm_before</strong></td>
       <td><code>bool</code></td>
       <td><code>False</code></td>
-      <td>if True, adds a LayerNorm before the vl_mapper</td>
+      <td>if True, adds a LayerNorm before the multimodal_mapper</td>
       <td></td>
     </tr>
     <tr>
-      <td><strong>vl_mapper_layer_norm</strong></td>
+      <td><strong>multimodal_mapper_layer_norm</strong></td>
       <td><code>bool</code></td>
       <td><code>False</code></td>
-      <td>if True, adds a LayerNorm inside the vl_mapper</td>
+      <td>if True, adds a LayerNorm inside the multimodal_mapper</td>
       <td></td>
     </tr>
     <tr>
-      <td><strong>vl_mapper_activation</strong></td>
+      <td><strong>multimodal_mapperl_mapper_activation</strong></td>
       <td><code>bool</code></td>
       <td><code>False</code></td>
-      <td>if True, applies a ReLu at the vl_mapper output</td>
+      <td>if True, applies a ReLu at the multimodal_mapperl_mapper output</td>
       <td></td>
     </tr>
     <tr>
@@ -103,17 +103,17 @@ Refer to the [transformers.PretrainedConfig documentation](https://huggingface.c
       <td></td>
     </tr>
     <tr>
-      <td><strong>vl_mapper_dropout</strong></td>
+      <td><strong>multimodal_mapper_dropout</strong></td>
       <td><code>Optional</code></td>
       <td><code>None</code></td>
-      <td>Dropout probabilty for the vl_mapper</td>
+      <td>Dropout probabilty for the multimodal_mapper</td>
       <td></td>
     </tr>
     <tr>
-      <td><strong>freeze_vl_mapper</strong></td>
+      <td><strong>freeze_multimodal_mapper</strong></td>
       <td><code>bool</code></td>
       <td><code>False</code></td>
-      <td>if True, the vl_mapper parameters are frozen during training.</td>
+      <td>if True, the multimodal_mapper parameters are frozen during training.</td>
       <td></td>
     </tr>
     <tr>

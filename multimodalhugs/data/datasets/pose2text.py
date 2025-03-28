@@ -93,12 +93,12 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             - `supervised_keys`: `None` (no explicit supervised key pair).
         """
         dataset_features = {
-                "source": str,
-                "source_start": Optional[int],
-                "source_end": Optional[int],
-                "source_prompt": Optional[str],
-                "generation_prompt": Optional[str],
-                "output_text": Optional[str],
+                "signal": str,
+                "signal_start": Optional[int],
+                "signal_end": Optional[int],
+                "encoder_prompt": Optional[str],
+                "decoder_prompt": Optional[str],
+                "output": Optional[str],
             }
 
         dataset_features = datasets.Features(dataset_features)
@@ -205,19 +205,19 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             **Returns:**
             - `dict`: The updated sample with the pose data duration.
             """
-            sample['source'] = sample['source_signal']
+            sample['signal'] = sample['signal']
             
-            buffer = self._read_pose(sample['source'])
-            if (sample['source_end'] - sample['source_start']) == 0:
+            buffer = self._read_pose(sample['signal'])
+            if (sample['signal_end'] - sample['signal_start']) == 0:
                 pose = Pose.read(buffer) # [t, people, d, xyz]
             else:
-                pose = Pose.read(buffer, start_time=sample['source_start'], end_time=sample['source_end']) # [t, people, d, xyz]
+                pose = Pose.read(buffer, start_time=sample['signal_start'], end_time=sample['signal_end']) # [t, people, d, xyz]
             sample['DURATION'] = len(pose.body.data)
 
             return sample
 
         # Filter out samples where the file path does not exist
-        dataset = dataset.filter(lambda sample: file_exists_filter('source_signal', sample), num_proc=get_num_proc())
+        dataset = dataset.filter(lambda sample: file_exists_filter('signal', sample), num_proc=get_num_proc())
 
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
@@ -227,10 +227,10 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         # Yield examples
         for idx, item in enumerate(dataset):
             yield idx, {
-                "source": item['source'],
-                "source_start": item['source_start'],
-                "source_end": item['source_end'],
-                "source_prompt": item.get("source_prompt") or "",
-                "generation_prompt": item.get("generation_prompt") or "",
-                "output_text": item['output_text'],
+                "signal": item['signal'],
+                "signal_start": item['signal_start'],
+                "signal_end": item['signal_end'],
+                "encoder_prompt": item.get("encoder_prompt") or "",
+                "decoder_prompt": item.get("decoder_prompt") or "",
+                "output": item['output'],
             }

@@ -18,8 +18,8 @@ export MODEL_NAME="hebrew_image_to_text"
 export REPO_PATH="/path/to/repositories"
 export CONFIG_PATH="${REPO_PATH}/examples/multimodal_translation/image2text_translation/configs/example_config.yaml"
 export OUTPUT_PATH="/path/to/experiments/output_directory"
-export SOURCE_PROMPT="__vhe__"
-export GENERATION_PROMPT="__en__"
+export encoder_prompt="__vhe__"
+export decoder_prompt="__en__"
 export CUDA_VISIBLE_DEVICES=0
 export EVAL_STEPS=250
 
@@ -29,22 +29,22 @@ export EVAL_STEPS=250
 python ${REPO_PATH}/multimodalhugs/examples/multimodal_translation/image2text_translation/example_scripts/hebrew_dataset_preprocessing_script.py \
     "/path/to/data/dev/source.txt" \
     "/path/to/data/dev/target.txt" \
-    "$SOURCE_PROMPT" \
-    "$GENERATION_PROMPT" \
+    "$encoder_prompt" \
+    "$decoder_prompt" \
     "/path/to/data/dev/metadata.tsv"
 
 python ${REPO_PATH}/multimodalhugs/examples/multimodal_translation/image2text_translation/example_scripts/hebrew_dataset_preprocessing_script.py \
     "/path/to/data/devtest/source.txt" \
     "/path/to/data/devtest/target.txt" \
-    "$SOURCE_PROMPT" \
-    "$GENERATION_PROMPT" \
+    "$encoder_prompt" \
+    "$decoder_prompt" \
     "/path/to/data/devtest/metadata.tsv"
 
 python ${REPO_PATH}/multimodalhugs/examples/multimodal_translation/image2text_translation/example_scripts/hebrew_dataset_preprocessing_script.py \
     "/path/to/data/train/source.txt" \
     "/path/to/data/train/target.txt" \
-    "$SOURCE_PROMPT" \
-    "$GENERATION_PROMPT" \
+    "$encoder_prompt" \
+    "$decoder_prompt" \
     "/path/to/data/train/metadata.tsv"
 
 # ----------------------------------------------------------

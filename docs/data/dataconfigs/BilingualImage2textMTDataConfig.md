@@ -5,7 +5,7 @@
 **BilingualImage2textMTDataConfig: Configuration for Bilingual Image-to-Text Machine Translation datasets.**
 
 This configuration class extends `MultimodalMTDataConfig` to support datasets 
-where the source input is an **image representation of text**, rather than raw text. 
+where the signal input is an **image representation of text**, rather than raw text. 
 It includes additional parameters for font selection and image generation mode.</p>
 
 <h2>Configuration Fields for BilingualImage2textMTDataConfig</h2>
