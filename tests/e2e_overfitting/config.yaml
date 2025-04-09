@@ -1,0 +1,143 @@
+model:
+  type: multimodal_embedder
+  feature_extractor_type: clip
+  multimodal_mapper_type: linear
+  multimodal_mapper_layer_norm_before: true
+  multimodal_mapper_dropout: 0 #### 0.1
+  backbone_type: t5 # t5
+  pretrained_backbone: google/t5-efficient-tiny # google/byt5-small / google-t5/t5-base
+  feat_dim: 256
+  freeze_backbone: false
+  freeze_decoder_embed_tokens: false
+  freeze_encoder_embed_tokens: false
+  freeze_lm_head: false
+  max_length: 10
+  feature_extractor_config: # Specify args to be changes in the feature extractor arquitecture
+    initializer_factor: 1.0
+    logit_scale_init_value: 2.6592
+    projection_dim: 256
+    hidden_size: 128
+    vision_config:
+      _name_or_path: ''
+      add_cross_attention: false
+      architectures:
+      attention_dropout: 0.0
+      bad_words_ids:
+      bos_token_id:
+      chunk_size_feed_forward: 0
+      cross_attention_hidden_size:
+      decoder_start_token_id:
+      diversity_penalty: 0.0
+      do_sample: false
+      dropout: 0.0
+      early_stopping: false
+      encoder_no_repeat_ngram_size: 0
+      eos_token_id:
+      finetuning_task:
+      forced_bos_token_id:
+      forced_eos_token_id:
+      hidden_act: quick_gelu
+      hidden_size: 128
+      id2label:
+        '0': LABEL_0
+        '1': LABEL_1
+      image_size: 224
+      initializer_factor: 1.0
+      initializer_range: 0.02
+      intermediate_size: 256
+      is_decoder: false
+      is_encoder_decoder: false
+      label2id:
+        LABEL_0: 0
+        LABEL_1: 1
+      layer_norm_eps: 1.0e-05
+      length_penalty: 1.0
+      max_length: 20
+      min_length: 0
+      model_type: clip_vision_model
+      no_repeat_ngram_size: 0
+      num_attention_heads: 4
+      num_beam_groups: 1
+      num_beams: 1
+      num_hidden_layers: 8
+      num_return_sequences: 1
+      output_attentions: false
+      output_hidden_states: false
+      output_scores: false
+      pad_token_id:
+      patch_size: 32
+      prefix:
+      projection_dim: 256
+      problem_type:
+      pruned_heads: {}
+      remove_invalid_values: false
+      repetition_penalty: 1.0
+      return_dict: true
+      return_dict_in_generate: false
+      sep_token_id:
+      task_specific_params:
+      temperature: 1.0
+      tie_encoder_decoder: false
+      tie_word_embeddings: true
+      tokenizer_class:
+      top_k: 50
+      top_p: 1.0
+      torch_dtype:
+      torchscript: false
+      transformers_version: 4.16.0.dev0
+      use_bfloat16: false
+  d_model: 256
+  pad_token_id: 0
+  bos_token_id:
+  eos_token_id: 1
+  decoder_start_token_id: 0
+  model_name_or_path: tests/e2e_overfitting/output_dir/e2e_overfitting
+
+training:
+  run_name: e2e_overfitting
+  output_dir: tests/e2e_overfitting/output_dir
+  do_train: true
+  do_eval: true
+  do_predict: true
+  logging_strategy: steps
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: steps
+  save_steps: 100
+  logging_steps: 10
+  max_steps: 200000000
+  per_device_train_batch_size: 16
+  per_device_eval_batch_size: 8
+  save_total_limit: 2
+  learning_rate: 7e-04
+  max_grad_norm: 0.0
+  overwrite_output_dir: true
+  predict_with_generate: true
+  metric_for_best_model: chrf
+  greater_is_better: true
+  metric_name: chrf
+  load_best_model_at_end: true
+  early_stopping_patience: 2
+  eval_delay: 700
+  seed: 28
+  fp16: false
+  use_cpu: true
+  use_mps_device: false
+  lr_scheduler_type: polynomial
+
+data:
+  train_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
+  validation_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
+  test_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
+  font_path: tests/e2e_overfitting/other_files/Arial.ttf
+  text_tokenizer_path: google/t5-efficient-tiny
+  preprocess:
+    width: 224
+    height: 224
+    channels: 3
+    dataset_mean: '[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]'
+    dataset_std: '[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]'
+  dataset_dir: tests/e2e_overfitting/output_dir/datasets/bilingual_image2text
+
+processor:
+  processor_name_or_path: tests/e2e_overfitting/output_dir/image2text_translation_processor

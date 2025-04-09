@@ -1,0 +1,17 @@
+signal	encoder_prompt	decoder_prompt	output
+A	lowercase: 		a
+B	lowercase: 		b
+C D	lowercase: 		c d
+E F	lowercase: 		e f
+A	lowercase: 		a
+B	lowercase: 		b
+C D	lowercase: 		c d
+E F	lowercase: 		e f
+A	lowercase: 		a
+B	lowercase: 		b
+C D	lowercase: 		c d
+E F	lowercase: 		e f
+A	lowercase: 		a
+B	lowercase: 		b
+C D	lowercase: 		c d
+E F	lowercase: 		e f

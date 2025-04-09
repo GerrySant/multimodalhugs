@@ -13,7 +13,9 @@ from transformers import (
     Seq2SeqTrainingArguments,
     set_seed,
     GenerationConfig,
+    EarlyStoppingCallback,
 )
+
 from multimodalhugs.processors import (
     SignwritingProcessor,
     Pose2TextTranslationProcessor,
@@ -61,7 +63,7 @@ from transformers.utils import send_example_telemetry
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
-from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments
+from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments, ExtendedSeq2SeqTrainingArguments
 from multimodalhugs.tasks.translation.utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args, check_t5_fp16_compatibility
 
 logger = logging.getLogger(__name__)
@@ -71,11 +73,11 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ExtraArguments, ModelArguments, ProcessorArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
+    parser = HfArgumentParser((ExtraArguments, ModelArguments, ProcessorArguments, DataTrainingArguments, ExtendedSeq2SeqTrainingArguments))
     extra_args, model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     if extra_args.config_path:
-        training_args = merge_config_and_command_args(extra_args.config_path, Seq2SeqTrainingArguments, "training", training_args, sys.argv[1:])
+        training_args = merge_config_and_command_args(extra_args.config_path, ExtendedSeq2SeqTrainingArguments, "training", training_args, sys.argv[1:])
         model_args = merge_config_and_command_args(extra_args.config_path, ModelArguments, "model", model_args, sys.argv[1:])
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, sys.argv[1:])
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, sys.argv[1:])
@@ -265,8 +267,20 @@ def main():
             pad_to_multiple_of=8 if training_args.fp16 else None,
         )
 
-    # Metric
-    metric = evaluate.load("sacrebleu", cache_dir=model_args.cache_dir)
+    # Load metric(s)
+    if training_args.metric_name is not None:
+        metric_names = [m.strip() for m in training_args.metric_name.split(",")]
+        metrics_list = [evaluate.load(name, cache_dir=model_args.cache_dir) for name in metric_names]
+
+        # Check that metric_for_best_model is among the loaded metric_names
+        if training_args.metric_for_best_model is not None and training_args.metric_for_best_model not in metric_names:
+            raise ValueError(
+                f"You specified 'metric_for_best_model={training_args.metric_for_best_model}', "
+                f"but it's not among the listed 'metric_name' values ({metric_names}). "
+                f"If you want to track a specific metric for selecting the best model, make sure it's also included in 'metric_name'."
+            )
+    else:
+        metrics_list = []
 
     # Define torch_empty_cache_steps to optimize memory utilization
     training_args.torch_empty_cache_steps = training_args.gradient_accumulation_steps
@@ -281,27 +295,33 @@ def main():
         return preds, labels
 
     def compute_metrics(eval_preds):
+        if not metrics_list:
+            return {}
+
         compute_metrics_tokenizer = tokenizer if tokenizer is not None else processor.tokenizer
         preds, labels = eval_preds
         if isinstance(preds, tuple):
             preds = preds[0]
-        # Replace -100s used for padding as we can't decode them
+        # Replace -100s used for padding
         preds = np.where(preds != -100, preds, compute_metrics_tokenizer.pad_token_id)
         decoded_preds = compute_metrics_tokenizer.batch_decode(preds, skip_special_tokens=True)
         labels = np.where(labels != -100, labels, compute_metrics_tokenizer.pad_token_id)
         decoded_labels = compute_metrics_tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-        # Some simple post-processing
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
-        result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-        result = {"bleu": result["score"]}
+        result = {}
+        for metric, name in zip(metrics_list, metric_names):
+            metric_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
+            result[name] = round(metric_result.get("score", metric_result.get(name, 0.0)), 4)
 
         prediction_lens = [np.count_nonzero(pred != compute_metrics_tokenizer.pad_token_id) for pred in preds]
-        result["gen_len"] = np.mean(prediction_lens)
-        result = {k: round(v, 4) for k, v in result.items()}
+        result["gen_len"] = round(np.mean(prediction_lens), 4)
         return result
 
+    callbacks_list = []
+    if training_args.early_stopping_patience is not None:
+        callbacks_list.append(EarlyStoppingCallback(early_stopping_patience=training_args.early_stopping_patience))
     # Initialize our Trainer
     trainer = MultiLingualSeq2SeqTrainer(
         model=model,
@@ -311,7 +331,8 @@ def main():
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics if training_args.predict_with_generate else None,
-        visualize_prediction_prob=data_args.visualize_prediction_prob
+        visualize_prediction_prob=data_args.visualize_prediction_prob,
+        callbacks=callbacks_list
     )
 
     logger.info(f"\n{model}\n")
@@ -339,58 +360,20 @@ def main():
         trainer.save_state()
 
     # Evaluation
-    results = {}
-    max_length = (
-        training_args.generation_max_length
-        if training_args.generation_max_length is not None
-        else model.max_length
-    )
-    num_beams = data_args.num_beams if data_args.num_beams is not None else training_args.generation_num_beams
-    if training_args.do_eval:
-        logger.info("*** Evaluate ***")
-
-        metrics = trainer.evaluate(max_length=max_length, num_beams=num_beams, metric_key_prefix="eval")
-        max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-        metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
-
-        trainer.log_metrics("eval", metrics)
-        trainer.save_metrics("eval", metrics)
-
+    metrics_result = {}
     if training_args.do_predict:
-        logger.info("*** Predict ***")
-
-        predict_results = trainer.predict(
-            predict_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams
+        logger.info("*** Evaluation on the test partition ***")
+        max_length = (
+            training_args.generation_max_length
+            if training_args.generation_max_length is not None
+            else model.max_length
         )
-        metrics = predict_results.metrics
-        max_predict_samples = (
-            data_args.max_predict_samples if data_args.max_predict_samples is not None else len(predict_dataset)
-        )
-        metrics["predict_samples"] = min(max_predict_samples, len(predict_dataset))
+        num_beams = data_args.num_beams if data_args.num_beams is not None else training_args.generation_num_beams
 
-        trainer.log_metrics("predict", metrics)
-        trainer.save_metrics("predict", metrics)
-
-        if trainer.is_world_process_zero():
-            if training_args.predict_with_generate:
-                predictions = predict_results.predictions
-                predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
-                predictions = tokenizer.batch_decode(
-                    predictions, skip_special_tokens=True, clean_up_tokenization_spaces=True
-                )
-                predictions = [pred.strip() for pred in predictions]
-                output_prediction_file = os.path.join(training_args.output_dir, "generated_predictions.txt")
-                with open(output_prediction_file, "w", encoding="utf-8") as writer:
-                    writer.write("\n".join(predictions))
-
-    kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "translation"}
-
-    if training_args.push_to_hub:
-        trainer.push_to_hub(**kwargs)
-    else:
-        trainer.create_model_card(**kwargs)
-
-    return results
+        predict_results = trainer.predict(predict_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams)
+        metrics_result = predict_results.metrics
+        print(metrics_result)
+    return metrics_result
 
 def _mp_fn(index):
     # For xla_spawn (TPUs)

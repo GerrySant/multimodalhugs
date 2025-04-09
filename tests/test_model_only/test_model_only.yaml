@@ -1,0 +1,48 @@
+model:
+  name: small_multimodal_embedder
+  feature_extractor_type: clip
+  pretrained_feature_extractor:
+  multimodal_mapper_type: linear
+  multimodal_mapper_layer_norm_before: true
+  multimodal_mapper_layer_norm: false
+  multimodal_mapper_activation: false
+  vl_factor: 1
+  multimodal_mapper_dropout: 0.0
+  backbone_type: m2m_100
+  backbone_config:
+    vocab_size: 8039
+    backbone_argumnets: whatever
+    d_model: 32
+    encoder_layers: 1
+    encoder_attention_heads: 1
+    decoder_layers: 1
+    decoder_attention_heads: 1
+    decoder_ffn_dim: 64
+    encoder_ffn_dim: 64
+  pretrained_backbone:
+  d_model: 32
+  feat_dim: 32
+  num_labels: 2
+  pad_token_id: 1
+  eos_token_id: 2
+  bos_token_id: 2
+  no_scale_embedding: false
+  init_lang_abbr: avg
+  freeze_feature_extractor: false
+  freeze_multimodal_mapper: false
+  freeze_lang_embeddings: false
+  freeze_backbone: false
+  feature_extractor_config:
+    feature_extractor_argumnets: whatever
+    projection_dim: 32
+    vision_config:
+      hidden_size: 32
+      num_hidden_layers: 1
+      num_attention_heads: 1
+      intermediate_size: 64
+      projection_dim: 32
+      image_size: 32
+  decoder_start_token_id: 2
+data:
+  new_vocabulary: tests/test_model_only/new_languages.txt
+  text_tokenizer_path: tests/test_model_only/tiny_tokenizer

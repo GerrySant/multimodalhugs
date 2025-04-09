@@ -10,7 +10,7 @@ from transformers import PreTrainedTokenizerFast, AutoTokenizer
 from multimodalhugs.utils.tokenizer_utils import load_tokenizer_from_vocab_file
 from multimodalhugs.models import MultiModalEmbedderModel
 
-from tests.global_variables import DEVICE, SAMPLES, INPUTS, LABELS
+from .global_variables import DEVICE, SAMPLES, INPUTS, LABELS
 
 # Declare global variables
 model = None
@@ -33,7 +33,7 @@ def model_setup():
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    config_path = 'tests/tests_other_files/tests_configs/test_model.yaml'
+    config_path = 'tests/test_model_only/test_model_only.yaml'
     cfg = OmegaConf.load(config_path)
 
     src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.data.new_vocabulary)

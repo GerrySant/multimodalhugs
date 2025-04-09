@@ -1,4 +1,7 @@
+import logging
+
 from dataclasses import dataclass, field
+from transformers.training_args_seq2seq import Seq2SeqTrainingArguments
 from typing import Optional
 
 @dataclass
@@ -95,10 +98,6 @@ class DataTrainingArguments:
             "help": "Whether to ignore the tokens corresponding to padded labels in the loss computation or not."
         },
     )
-    metric_name: Optional[str] = field(
-        default="sacrebleu",
-        metadata={"help": "Name of the metric to use (any metric supported by evaluate.load())"}
-    )
     visualize_prediction_prob: float = field(
         default=0.05,
         metadata={"help": "Percentage of samples displaying their predictions during evaluation"}
@@ -112,4 +111,22 @@ class ExtraArguments:
     config_path: Optional[str] = field(
         default=None,
         metadata={"help": "Path to YAML config file"}
+    )
+
+@dataclass
+class ExtendedSeq2SeqTrainingArguments(Seq2SeqTrainingArguments):
+    metric_name: Optional[str] = field(
+        default=None,
+        metadata={"help": "Name of the metric to use (any metric supported by evaluate.load()). If you want to use multiple metrics, structure the variable like: metric_name: '<metric_name_1>,<metric_name_2>,...'"}
+    )
+    early_stopping_patience: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Use with `EarlyStoppingCallback`. "
+                "Number of evaluation calls with no improvement after which training will be stopped. "
+                "Requires `load_best_model_at_end=True`, `metric_for_best_model` set, and a valid `evaluation_strategy`. "
+                "If set to `None`, early stopping is disabled."
+            )
+        }
     )
