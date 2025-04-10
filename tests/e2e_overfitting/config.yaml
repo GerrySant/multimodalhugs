@@ -117,9 +117,9 @@ training:
   greater_is_better: true
   metric_name: chrf
   load_best_model_at_end: true
-  early_stopping_patience: 2
+  early_stopping_patience: 5
   eval_delay: 700
-  seed: 28
+  seed: 42
   fp16: false
   use_cpu: true
   use_mps_device: false

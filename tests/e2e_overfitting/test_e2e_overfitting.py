@@ -1,93 +1,27 @@
-# import os
-# import shutil
-# import subprocess
-# import re
-# import pytest
-
-# CONFIG_PATH = "tests/e2e_overfitting/config.yaml"
-# OUTPUT_PATH = "tests/e2e_overfitting/output_dir"
-# GENERATE_PATH = "tests/e2e_overfitting/generate_outputs"
-
-
-# def run_python_script(script_path, args):
-#     """Helper to run a Python CLI script and return stdout/stderr."""
-#     result = subprocess.run(
-#         ["python", script_path] + args,
-#         stdout=subprocess.PIPE,
-#         stderr=subprocess.STDOUT,
-#         text=True,
-#         env={**os.environ, "CUDA_VISIBLE_DEVICES": "", "PYTORCH_ENABLE_MPS_FALLBACK": "1"},
-#     )
-#     print(result.stdout)  # show logs in pytest
-#     assert result.returncode == 0, f"{script_path} failed"
-#     return result.stdout
-
-
-# def test_e2e_overfitting():
-#     # Clean up old outputs
-#     shutil.rmtree(OUTPUT_PATH, ignore_errors=True)
-#     shutil.rmtree(GENERATE_PATH, ignore_errors=True)
-#     os.makedirs(OUTPUT_PATH, exist_ok=True)
-#     os.makedirs(GENERATE_PATH, exist_ok=True)
-
-#     # === 1. Run training setup ===
-#     run_python_script(
-#         "multimodalhugs/multimodalhugs_cli/training_setup.py",
-#         ["--modality", "image2text", "--config_path", CONFIG_PATH],
-#     )
-
-#     # === 2. Run training ===
-#     train_logs = run_python_script(
-#         "multimodalhugs/multimodalhugs_cli/train.py",
-#         [
-#             "--task", "translation",
-#             "--config_path", CONFIG_PATH,
-#             "--output_dir", OUTPUT_PATH,
-#             "--visualize_prediction_prob", "0",
-#             "--use_cpu",
-#             "--report_to", "none",
-#         ],
-#     )
-
-#     # Assert convergence
-#     assert "'eval_chrf': 100.0" in train_logs or re.search(r"eval_chrf['\"]?\s*[:=]\s*100\.0", train_logs), \
-#         "Model did not converge to chrF 100"
-
-#     # === 3. Get last checkpoint path ===
-#     checkpoints = [
-#         os.path.join(OUTPUT_PATH, d)
-#         for d in os.listdir(OUTPUT_PATH)
-#         if d.startswith("checkpoint-")
-#     ]
-#     assert checkpoints, "No checkpoint found"
-#     ckpt_path = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[-1]
-
-#     # === 4. Run generation ===
-#     gen_logs = run_python_script(
-#         "multimodalhugs/multimodalhugs_cli/generate.py",
-#         [
-#             "--task", "translation",
-#             "--config_path", CONFIG_PATH,
-#             "--model_name_or_path", ckpt_path,
-#             "--metric_name", "chrf",
-#             "--output_dir", GENERATE_PATH,
-#             "--do_predict", "true",
-#             "--use_cpu",
-#             "--generation_max_length", "7",
-#             "--visualize_prediction_prob", "0",
-#             "--report_to", "none",
-#         ],
-#     )
-
-#     # Assert perfect generation
-#     assert "predict_score                  =      100.0" in gen_logs or \
-#            re.search(r"predict_score\s*[:=]\s*100\.0", gen_logs), "Prediction score is not 100.0"
 import os
 import json
 import shutil
 import subprocess
 import re
 import pytest
+import random
+import numpy as np
+import torch
+
+def set_global_seed(seed: int = 42) -> None:
+    """
+    Set random seed for Python, NumPy, and PyTorch (CPU and CUDA) to ensure reproducibility.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # For multi-GPU setups
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
 
 CONFIG_PATH = "tests/e2e_overfitting/config.yaml"
 OUTPUT_PATH = "tests/e2e_overfitting/output_dir"
@@ -114,6 +48,7 @@ def run_python_script(script_path, args):
 
 
 def test_setup_runs_successfully():
+    set_global_seed(42)
     _ = run_python_script(
         "multimodalhugs/multimodalhugs_cli/training_setup.py",
         ["--modality", "image2text", "--config_path", CONFIG_PATH],
@@ -121,6 +56,7 @@ def test_setup_runs_successfully():
 
 
 def test_model_converges_in_training():
+    set_global_seed(42)
     run_python_script(
         "multimodalhugs/multimodalhugs_cli/train.py",
         [
@@ -156,6 +92,7 @@ def test_model_converges_in_training():
 
 
 def test_generation_score_is_perfect():
+    set_global_seed(42)
     # Find last checkpoint
     checkpoints = [
         os.path.join(OUTPUT_PATH, d)
