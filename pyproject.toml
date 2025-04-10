@@ -1,7 +1,7 @@
 [project]
 name = "multimodalhugs"
 description = "MultimodalHugs is an extension of Hugging Face that offers a generalized framework for training, evaluating, and using multimodal AI models with minimal code differences, ensuring seamless compatibility with Hugging Face pipelines."
-version = "0.0.1"
+version = "0.1.0"
 authors = [
     { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" },
     { name = "Amit Moryossef" }
