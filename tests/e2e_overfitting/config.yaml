@@ -124,7 +124,6 @@ training:
   use_cpu: true
   use_mps_device: false
   lr_scheduler_type: polynomial
-  power: 2.0 
 
 data:
   train_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
