@@ -156,12 +156,7 @@ def main():
     else:
         raise ValueError("You must specify dataset_dir in the configuration or on the command line.")
     
-    if "test" not in raw_datasets:
-        raise ValueError("The dataset does not contain a test partition.")
-    test_dataset = raw_datasets["test"].with_transform(processor._transform_get_items_output)
-    if data_args.max_predict_samples is not None:
-        max_predict_samples = min(len(test_dataset), data_args.max_predict_samples)
-        test_dataset = test_dataset.select(range(max_predict_samples))
+
 
     # --- Set seed for reproducibility ---
     set_seed(training_args.seed)
@@ -209,6 +204,13 @@ def main():
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
     )
+
+    if "test" not in raw_datasets:
+        raise ValueError("The dataset does not contain a test partition.")
+    test_dataset = raw_datasets["test"].with_transform(processor._transform_get_items_output)
+    if data_args.max_predict_samples is not None:
+        max_predict_samples = min(len(test_dataset), data_args.max_predict_samples)
+        test_dataset = test_dataset.select(range(max_predict_samples))
 
     # --- Configure the data collator ---
     # Responsible for grouping and preparing data for evaluation; internally manages language aspects.
