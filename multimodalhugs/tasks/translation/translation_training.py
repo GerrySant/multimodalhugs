@@ -225,7 +225,7 @@ def main():
     if training_args.do_train:
         if "train" not in raw_datasets:
             raise ValueError("--do_train requires a train dataset")
-        train_dataset = raw_datasets["train"]
+        train_dataset = raw_datasets["train"].with_transform(processor._transform_get_items_output)
         print(f"train_dataset: {train_dataset}")
         if data_args.max_train_samples is not None:
             max_train_samples = min(len(train_dataset), data_args.max_train_samples)
@@ -234,7 +234,7 @@ def main():
     if training_args.do_eval:
         if "validation" not in raw_datasets:
             raise ValueError("--do_eval requires a validation dataset")
-        eval_dataset = raw_datasets["validation"]
+        eval_dataset = raw_datasets["validation"].with_transform(processor._transform_get_items_output)
         if data_args.max_eval_samples is not None:
             max_eval_samples = min(len(eval_dataset), data_args.max_eval_samples)
             eval_dataset = eval_dataset.select(range(max_eval_samples))
@@ -242,7 +242,7 @@ def main():
     if training_args.do_predict:
         if "test" not in raw_datasets:
             raise ValueError("--do_predict requires a test dataset")
-        predict_dataset = raw_datasets["test"]
+        predict_dataset = raw_datasets["test"].with_transform(processor._transform_get_items_output)
         if data_args.max_predict_samples is not None:
             max_predict_samples = min(len(predict_dataset), data_args.max_predict_samples)
             predict_dataset = predict_dataset.select(range(max_predict_samples))
@@ -266,7 +266,7 @@ def main():
             label_pad_token_id=label_pad_token_id,
             pad_to_multiple_of=8 if training_args.fp16 else None,
         )
-
+    
     # Load metric(s)
     if training_args.metric_name is not None:
         metric_names = [m.strip() for m in training_args.metric_name.split(",")]

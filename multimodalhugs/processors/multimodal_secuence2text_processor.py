@@ -41,6 +41,14 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
     ):
         obtainables_list = kwargs.pop('obtainables_list', None)
         self.obtainables_list = obtainables_list
+
+        if self.__class__._transform_get_items_output is MultimodalSecuence2TextTranslationProcessor._transform_get_items_output:
+            logger.warning(
+                f" {self.__class__.__name__} does not override `_transform_get_items_output()`. "
+                "This method should define a dataset-level transformation applied during iteration via "
+                "`dataset.with_transform()`. Not overriding it may result in inefficiencies (e.g., decoding "
+                "or loading external files inside collators). If no transformation is needed, you can ignore this warning."
+            )
     
         if frame_preprocessor is None:
             super().__init__(
@@ -133,3 +141,28 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
             batch_dict.update(obgained_dict)
             
         return BatchFeature(batch_dict)     
+
+    def _transform_get_items_output(self, batch):
+        """
+        Returns a transformation function applied at the dataset level during iteration.
+
+        This method defines a transformation that is applied to each batch **within the dataset iterator**, 
+        typically by using `datasets.Dataset.with_transform()`. As a result, the transformation is executed 
+        at runtime during `__getitem__()` or `__getitems__()`, which allows it to benefit from prefetching 
+        and parallel data loading when using multiple DataLoader workers.
+
+        Unlike the `_obtain_*` methods, which are also executed on-the-fly but within the **processor call 
+        (typically inside the DataCollator)**, this transformation occurs **prior to batching and collation**. 
+        It is therefore ideal for operations that are expensive and can be parallelized at the sample or batch 
+        level, such as decoding signals, loading external files, or converting inputs to intermediate formats.
+
+        Use this method to preprocess inputs early in the pipeline while maintaining a modular design that 
+        separates dataset-level and collator-level responsibilities.
+
+        Args:
+            batch (Dict[str, List[Any]]): A dictionary representing a batch of dataset examples (not yet collated).
+
+        Returns:
+            Dict[str, List[Any]]: The transformed batch, with updated or added fields ready for collation.
+        """
+        return batch

@@ -55,6 +55,10 @@ class SignwritingProcessor(MultimodalSecuence2TextTranslationProcessor):  # Feat
         """
         Converts a sequence of ascii signwritting symbols into a sequence of typo tensor images with shape [N_frames, C, W, H].
         """
+        if isinstance(sign, torch.Tensor):
+            # Case in which the transformation has already been performed during the dataset._get_items_()
+            return sign
+        
         sign_arrays = []
         for ascii_sign in normalize_signwriting(sign).split():
             if ascii_sign == "M511x510S27034490x490":
@@ -87,3 +91,30 @@ class SignwritingProcessor(MultimodalSecuence2TextTranslationProcessor):  # Feat
             "input_frames": padded_inputs,                         # torch.Size([batch_size, n_frames, n_channes, W, H])
             "attention_mask": padded_input_masks                   # torch.Size([batch_size, n_frames]) 0 indicates padding elements
         }, kwargs     
+
+    def _transform_get_items_output(self, batch):
+        """
+        Returns a transformation function applied at the dataset level during iteration.
+
+        This method defines a transformation that is applied to each batch **within the dataset iterator**, 
+        typically by using `datasets.Dataset.with_transform()`. As a result, the transformation is executed 
+        at runtime during `__getitem__()` or `__getitems__()`, which allows it to benefit from prefetching 
+        and parallel data loading when using multiple DataLoader workers.
+
+        Unlike the `_obtain_*` methods, which are also executed on-the-fly but within the **processor call 
+        (typically inside the DataCollator)**, this transformation occurs **prior to batching and collation**. 
+        It is therefore ideal for operations that are expensive and can be parallelized at the sample or batch 
+        level, such as decoding signals, loading external files, or converting inputs to intermediate formats.
+
+        Use this method to preprocess inputs early in the pipeline while maintaining a modular design that 
+        separates dataset-level and collator-level responsibilities.
+
+        Args:
+            batch (Dict[str, List[Any]]): A dictionary representing a batch of dataset examples (not yet collated).
+
+        Returns:
+            Dict[str, List[Any]]: The transformed batch, with updated or added fields ready for collation.
+        """
+        tensor_signals = [self._ascii_to_tensor(batch["signal"][i]) for i in range(len(batch["signal"]))]
+        batch["signal"] = tensor_signals
+        return batch

@@ -73,6 +73,7 @@ class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProces
     def _features_file_to_tensor(self, features_file: Union[str, Path, np.ndarray, torch.Tensor]) -> torch.Tensor:
         """Loads feature tensor from .npy file, or returns it directly if it is already a tensor."""
         if isinstance(features_file, torch.Tensor):
+            # Case in which the transformation has already been performed during the dataset._get_items_()
             return features_file
         elif isinstance(features_file, np.ndarray):
             return torch.from_numpy(features_file)
@@ -90,3 +91,30 @@ class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProces
             "inputs_embeds": padded_inputs,
             "attention_mask": padded_input_masks
         }, kwargs
+
+    def _transform_get_items_output(self, batch):
+        """
+        Returns a transformation function applied at the dataset level during iteration.
+
+        This method defines a transformation that is applied to each batch **within the dataset iterator**, 
+        typically by using `datasets.Dataset.with_transform()`. As a result, the transformation is executed 
+        at runtime during `__getitem__()` or `__getitems__()`, which allows it to benefit from prefetching 
+        and parallel data loading when using multiple DataLoader workers.
+
+        Unlike the `_obtain_*` methods, which are also executed on-the-fly but within the **processor call 
+        (typically inside the DataCollator)**, this transformation occurs **prior to batching and collation**. 
+        It is therefore ideal for operations that are expensive and can be parallelized at the sample or batch 
+        level, such as decoding signals, loading external files, or converting inputs to intermediate formats.
+
+        Use this method to preprocess inputs early in the pipeline while maintaining a modular design that 
+        separates dataset-level and collator-level responsibilities.
+
+        Args:
+            batch (Dict[str, List[Any]]): A dictionary representing a batch of dataset examples (not yet collated).
+
+        Returns:
+            Dict[str, List[Any]]: The transformed batch, with updated or added fields ready for collation.
+        """
+        tensor_signals = [self._features_file_to_tensor(batch["signal"][i]) for i in range(len(batch["signal"]))]
+        batch["signal"] = tensor_signals
+        return batch

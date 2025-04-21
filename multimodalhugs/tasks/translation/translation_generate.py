@@ -158,7 +158,7 @@ def main():
     
     if "test" not in raw_datasets:
         raise ValueError("The dataset does not contain a test partition.")
-    test_dataset = raw_datasets["test"]
+    test_dataset = raw_datasets["test"].with_transform(processor._transform_get_items_output)
     if data_args.max_predict_samples is not None:
         max_predict_samples = min(len(test_dataset), data_args.max_predict_samples)
         test_dataset = test_dataset.select(range(max_predict_samples))
