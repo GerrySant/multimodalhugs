@@ -25,8 +25,10 @@ training:
   max_grad_norm: 0.0                               # Maximum gradient norm for clipping (0 means no clipping).
   lr_scheduler_type: "inverse_sqrt"                # Type of learning rate scheduler.
   warmup_steps: 20000                              # Number of warmup steps to gradually increase the learning rate.
-  predict_with_generate: true                      # Use generate to compute generative metrics.
-  overwrite_output_dir: true                       # Do not overwrite the output directory if it exists.
+  predict_with_generate: true                      # Use generate to compute generative metrics
+  dataloader_num_workers: 4                        # Number of subprocesses to use for data loading; higher values speed up data loading but increase memory usage.
+  dataloader_prefetch_factor: 2                    # Number of batches loaded in advance by each worker; total prefetched batches = num_workers * prefetch_factor.
+  metric_name: bleu                                # Name of the metric to use (any metric supported by evaluate.load()). If you want to use multiple metrics, structure the variable like: metric_name: '<metric_name_1>,<metric_name_2>,...'
   metric_for_best_model: 'bleu'                    # Metric used to determine the best model.
   greater_is_better: true                          # Use in conjunction with load_best_model_at_end and metric_for_best_model to specify if better models should have a greater metric or not.
   load_best_model_at_end: true                     # Load the best model found during training at the end.
