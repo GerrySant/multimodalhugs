@@ -637,7 +637,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 decoder_attention_mask = None
 
             if inputs_embeds is None and input_frames is not None:
-                inputs_embeds = self.feature_extractor(input_frames)
+                if self.feature_extractor is None:
+                    inputs_embeds = input_frames
+                else:
+                    inputs_embeds = self.feature_extractor(input_frames)
 
             if self.multimodal_mapper is not None and inputs_embeds is not None:
                 inputs_embeds, attention_mask = self.multimodal_mapper(inputs_embeds, attention_mask)
@@ -777,9 +780,11 @@ class MultiModalEmbedderModel(PreTrainedModel):
         print(encoder_outputs.last_hidden_state.shape)  # Output: (2, sequence_length, hidden_dim)
         ```
         """
-        
         if inputs_embeds is None and input_frames is not None:
-            inputs_embeds = self.feature_extractor(input_frames)
+            if self.feature_extractor is None:
+                inputs_embeds = input_frames
+            else:
+                inputs_embeds = self.feature_extractor(input_frames)
             
         if self.multimodal_mapper is not None and inputs_embeds is not None:
             inputs_embeds, attention_mask = self.multimodal_mapper(inputs_embeds, attention_mask)

@@ -19,6 +19,7 @@ from transformers import (
 from multimodalhugs.processors import (
     SignwritingProcessor,
     Pose2TextTranslationProcessor,
+    Video2TextTranslationProcessor,
     Image2TextTranslationProcessor,
     Text2TextTranslationProcessor,
     Features2TextTranslationProcessor
@@ -32,6 +33,9 @@ AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel
 
 Pose2TextTranslationProcessor.register_for_auto_class()
 AutoProcessor.register("pose2text_translation_processor", Pose2TextTranslationProcessor)
+
+Video2TextTranslationProcessor.register_for_auto_class()
+AutoProcessor.register("video2text_translation_processor", Video2TextTranslationProcessor)
 
 Features2TextTranslationProcessor.register_for_auto_class()
 AutoProcessor.register("features2text_translation_processor", Features2TextTranslationProcessor)

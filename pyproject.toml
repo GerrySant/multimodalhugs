@@ -31,6 +31,7 @@ dependencies = [
     "signwriting @ git+https://github.com/sign-language-processing/signwriting",
     "pose-format>=0.9.0",
     "ruamel.yaml",
+    "av>=10.0.0",
 ]
 
 [project.optional-dependencies]

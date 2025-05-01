@@ -5,6 +5,7 @@ from .dataset_configs.multimodal_mt_data_config import (
 )
 from .datasets.signwriting import SignWritingDataset
 from .datasets.pose2text import Pose2TextDataset
+from .datasets.video2text import Video2TextDataset
 from .datasets.bilingual_text2text import BilingualText2TextDataset
 from .datasets.bilingual_image2text import BilingualImage2TextDataset
 from .datasets.features2text import Features2TextDataset

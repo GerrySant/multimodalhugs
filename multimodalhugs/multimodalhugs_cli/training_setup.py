@@ -15,7 +15,7 @@ def main():
     parser.add_argument(
         "--modality",
         required=True,
-        choices=["pose2text", "signwriting2text", "image2text", "text2text", "features2text"], # More choises will be implemented as soon we implement them
+        choices=["pose2text", "signwriting2text", "image2text", "text2text", "features2text", "video2text"], # More choises will be implemented as soon we implement them
         help="Specify the modality (e.g. 'pose2text', 'signwriting2text', or 'image2text')."
     )
     parser.add_argument(
@@ -32,6 +32,10 @@ def main():
         # Reconstruct sys.argv so that the underlying script sees the remaining arguments and the --config_path.
         sys.argv = [sys.argv[0]] + remaining_args + ["--config_path", args.config_path]
         pose2text_setup(args.config_path)
+    elif args.modality == "video2text":
+        from multimodalhugs.training_setup.video2text_training_setup import main as video2text_setup
+        sys.argv = [sys.argv[0]] + remaining_args + ["--config_path", args.config_path]
+        video2text_setup(args.config_path)
     elif args.modality == "features2text":
         from multimodalhugs.training_setup.features2text_training_setup import main as features2text_setup
         sys.argv = [sys.argv[0]] + remaining_args + ["--config_path", args.config_path]
