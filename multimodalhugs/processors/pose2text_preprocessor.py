@@ -142,6 +142,7 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         Returns:
             Dict[str, List[Any]]: The transformed batch, with updated or added fields ready for collation.
         """
-        tensor_signals = [self._pose_file_to_tensor(batch["signal"][i], batch["signal_start"][i], batch["signal_end"][i]) for i in range(len(batch["signal"]))]
+        tensor_signals = [self._pose_file_to_tensor(s, start, end) 
+                          for s, start, end in zip(batch["signal"], batch["signal_start"], batch["signal_end"])]
         batch["signal"] = tensor_signals
         return batch
