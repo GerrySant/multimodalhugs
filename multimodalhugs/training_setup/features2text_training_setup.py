@@ -1,5 +1,3 @@
-### Usage: python training_setup.py --config_path path_to_your_config.yaml
-
 import os
 import copy
 import torch
@@ -42,7 +40,8 @@ def main(config_path):
     # The preprocessor is created
     input_processor = Features2TextTranslationProcessor(
             tokenizer=tokenizer,
-            use_cache=processor_use_cache
+            use_cache=processor_use_cache,
+            skip_frames_stride=dataset_config.skip_frames_stride
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

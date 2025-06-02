@@ -1,5 +1,3 @@
-### Usage: python training_setup.py --config_path path_to_your_config.yaml
-
 import os
 import copy
 import torch
@@ -42,9 +40,8 @@ def main(config_path):
     # The preprocessor is created
     input_processor = Video2TextTranslationProcessor(
             tokenizer=tokenizer,
-            normalize=dataset_config.normalize,
-            resize=dataset_config.resize,
-            join_chw=dataset_config.join_chw
+            custom_preprocessor_path=dataset_config.custom_preprocessor_path,
+            skip_frames_stride=dataset_config.skip_frames_stride
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

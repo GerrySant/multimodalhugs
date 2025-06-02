@@ -37,6 +37,11 @@ class Features2TextDataConfig(MultimodalMTDataConfig):
         default=False, 
         metadata={"help": "If True, the feature files are read at the dataset level instead of at the processor level."}
     )
+    skip_frames_stride: Optional[int] = field(
+        default=None,
+        metadata={"help": "If specified, skips temporal tokens from each signal using the specified stride."}
+    )
+
     def __init__(self, cfg=None, **kwargs):
         """
         **Initialize the Features2TextDataConfig.**
@@ -49,6 +54,8 @@ class Features2TextDataConfig(MultimodalMTDataConfig):
         # Assign new arguments from config if available
         self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
         self.preload_features = getattr(cfg.data, 'preload_features', self.preload_features)
+        self.skip_frames_stride = getattr(cfg.data, 'skip_frames_stride', self.skip_frames_stride)
+
 
 @register_dataset("features2text")
 class Features2TextDataset(datasets.GeneratorBasedBuilder):

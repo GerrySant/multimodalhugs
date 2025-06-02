@@ -1,5 +1,3 @@
-### Usage: python training_setup.py --config_path path_to_your_config.yaml
-
 import os
 import copy
 import torch
@@ -43,6 +41,7 @@ def main(config_path):
     input_processor = Pose2TextTranslationProcessor(
             tokenizer=tokenizer,
             reduce_holistic_poses=dataset_config.reduce_holistic_poses,
+            skip_frames_stride=dataset_config.skip_frames_stride
     )
 
     # Save processor and set PROCESSOR_PATH environment variable

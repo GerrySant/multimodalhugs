@@ -35,6 +35,10 @@ class Pose2TextDataConfig(MultimodalMTDataConfig):
         default=None, 
         metadata={"help": "Pose related samples larger than this value will be filtered"}
     )
+    skip_frames_stride: Optional[int] = field(
+        default=None,
+        metadata={"help": "If specified, skips temporal tokens from each signal using the specified stride."}
+    )
     def __init__(self, cfg=None, **kwargs):
         """
         **Initialize the Pose2TextDataConfig.**
@@ -47,6 +51,8 @@ class Pose2TextDataConfig(MultimodalMTDataConfig):
         # Assign new arguments from config if available
         self.reduce_holistic_poses = getattr(cfg.data, 'reduce_holistic_poses', self.reduce_holistic_poses)
         self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
+        self.skip_frames_stride = getattr(cfg.data, 'skip_frames_stride', self.skip_frames_stride)
+
 
 @register_dataset("pose2text")
 class Pose2TextDataset(datasets.GeneratorBasedBuilder):

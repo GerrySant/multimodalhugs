@@ -12,6 +12,7 @@ from transformers.processing_utils import ProcessorMixin
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors.utils import frame_skipping
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +59,12 @@ class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProces
         self,
         tokenizer: Optional[Any] = None,
         use_cache: bool = True,
+        skip_frames_stride: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(tokenizer=tokenizer, **kwargs)
         self.use_cache = use_cache
+        self.skip_frames_stride = skip_frames_stride
         if self.use_cache:
             # Dynamically determine cache size
             self._cache_size = get_dynamic_cache_size()
@@ -76,19 +79,22 @@ class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProces
             # Case in which the transformation has already been performed during the dataset._get_items_()
             return features_file
         elif isinstance(features_file, np.ndarray):
-            return torch.from_numpy(features_file)
+            features = torch.from_numpy(features_file)
         elif isinstance(features_file, (str, Path)):
-            return torch.from_numpy(np.load(features_file))
+            features = torch.from_numpy(np.load(features_file))
         elif isinstance(features_file, list) and all(isinstance(sublist, list) for sublist in features_file):
-            return torch.tensor(features_file, dtype=torch.float32)
+            features = torch.tensor(features_file, dtype=torch.float32)
         else:
             raise ValueError(f"Unsupported type for features_file: {type(features_file)}")
+        features = frame_skipping(x=features, t_dim=0, stride=self.skip_frames_stride) if self.skip_frames_stride is not None else features
+        return features
+
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         tensor_sequences = [self._features_file_to_tensor(sample["signal"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_sequences)
         return {
-            "inputs_embeds": padded_inputs,
+            "input_frames": padded_inputs,
             "attention_mask": padded_input_masks
         }, kwargs
 

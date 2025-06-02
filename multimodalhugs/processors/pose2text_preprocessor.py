@@ -18,6 +18,8 @@ from multimodalhugs.data import (
     center_image_on_white_background,
 )
 from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors.utils import frame_skipping
+
 from pose_format import Pose
 from pose_format.utils.generic import reduce_holistic, pose_hide_legs, pose_normalization_info
 
@@ -33,10 +35,12 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         self,
         tokenizer: Optional[Any] = None,
         reduce_holistic_poses: bool = True,
+        skip_frames_stride: Optional[int] = None, 
         **kwargs,
     ):
         self.reduce_holistic_poses = reduce_holistic_poses
         super().__init__(tokenizer=tokenizer, **kwargs)
+        self.skip_frames_stride = skip_frames_stride
 
     def _pose_file_to_tensor(
         self, 
@@ -69,13 +73,15 @@ class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor)
         
         pose = pose.normalize()
         tensor = pose.torch().body.data.zero_filled()
-        return tensor.contiguous().view(tensor.size(0), -1)
+        tensor = tensor.contiguous().view(tensor.size(0), -1)
+        tensor = frame_skipping(x=tensor, t_dim=0, stride=self.skip_frames_stride) if self.skip_frames_stride is not None else tensor
+        return tensor
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         tensor_sequences = [self._pose_file_to_tensor(sample["signal"], sample["signal_start"], sample["signal_end"]) for sample in batch]
         padded_inputs, padded_input_masks = pad_and_create_mask(tensor_sequences)
         return {
-            "inputs_embeds": padded_inputs,
+            "input_frames": padded_inputs,
             "attention_mask": padded_input_masks
         }, kwargs
 

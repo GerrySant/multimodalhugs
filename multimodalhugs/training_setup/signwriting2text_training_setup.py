@@ -1,7 +1,3 @@
-# signwriting2text_training_setup.py
-#
-# Usage: python signwriting2text_training_setup.py --config_path path_to_your_config.yaml
-
 import os
 import copy
 import argparse

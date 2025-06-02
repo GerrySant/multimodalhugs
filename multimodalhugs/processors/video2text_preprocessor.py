@@ -1,20 +1,29 @@
+# Standard library
+import logging
 import os
+
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Optional, Tuple, Union
+
+# Third-party libraries
+import cv2
+import psutil
 import torch
 import torch.nn.functional as F
-import logging
-import psutil
 import numpy as np
-
-from pathlib import Path
-from functools import lru_cache
-from typing import Union, Optional, Tuple, Any
-
+from PIL import Image
 from torchvision.io import read_video
+from torchvision.transforms import functional as TF
+from transformers import AutoProcessor
 from transformers.feature_extraction_utils import BatchFeature
 from transformers.processing_utils import ProcessorMixin
 
+# Local application imports
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors.utils import frame_skipping
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,16 +49,15 @@ class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
     def __init__(
         self,
         tokenizer: Optional[Any] = None,
-        normalize: bool = True,
-        resize: Optional[Union[int, Tuple[int, int]]] = None,
+        custom_preprocessor_path: Optional[str] = None,
+        skip_frames_stride: Optional[int] = None, 
         join_chw: bool = False,
-        use_cache: bool = True,
+        use_cache: bool = False,
         **kwargs,
     ):
         """
         Args:
             tokenizer (Optional[Any]): HuggingFace tokenizer instance for text side.
-            normalize (bool): If True, scale pixel values to [0,1].
             resize (int | tuple[int, int] | None):
                 - If int, resize frames to (resize, resize).
                 - If tuple (H, W), resize to that shape.
@@ -58,13 +66,15 @@ class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
             **kwargs: Passed to the parent MultimodalSecuence2TextTranslationProcessor.
         """
         super().__init__(tokenizer=tokenizer, **kwargs)
-        self.normalize = normalize
-        self.resize = resize
+        self.custom_preprocessor_path = custom_preprocessor_path
         self.join_chw = join_chw
+        self.skip_frames_stride = skip_frames_stride
         self.use_cache = use_cache
+        self.custom_preprocessor = AutoProcessor.from_pretrained(self.custom_preprocessor_path) if self.custom_preprocessor_path is not None else None
+
         if self.use_cache:
             cache_size = get_dynamic_cache_size()
-            logger.info(f"Video cache size: {cache_size}")
+            logger.info(f" Video cache size: {cache_size}")
             self._video_file_to_tensor = lru_cache(maxsize=cache_size)(
                 self._video_file_to_tensor
             )
@@ -83,6 +93,38 @@ class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
         if isinstance(video_input, np.ndarray):
             return torch.from_numpy(video_input)
 
+        if self.custom_preprocessor:
+
+            cap = cv2.VideoCapture(video_input)
+            if not cap.isOpened():
+                raise IOError(f"Cannot open video {video_input}")
+
+            full_sigal = (signal_start == signal_end) or (signal_start is None) or (signal_end is None)
+
+            if not full_sigal:
+                # jump to start time
+                cap.set(cv2.CAP_PROP_POS_MSEC, signal_start)
+
+            frames = []
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                curr_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+                if (curr_ms > signal_end) and not full_sigal:
+                    break
+
+                # BGR → RGB → PIL
+                img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                frames.append(img)
+            cap.release()
+
+            # process entire interval in one batch
+            frames = self.custom_preprocessor(images=frames, return_tensors="pt")["pixel_values"]
+            frames = frames.squeeze(0) if frames.ndim == 5 else frames # If [1, T, C, H, W] -> [T, C, H, W]
+            frames = frame_skipping(x=frames, t_dim=0, stride=self.skip_frames_stride) if self.skip_frames_stride is not None else frames
+            return frames
+
         # read from disk (convert ms → sec)
         start_sec = (signal_start or 0) / 1000.0
         end_sec   = (signal_end / 1000.0) if signal_end else None
@@ -91,18 +133,10 @@ class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
             start_pts=start_sec,
             end_pts=end_sec,
             pts_unit="sec",
+            output_format="TCHW"
         )
-        # [T, H, W, C] → [T, C, H, W], float32
-        frames = frames.permute(0, 3, 1, 2).to(torch.float32)
-        if self.normalize:
-            frames = frames / 255.0
-        if self.resize:
-            # allow int or (H, W)
-            size = (self.resize, self.resize) if isinstance(self.resize, int) else self.resize
-            # treat T as batch dimension
-            frames = F.interpolate(frames, size=size, mode='bilinear', align_corners=False)
-
-        return frames # [T, C, H, W]
+        frames = frame_skipping(x=frames, t_dim=0, stride=self.skip_frames_stride) if self.skip_frames_stride is not None else frames
+        return frames.to(torch.float32) # [T, C, H, W]
 
     def _obtain_multimodal_input_and_masks(self, batch: BatchFeature, **kwargs):
         sequences = [

@@ -36,61 +36,25 @@ class Video2TextDataConfig(MultimodalMTDataConfig):
         default=None,
         metadata={"help": "Filter out videos longer than this (in frames)."}
     )
-    normalize: bool = field(
-        default=True,
-        metadata={"help": "Scale pixel values from [0–255] → [0–1]."}
-    )
-    resize: Optional[Union[int, Tuple[int, int]]] = field(
+    custom_preprocessor_path: Optional[str] = field(
         default=None,
-        metadata={
-            "help": (
-                "If int, resize to (resize, resize). "
-                "If tuple (H, W), resize to that size. "
-                "If list [H, W] in YAML, auto-convert to tuple. "
-                "If None, leave frame size unchanged."
-            )
-        }
+        metadata={"help": "Path to an Autoprocessor from HuggingFace"}
     )
     join_chw: bool = field(
         default=False,
         metadata={"help": "if True, it returns a tensor of torch.Size([B, T, C*H*W]). If False, it returns a tensor of torch.Size([B, T, C, H, W])."}
     )
-
+    skip_frames_stride: Optional[int] = field(
+        default=None,
+        metadata={"help": "If specified, skips temporal tokens from each signal using the specified stride."}
+    )
     def __init__(self, cfg=None, **kwargs):
         super().__init__(cfg=cfg, **kwargs)
-
         # pull from OmegaConf yaml (or leave defaults)
         self.max_frames = getattr(cfg.data, "max_frames", self.max_frames)
-        self.normalize  = getattr(cfg.data, "normalize",  self.normalize)
+        self.custom_preprocessor_path  = getattr(cfg.data, "custom_preprocessor_path",  self.custom_preprocessor_path)
         self.join_chw  = getattr(cfg.data, "join_chw",  self.join_chw)
-
-        raw = getattr(cfg.data, "resize", self.resize)
-
-        # only cast lists (incl. ListConfig) to tuple
-        if isinstance(raw, (ListConfig, list)):
-            if len(raw) != 2 or not all(isinstance(x, int) for x in raw):
-                raise ValueError(
-                    f"Expected `resize` as a length-2 list of ints, but got: {raw!r}"
-                )
-            self.resize = (raw[0], raw[1])
-
-        # if already a tuple, just sanity-check it
-        elif isinstance(raw, tuple):
-            if len(raw) != 2 or not all(isinstance(x, int) for x in raw):
-                raise ValueError(
-                    f"Expected `resize` tuple of two ints, but got: {raw!r}"
-                )
-            self.resize = raw
-
-        # if int or None, that's fine
-        elif raw is None or isinstance(raw, int):
-            self.resize = raw
-
-        else:
-            raise TypeError(
-                f"`resize` must be int, tuple of two ints, list of two ints, or None, "
-                f"but got type {type(raw).__name__}: {raw!r}"
-            )
+        self.skip_frames_stride = getattr(cfg.data, 'skip_frames_stride', self.skip_frames_stride)
 
 
 @register_dataset("video2text")
@@ -175,10 +139,14 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
             start_sec = start_ms / 1000.0
             end_sec   = end_ms   / 1000.0 if end_ms > 0 else None
 
-            # --- New method (PyAV) ---
+            # Try to open and seek; skip if no video stream or any error
             container = av.open(str(video_path))
+            if not container.streams.video:
+                sample["_invalid"] = True
+                sample["DURATION"] = 0
+                return sample
+
             stream = container.streams.video[0]
-            # Seek to just before start_sec
             start_pts = int(start_sec / float(stream.time_base))
             container.seek(start_pts, any_frame=False, backward=True, stream=stream)
 
@@ -206,11 +174,12 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
             else:
                 sample["DURATION"] = count_new
 
+            sample["_invalid"] = False
             return sample
-
 
         # Map to extract duration
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
+        dataset = dataset.filter(lambda ex: not ex.get("_invalid", False), num_proc=get_num_proc())
 
         # Filter by max_frames if set
         dataset = dataset.filter(lambda ex: duration_filter(self.max_frames, ex), num_proc=get_num_proc())
