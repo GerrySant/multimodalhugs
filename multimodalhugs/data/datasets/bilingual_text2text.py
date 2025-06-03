@@ -11,6 +11,7 @@ from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Feature
 from multimodalhugs.data import (
     MultimodalMTDataConfig,
     duration_filter,
+    resolve_and_update_config,
 )
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
@@ -28,7 +29,7 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
     """
     def __init__(
         self,
-        config: MultimodalMTDataConfig,
+        config: Optional[MultimodalMTDataConfig] = None,
         info: Optional[DatasetInfo] = None,
         *args,
         **kwargs
@@ -43,7 +44,13 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
 
+        You can pass either:
+        - a config object (`MultimodalMTDataConfig`), or
+        - keyword arguments that match its fields.
+
+        If both are provided, keyword arguments take priority.
         """
+        config, kwargs = resolve_and_update_config(MultimodalMTDataConfig, config, kwargs)
         info = DatasetInfo(description="General Dataset class for bilingual translation datasets.") if info is None else info
         super().__init__(info=info, *args, **kwargs)
         self.config = config

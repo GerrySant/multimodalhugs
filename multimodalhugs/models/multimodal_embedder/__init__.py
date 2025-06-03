@@ -1,0 +1,6 @@
+from .modeling_multimodal_embedder import MultiModalEmbedderModel
+from .configuration_multimodal_embedder import MultiModalEmbedderConfig
+
+MODEL_CLASS = MultiModalEmbedderModel
+CONFIG_CLASS = MultiModalEmbedderConfig
+CONFIG_NAME = "multimodal_embedder"

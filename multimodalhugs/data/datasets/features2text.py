@@ -4,7 +4,6 @@ import torch
 import datasets
 import numpy as np
 
-
 from pathlib import Path
 from pose_format import Pose
 from typing import Any, Union, Dict, Optional
@@ -16,6 +15,10 @@ from multimodalhugs.data import (
     contains_empty,
     file_exists_filter,
     duration_filter,
+    resolve_and_update_config,
+    gather_appropriate_data_cfg,
+    get_all_dataclass_fields, 
+    build_merged_omegaconf_config
 )
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
@@ -50,11 +53,17 @@ class Features2TextDataConfig(MultimodalMTDataConfig):
         `cfg` object, if available. If no configuration is given, it falls back 
         to default values.
         """
-        super().__init__(cfg=cfg, **kwargs)
-        # Assign new arguments from config if available
-        self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
-        self.preload_features = getattr(cfg.data, 'preload_features', self.preload_features)
-        self.skip_frames_stride = getattr(cfg.data, 'skip_frames_stride', self.skip_frames_stride)
+        data_cfg = gather_appropriate_data_cfg(cfg)
+        valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
+        super().__init__(cfg=cfg_for_super)
+
+        # Set current class fields (in case parent didn’t)
+        self.max_frames = valid_config.get("max_frames", self.max_frames)
+        self.preload_features = valid_config.get("preload_features", self.preload_features)
+        self.skip_frames_stride = valid_config.get("skip_frames_stride", self.skip_frames_stride)
+
+        # Store any remaining kwargs (not expected by dataclass)
+        self._extra_args = extra_args
 
 
 @register_dataset("features2text")
@@ -71,19 +80,20 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
     """
     def __init__(
         self,
-        config: Features2TextDataConfig, 
+        config: Optional[Features2TextDataConfig] = None,
         *args,
         **kwargs
     ):
         """
-        **Initialize the Features2TextDataset.**
+        Initialize the Features2TextDataset.
 
-        **Args:**
-        - `config` (Features2TextDataConfig): The dataset configuration.
-        - `*args`: Additional positional arguments.
-        - `**kwargs`: Additional keyword arguments.
+        You can pass either:
+        - a config object (`Features2TextDataConfig`), or
+        - keyword arguments that match its fields.
 
+        If both are provided, keyword arguments take priority.
         """
+        config, kwargs = resolve_and_update_config(Features2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Features2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
 
@@ -207,7 +217,8 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
 
-        dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
+        if self.max_frames is not None:
+            dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

@@ -14,6 +14,10 @@ from multimodalhugs.data import (
     contains_empty,
     file_exists_filter,
     duration_filter,
+    resolve_and_update_config,
+    gather_appropriate_data_cfg,
+    get_all_dataclass_fields, 
+    build_merged_omegaconf_config
 )
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
@@ -47,11 +51,17 @@ class Pose2TextDataConfig(MultimodalMTDataConfig):
         `cfg` object, if available. If no configuration is given, it falls back 
         to default values.
         """
+        data_cfg = gather_appropriate_data_cfg(cfg)
+        valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
         super().__init__(cfg=cfg, **kwargs)
+
         # Assign new arguments from config if available
-        self.reduce_holistic_poses = getattr(cfg.data, 'reduce_holistic_poses', self.reduce_holistic_poses)
-        self.max_frames = getattr(cfg.data, 'max_frames', self.max_frames)
-        self.skip_frames_stride = getattr(cfg.data, 'skip_frames_stride', self.skip_frames_stride)
+        self.reduce_holistic_poses = valid_config.get("reduce_holistic_poses", self.reduce_holistic_poses)
+        self.max_frames = valid_config.get("max_frames", self.max_frames)
+        self.skip_frames_stride = valid_config.get("skip_frames_stride", self.skip_frames_stride)
+
+        # Store any remaining kwargs (not expected by dataclass)
+        self._extra_args = extra_args
 
 
 @register_dataset("pose2text")
@@ -68,7 +78,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
     """
     def __init__(
         self,
-        config: Pose2TextDataConfig, 
+        config: Optional[Pose2TextDataConfig] = None,
         *args,
         **kwargs
     ):
@@ -80,7 +90,13 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
 
+        You can pass either:
+        - a config object (`Pose2TextDataConfig`), or
+        - keyword arguments that match its fields.
+
+        If both are provided, keyword arguments take priority.
         """
+        config, kwargs = resolve_and_update_config(Pose2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Pose2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
 
@@ -227,8 +243,8 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
-
-        dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
+        if self.max_frames is not None:
+            dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

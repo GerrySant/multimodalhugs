@@ -31,12 +31,9 @@ from multimodalhugs.processors import (
     Text2TextTranslationProcessor,
     Features2TextTranslationProcessor
 )
-from multimodalhugs.models import MultiModalEmbedderModel, MultiModalEmbedderConfig
-from multimodalhugs import MultiLingualSeq2SeqTrainer
 
-# Register multimodal classes
-AutoConfig.register("multimodal_embedder", MultiModalEmbedderConfig)
-AutoModelForSeq2SeqLM.register(MultiModalEmbedderConfig, MultiModalEmbedderModel)
+import multimodalhugs.models
+from multimodalhugs import MultiLingualSeq2SeqTrainer
 
 Pose2TextTranslationProcessor.register_for_auto_class()
 AutoProcessor.register("pose2text_translation_processor", Pose2TextTranslationProcessor)

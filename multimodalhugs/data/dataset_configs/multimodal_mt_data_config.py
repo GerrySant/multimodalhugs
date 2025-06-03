@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Union, Dict, Optional
 from dataclasses import dataclass, field
 from typing import Optional
-from multimodalhugs.data.utils import string_to_list
+from multimodalhugs.data.utils import string_to_list, gather_appropriate_data_cfg
 
 @dataclass
 class PreprocessArguments:
@@ -15,7 +15,6 @@ class PreprocessArguments:
     normalization, and rescaling.
 
     """
-
     width: int = field(default=224, metadata={"help": "Target width (in pixels) for images/frames after preprocessing."})
     height: int = field(default=224, metadata={"help": "Target height (in pixels) for images/frames after preprocessing."})
     channels: int = field(default=3, metadata={"help": "Number of color channels in the images/frames (e.g., 3 for RGB)."})
@@ -86,11 +85,14 @@ class MultimodalMTDataConfig(BuilderConfig):
         - `**kwargs`: Additional keyword arguments to override default values.
         """
         super().__init__(**kwargs)
-        self.train_metadata_file = getattr(cfg.data, 'train_metadata_file', self.train_metadata_file)
-        self.validation_metadata_file = getattr(cfg.data, 'validation_metadata_file', self.validation_metadata_file)
-        self.test_metadata_file = getattr(cfg.data, 'test_metadata_file', self.test_metadata_file)
-        self.dataset_dir = getattr(cfg.data, 'dataset_dir', self.dataset_dir)
-        self.shuffle = getattr(cfg.data, 'shuffle', self.shuffle)
-        self.new_vocabulary = getattr(cfg.data, 'new_vocabulary', self.new_vocabulary)
-        self.text_tokenizer_path = getattr(cfg.data, 'text_tokenizer_path', self.text_tokenizer_path)
-        self.preprocess = PreprocessArguments(getattr(cfg.data, 'preprocess', None))
+
+        data_cfg = gather_appropriate_data_cfg(cfg)
+        
+        self.train_metadata_file = getattr(data_cfg, 'train_metadata_file', self.train_metadata_file)
+        self.validation_metadata_file = getattr(data_cfg, 'validation_metadata_file', self.validation_metadata_file)
+        self.test_metadata_file = getattr(data_cfg, 'test_metadata_file', self.test_metadata_file)
+        self.dataset_dir = getattr(data_cfg, 'dataset_dir', self.dataset_dir)
+        self.shuffle = getattr(data_cfg, 'shuffle', self.shuffle)
+        self.new_vocabulary = getattr(data_cfg, 'new_vocabulary', self.new_vocabulary)
+        self.text_tokenizer_path = getattr(data_cfg, 'text_tokenizer_path', self.text_tokenizer_path)
+        self.preprocess = PreprocessArguments(getattr(data_cfg, 'preprocess', None))

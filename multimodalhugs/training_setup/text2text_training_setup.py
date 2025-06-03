@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from multimodalhugs.data.datasets.bilingual_image2text import (
+from multimodalhugs.data.datasets.bilingual_text2text import (
     BilingualText2TextDataset,
 )
 from multimodalhugs.data.dataset_configs.multimodal_mt_data_config import MultimodalMTDataConfig

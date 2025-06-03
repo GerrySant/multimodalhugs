@@ -11,10 +11,18 @@ from torchvision.io import read_video
 from datasets import DatasetInfo, SplitGenerator
 from datasets import load_dataset
 
-from multimodalhugs.data import MultimodalMTDataConfig, file_exists_filter, duration_filter
+from multimodalhugs.data import (
+    MultimodalMTDataConfig,
+    file_exists_filter,
+    duration_filter,
+    resolve_and_update_config,
+    gather_appropriate_data_cfg,
+    get_all_dataclass_fields, 
+    build_merged_omegaconf_config
+)
+
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
-
 
 @dataclass
 class Video2TextDataConfig(MultimodalMTDataConfig):
@@ -49,12 +57,14 @@ class Video2TextDataConfig(MultimodalMTDataConfig):
         metadata={"help": "If specified, skips temporal tokens from each signal using the specified stride."}
     )
     def __init__(self, cfg=None, **kwargs):
+        data_cfg = gather_appropriate_data_cfg(cfg)
+        valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
         super().__init__(cfg=cfg, **kwargs)
         # pull from OmegaConf yaml (or leave defaults)
-        self.max_frames = getattr(cfg.data, "max_frames", self.max_frames)
-        self.custom_preprocessor_path  = getattr(cfg.data, "custom_preprocessor_path",  self.custom_preprocessor_path)
-        self.join_chw  = getattr(cfg.data, "join_chw",  self.join_chw)
-        self.skip_frames_stride = getattr(cfg.data, 'skip_frames_stride', self.skip_frames_stride)
+        self.max_frames = valid_config.get("max_frames", self.max_frames)
+        self.custom_preprocessor_path = valid_config.get("custom_preprocessor_path", self.custom_preprocessor_path)
+        self.join_chw = valid_config.get("join_chw", self.join_chw)
+        self.skip_frames_stride = valid_config.get("skip_frames_stride", self.skip_frames_stride)
 
 
 @register_dataset("video2text")
@@ -62,9 +72,25 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
     """
     **Video2TextDataset: A dataset class for Video-to-Text tasks.**
     """
-    def __init__(self, config: Video2TextDataConfig, *args, **kwargs):
+    def __init__(
+        self, 
+        config: Optional[Video2TextDataConfig] = None,
+        *args, 
+        **kwargs
+    ):
+        """
+        Initialize the Video2TextDataset.
+
+        You can pass either:
+        - a config object (`Video2TextDataConfig`), or
+        - keyword arguments that match its fields.
+
+        If both are provided, keyword arguments take priority.
+        """
+        config, kwargs = resolve_and_update_config(Video2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Video2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
+
         self.name = "video2text"
         self.config = config
         self.max_frames = config.max_frames
@@ -182,7 +208,8 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
         dataset = dataset.filter(lambda ex: not ex.get("_invalid", False), num_proc=get_num_proc())
 
         # Filter by max_frames if set
-        dataset = dataset.filter(lambda ex: duration_filter(self.max_frames, ex), num_proc=get_num_proc())
+        if self.max_frames is not None:
+            dataset = dataset.filter(lambda ex: duration_filter(self.max_frames, ex), num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

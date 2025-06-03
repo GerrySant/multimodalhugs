@@ -13,7 +13,11 @@ from dataclasses import dataclass, field
 from multimodalhugs.data import (
     MultimodalMTDataConfig,
     BilingualText2TextDataset,
-    get_images
+    get_images,
+    resolve_and_update_config,
+    gather_appropriate_data_cfg,
+    get_all_dataclass_fields, 
+    build_merged_omegaconf_config
 )
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
@@ -38,10 +42,12 @@ class BilingualImage2textMTDataConfig(MultimodalMTDataConfig):
         from a provided config object (`cfg`). If attributes are present in the config file, 
         they are assigned to the class.
         """
+        data_cfg = gather_appropriate_data_cfg(cfg)
+        valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
         super().__init__(cfg=cfg, **kwargs)
         # Assign new arguments from config if available
-        self.font_path = getattr(cfg.data, 'font_path', self.font_path)
-        self.as_numpy = getattr(cfg.data, 'as_numpy', self.as_numpy)
+        self.font_path = valid_config.get("font_path", self.font_path)
+        self.as_numpy = valid_config.get("as_numpy", self.as_numpy)
 
 @register_dataset("bilingual_image2text")
 class BilingualImage2TextDataset(BilingualText2TextDataset):
@@ -55,7 +61,7 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
     """
     def __init__(
         self,
-        config: BilingualImage2textMTDataConfig,
+        config: Optional[BilingualImage2textMTDataConfig] = None,
         *args,
         **kwargs
     ):
@@ -68,7 +74,14 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         - `config` (BilingualImage2textMTDataConfig): Dataset configuration.
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
+
+        You can pass either:
+        - a config object (`BilingualImage2textMTDataConfig`), or
+        - keyword arguments that match its fields.
+
+        If both are provided, keyword arguments take priority.
         """
+        config, kwargs = resolve_and_update_config(BilingualImage2textMTDataConfig, config, kwargs)
         info = DatasetInfo(description="General Dataset class for bilingual image2Text translation datasets.")
         self.as_numpy = config.as_numpy
         super().__init__(config=config, info=info, *args, **kwargs)

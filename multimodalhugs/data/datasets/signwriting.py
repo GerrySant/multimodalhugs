@@ -11,6 +11,7 @@ from multimodalhugs.data import (
     MultimodalMTDataConfig,
     check_columns,
     contains_empty,
+    resolve_and_update_config,
 )
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
@@ -30,7 +31,7 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
 
     def __init__(
         self,
-        config: MultimodalMTDataConfig, 
+        config: Optional[MultimodalMTDataConfig] = None,
         *args,
         **kwargs
     ):
@@ -41,7 +42,14 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         - `config` (MultimodalMTDataConfig): Configuration object containing dataset parameters.
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
+
+        You can pass either:
+        - a config object (`MultimodalMTDataConfig`), or
+        - keyword arguments that match its fields.
+
+        If both are provided, keyword arguments take priority.
         """
+        config, kwargs = resolve_and_update_config(MultimodalMTDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Custom dataset for SignWriting")
         super().__init__(info=dataset_info, *args, **kwargs)
 
