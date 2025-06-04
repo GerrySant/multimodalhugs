@@ -53,7 +53,7 @@ class Pose2TextDataConfig(MultimodalMTDataConfig):
         """
         data_cfg = gather_appropriate_data_cfg(cfg)
         valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
-        super().__init__(cfg=cfg, **kwargs)
+        super().__init__(cfg=cfg_for_super, **extra_args)
 
         # Assign new arguments from config if available
         self.reduce_holistic_poses = valid_config.get("reduce_holistic_poses", self.reduce_holistic_poses)

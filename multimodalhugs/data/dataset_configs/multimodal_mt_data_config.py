@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Union, Dict, Optional
 from dataclasses import dataclass, field
 from typing import Optional
-from multimodalhugs.data.utils import string_to_list, gather_appropriate_data_cfg
+from multimodalhugs.data.utils import string_to_list, gather_appropriate_data_cfg, build_merged_omegaconf_config
 
 @dataclass
 class PreprocessArguments:
@@ -84,9 +84,9 @@ class MultimodalMTDataConfig(BuilderConfig):
         - `cfg` (Optional[dict]): Dictionary containing dataset configuration settings.
         - `**kwargs`: Additional keyword arguments to override default values.
         """
-        super().__init__(**kwargs)
-
         data_cfg = gather_appropriate_data_cfg(cfg)
+        valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
+        super().__init__(**extra_args)
         
         self.train_metadata_file = getattr(data_cfg, 'train_metadata_file', self.train_metadata_file)
         self.validation_metadata_file = getattr(data_cfg, 'validation_metadata_file', self.validation_metadata_file)

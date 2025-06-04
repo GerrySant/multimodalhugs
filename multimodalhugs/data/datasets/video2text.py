@@ -59,7 +59,7 @@ class Video2TextDataConfig(MultimodalMTDataConfig):
     def __init__(self, cfg=None, **kwargs):
         data_cfg = gather_appropriate_data_cfg(cfg)
         valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
-        super().__init__(cfg=cfg, **kwargs)
+        super().__init__(cfg=cfg_for_super, **extra_args)
         # pull from OmegaConf yaml (or leave defaults)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
         self.custom_preprocessor_path = valid_config.get("custom_preprocessor_path", self.custom_preprocessor_path)

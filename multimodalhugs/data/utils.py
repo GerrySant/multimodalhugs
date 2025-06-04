@@ -9,7 +9,7 @@ import pandas as pd
 
 from omegaconf import OmegaConf
 from types import SimpleNamespace
-from typing import List, Any, Dict, Type, Optional
+from typing import List, Any, Dict, Type, Optional, Set
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 from dataclasses import fields, is_dataclass
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
@@ -180,7 +180,7 @@ def gather_appropriate_data_cfg(cfg: Any) -> Any:
 
     return cfg  # Final fallback
 
-def get_all_dataclass_fields(cls: Type) -> set[str]:
+def get_all_dataclass_fields(cls: Type) -> Set[str]
     """
     Recursively extract all dataclass field names from a class and its base classes.
     """
