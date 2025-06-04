@@ -180,7 +180,7 @@ def gather_appropriate_data_cfg(cfg: Any) -> Any:
 
     return cfg  # Final fallback
 
-def get_all_dataclass_fields(cls: Type) -> Set[str]
+def get_all_dataclass_fields(cls: Type) -> Set[str]:
     """
     Recursively extract all dataclass field names from a class and its base classes.
     """
