@@ -9,7 +9,7 @@ import pandas as pd
 
 from omegaconf import OmegaConf
 from types import SimpleNamespace
-from typing import List, Any, Dict, Type, Optional, Set
+from typing import List, Any, Dict, Type, Optional, Set, Tuple
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 from dataclasses import fields, is_dataclass
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
@@ -195,7 +195,7 @@ def build_merged_omegaconf_config(
     cls: Type,
     cfg: Any = None,
     **overrides
-) -> tuple[Dict[str, Any], Dict[str, Any], Any]:
+) -> Tuple[Dict[str, Any], Dict[str, Any], Any]:
     """
     Build a merged OmegaConf from `cfg` and `**overrides`, keeping only valid keys for `cls`.
 
