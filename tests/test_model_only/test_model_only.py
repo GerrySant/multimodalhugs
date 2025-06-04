@@ -8,7 +8,7 @@ from jiwer import wer
 from omegaconf import OmegaConf
 from transformers import PreTrainedTokenizerFast, AutoTokenizer
 from multimodalhugs.utils.tokenizer_utils import load_tokenizer_from_vocab_file
-from multimodalhugs.models import MultiModalEmbedderModel
+from multimodalhugs.models.multimodal_embedder.modeling_multimodal_embedder import MultiModalEmbedderModel
 
 from .global_variables import DEVICE, SAMPLES, INPUTS, LABELS
 
