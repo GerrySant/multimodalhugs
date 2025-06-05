@@ -1,4 +1,9 @@
+import sys
+import shutil
+import tempfile
 import numpy as np
+
+from pathlib import Path
 from typing import Dict, Union, Optional, List, Tuple, Any, Literal
 
 import torch
@@ -38,12 +43,14 @@ def get_inference_dataloader(processor, tsv_path: str = "", modality: ModalityTy
         from multimodalhugs.data.datasets.bilingual_text2text import BilingualText2TextDataset as dataset_class
     else:
         sys.exit(f"Unknown modality: {modality}")
+        
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        dataset = dataset_class(test_metadata_file=tsv_path, cache_dir=tmp_dir)
+        dataset.download_and_prepare()
+        dataset = dataset.as_dataset()["test"]
+        data_collator = DataCollatorMultimodalSeq2Seq(processor)
 
-    dataset = dataset_class(test_metadata_file=tsv_path)
-    dataset.download_and_prepare()
-    dataset = dataset.as_dataset()["test"]
-    data_collator = DataCollatorMultimodalSeq2Seq(processor)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=data_collator)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=data_collator)
 
 
 def postprocess_text(preds, labels):
