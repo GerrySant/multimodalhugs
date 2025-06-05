@@ -44,12 +44,17 @@ class DataCollatorMultimodalSeq2Seq:
 
         no_padding = self.padding is False or self.padding == PaddingStrategy.DO_NOT_PAD
 
-        labels = [
-            self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['decoder_prompt']))
-            + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['output']))
-            + [self.tokenizer.eos_token_id]
-            for sample in samples
-        ]
+        if any(sample['output'] is None for sample in samples):
+            labels = None
+        
+        else:
+
+            labels = [
+                self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['decoder_prompt']))
+                + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(sample['output']))
+                + [self.tokenizer.eos_token_id]
+                for sample in samples
+            ]
 
         if labels is not None:
             if no_padding:
@@ -85,8 +90,8 @@ class DataCollatorMultimodalSeq2Seq:
             else:
                 import numpy as np
                 batch["labels"] = np.array(batch["labels"], dtype=np.int64)
-        else:
-            batch["labels"] = None
+        # else:
+        #     batch["labels"] = None
 
         # prepare decoder_input_ids
         if (
