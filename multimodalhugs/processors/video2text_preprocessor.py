@@ -42,6 +42,7 @@ class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
     Reads video (path / ndarray / tensor) → [T, C, H, W] float32, optionally normalizes,
     resizes, then pads & masks.
     """
+    name = "video2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["inputs_embeds", "attention_mask"]
     tokenizer_class = "AutoTokenizer"

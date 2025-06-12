@@ -1,100 +1,146 @@
-import os
-import copy
 import argparse
-from pathlib import Path
 from omegaconf import OmegaConf
+
+from .setup_utils import (
+    load_config, prepare_dataset, load_tokenizers,
+    save_processor, build_and_save_model, update_configs
+)
 
 from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig
 from multimodalhugs.processors import SignwritingProcessor
-from transformers import AutoTokenizer
 from transformers.models.clip.image_processing_clip import CLIPImageProcessor
 
-# Import the model registry helper (ensure this module exists)
-from multimodalhugs.utils.registry import get_model_class
-from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
-from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 
-def main(config_path):
-    # Load config and initialize dataset
-    config = OmegaConf.load(config_path)
-    dataset_config = MultimodalMTDataConfig(config)
-    dataset = SignWritingDataset(config=dataset_config)
+def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool):
+    """
+    Run setup steps for dataset preparation, processor instantiation, and model building.
 
-    # Download, prepare, and save dataset
-    if getattr(dataset_config, 'dataset_dir', None) is not None and os.path.exists(dataset_config.dataset_dir):
-        data_path = dataset_config.dataset_dir
-    else:
-        data_path = Path(config.training.output_dir) / "datasets" / dataset.name
-        if not data_path.exists():
-            # Download, prepare, and save dataset only if data_path doesn't exist
-            dataset.download_and_prepare(data_path)
-            dataset.as_dataset().save_to_disk(data_path)
+    Args:
+        config_path (str): Path to the OmegaConf YAML configuration file.
+        do_dataset (bool): If True, prepare the dataset (download and save).
+        do_processor (bool): If True, create and save the processing pipeline.
+        do_model (bool): If True, build the model and save the weights.
 
-    # Load the tokenizer (here, we use AutoTokenizer)
-    pretrained_tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
-    tokenizer, new_vocab_tokens = extend_tokenizer(
-        dataset_config, 
-        training_output_dir=config.training.output_dir, 
-        model_name=config.training.run_name
+    Behavior:
+        - If none of do_dataset, do_processor, do_model are True, all three steps are performed.
+        - Tokenizers are loaded as needed for both processor and model steps.
+        - After each chosen step, the corresponding path is recorded and written back into the config.
+    """
+    cfg = load_config(config_path)
+
+    # If no flags were passed, turn everything on
+    if not (do_dataset or do_processor or do_model):
+        do_dataset = do_processor = do_model = True
+
+    # 1) Dataset setup
+    data_path = None
+    if do_dataset:
+        print("\nSetting Up Dataset:\n")
+        # Instantiate and prepare dataset, then save to disk
+        data_cfg = MultimodalMTDataConfig(cfg)
+        data_path = prepare_dataset(
+            SignWritingDataset,
+            data_cfg,
+            cfg.training.output_dir
+        )
+
+    # 2) Processor setup
+    proc_path = None
+    if do_processor:
+        print("\nSetting Up Processor:\n")
+        # Load tokenizers (needed for both processor and model)
+        data_cfg = MultimodalMTDataConfig(cfg)
+        tok, pre_tok, new = load_tokenizers(
+            data_cfg,
+            cfg.training.output_dir,
+            cfg.training.run_name
+        )
+        # Instantiate processor with modality-specific args
+        frame_preprocessor = CLIPImageProcessor(
+            do_resize=data_cfg.preprocess.do_resize,
+            size=data_cfg.preprocess.width,
+            do_center_crop=data_cfg.preprocess.do_center_crop,
+            do_rescale=data_cfg.preprocess.do_rescale,
+            do_normalize=data_cfg.preprocess.do_normalize,
+            image_mean=data_cfg.preprocess.dataset_mean,
+            image_std=data_cfg.preprocess.dataset_std,
+        )
+
+        proc = SignwritingProcessor(
+            tokenizer=tok,
+            width=data_cfg.preprocess.width,
+            height=data_cfg.preprocess.height,
+            channels=data_cfg.preprocess.channels,
+            invert_frame=data_cfg.preprocess.invert_frame,
+            dataset_mean=data_cfg.preprocess.dataset_mean,
+            dataset_std=data_cfg.preprocess.dataset_std,
+            frame_preprocessor=frame_preprocessor,
+        )
+        proc_path = save_processor(proc, cfg.training.output_dir)
+
+    # 3) Model setup
+    model_path = None
+    if do_model:
+        print("\nSetting Up Model:\n")
+        # Ensure tokenizers are loaded if only building model
+        try:
+            tok, pre_tok, new
+        except NameError:
+            data_cfg = MultimodalMTDataConfig(cfg)
+            tok, pre_tok, new = load_tokenizers(
+                data_cfg,
+                cfg.training.output_dir,
+                cfg.training.run_name
+            )
+
+        # Convert OmegaConf to primitive dict for model constructor
+        model_cfg = OmegaConf.to_container(cfg.model, resolve=True)
+        mtype = cfg.model.get("type")
+        model_path = build_and_save_model(
+            model_type=mtype,
+            config_path=config_path,
+            tokenizer=tok,
+            pretrained_tokenizer=pre_tok,
+            new_tokens=new,
+            model_cfg=model_cfg,
+            output_dir=cfg.training.output_dir,
+            run_name=cfg.training.run_name
+        )
+
+    # 4) Update config file with paths of created artifacts
+    update_configs(
+        config_path,
+        processor_path=proc_path,
+        data_path=data_path,
+        model_path=model_path
     )
-
-    # Create frame preprocessor for image inputs
-    frame_preprocessor = CLIPImageProcessor(
-        do_resize=dataset_config.preprocess.do_resize,
-        size=dataset_config.preprocess.width,
-        do_center_crop=dataset_config.preprocess.do_center_crop,
-        do_rescale=dataset_config.preprocess.do_rescale,
-        do_normalize=dataset_config.preprocess.do_normalize,
-        image_mean=dataset_config.preprocess.dataset_mean,
-        image_std=dataset_config.preprocess.dataset_std,
-    )
-
-    # Create the processor
-    input_processor = SignwritingProcessor(
-        width=dataset_config.preprocess.width,
-        height=dataset_config.preprocess.height,
-        channels=dataset_config.preprocess.channels,
-        invert_frame=dataset_config.preprocess.invert_frame,
-        dataset_mean=dataset_config.preprocess.dataset_mean,
-        dataset_std=dataset_config.preprocess.dataset_std,
-        frame_preprocessor=frame_preprocessor,
-        tokenizer=tokenizer,
-    )
-
-    # Save processor and set PROCESSOR_PATH environment variable
-    processor_path = os.path.join(config.training.output_dir, "signwriting_processor")
-    input_processor.save_pretrained(save_directory=processor_path, push_to_hub=False)
-
-    # --- Model creation becomes model independent ---
-    # Use the "type" field in config.model to select the appropriate model.
-    # If not provided, default to "multimodal_embedder".
-    model_type = config.model.get("type", "multimodal_embedder")
-    model_class = get_model_class(model_type)
-
-    # Convert the model section of the config to a dictionary.
-    model_kwargs = OmegaConf.to_container(config.model, resolve=True)
-    # Add common arguments required by build_model() to the keyword arguments.
-    model_kwargs.update({
-        "src_tokenizer": tokenizer,
-        "tgt_tokenizer": pretrained_tokenizer,
-        "config_path": config_path,
-        "new_vocab_tokens": new_vocab_tokens,
-    })
-    # Build the model using the model class's build_model method.
-    model = model_class.build_model(**model_kwargs)
-
-    # Save the model
-    model_path = os.path.join(config.training.output_dir, config.training.run_name)
-    model.save_pretrained(model_path)
-
-    add_argument_to_the_config(config_path, "processor", "processor_name_or_path", str(processor_path))
-    add_argument_to_the_config(config_path, "data", "dataset_dir", str(data_path))
-    add_argument_to_the_config(config_path, "model", "model_name_or_path", str(model_path))
-    reformat_yaml_file(config_path)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Training setup for multimodal models")
-    parser.add_argument('--config_path', type=str, required=True, help="Path to the configuration file")
-    args = parser.parse_args()
-    main(args.config_path)
+    p = argparse.ArgumentParser(
+        description="Setup dataset, processor, and model for multimodal training."
+    )
+    p.add_argument(
+        "--config_path", required=True,
+        help="Path to overarching YAML configuration file."
+    )
+    p.add_argument(
+        "--dataset", action="store_true",
+        help="Only prepare the dataset (skip processor and model)."
+    )
+    p.add_argument(
+        "--processor", action="store_true",
+        help="Only set up the processor (skip dataset and model)."
+    )
+    p.add_argument(
+        "--model", action="store_true",
+        help="Only build the model (skip dataset and processor)."
+    )
+    args = p.parse_args()
+
+    main(
+        config_path=args.config_path,
+        do_dataset=args.dataset,
+        do_processor=args.processor,
+        do_model=args.model
+    )

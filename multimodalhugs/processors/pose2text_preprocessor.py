@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+    name = "pose2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     tokenizer_class = "AutoTokenizer"

@@ -13,6 +13,7 @@ from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcesso
 logger = logging.getLogger(__name__)
 
 class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+    name = "image2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     tokenizer_class = "AutoTokenizer"

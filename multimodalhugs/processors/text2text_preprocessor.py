@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class Text2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+    name = "text2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     tokenizer_class = "AutoTokenizer"

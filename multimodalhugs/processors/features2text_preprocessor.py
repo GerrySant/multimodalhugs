@@ -51,6 +51,7 @@ def get_dynamic_cache_size():
     return max(500, cache_size)  # Ensure a minimum cache size of 500
 
 class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):
+    name = "features2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     tokenizer_class = "AutoTokenizer"

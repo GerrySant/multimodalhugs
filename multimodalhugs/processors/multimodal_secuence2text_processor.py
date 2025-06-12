@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExtractionMixin
-    
+    name = "multimodal_secuence2text_processor"
     attributes = ["frame_preprocessor", "tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     frame_preprocessor_class = "BaseImageProcessor"
