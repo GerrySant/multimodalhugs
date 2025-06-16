@@ -47,7 +47,10 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
         callbacks: Optional[List["TrainerCallback"]] = None,
         optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None),
         preprocess_logits_for_metrics: Optional[Callable[[torch.Tensor, torch.Tensor], torch.Tensor]] = None,
-        visualize_prediction_prob: float = 0.05
+        visualize_prediction_prob: float = 0.05,
+        print_decoder_prompt_on_prediction: bool = False,
+        print_special_tokens_on_prediction: bool = False
+
     ):
         super().__init__(
             model=model,
@@ -69,22 +72,30 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
             gen_config = self.load_generation_config(self.args.generation_config)
             self.model.generation_config = gen_config
         self.visualize_prediction_prob = visualize_prediction_prob
+        self.print_decoder_prompt_on_prediction = print_decoder_prompt_on_prediction
+        self.print_special_tokens_on_prediction = print_special_tokens_on_prediction
 
     def visualize_generation(self, preds, labels):
 
         pad_id = self.tokenizer.pad_token_id
         labels[labels == -100] = pad_id
 
-        T = self.tokenizer.batch_decode(labels, skip_special_tokens=False)
-        P = self.tokenizer.batch_decode(preds, skip_special_tokens=False)
-        L = self.tokenizer.batch_decode(labels, skip_special_tokens=True)
-        H = self.tokenizer.batch_decode(preds, skip_special_tokens=True)
+        decoded_label_with_special_tokens = self.tokenizer.batch_decode(labels, skip_special_tokens=False)
+        decoded_prediction_with_special_tokens = self.tokenizer.batch_decode(preds, skip_special_tokens=False)
+        decoded_label = self.tokenizer.batch_decode(labels, skip_special_tokens=True)
+        decoded_prediction = self.tokenizer.batch_decode(preds, skip_special_tokens=True)
 
-        for i in range(len(T)):
-            print(f"\nT - {T[i]}")
-            print(f"L - {L[i]}")
-            print(f"P - {P[i]}")
-            print(f"H - {H[i]}")
+        for i in range(len(decoded_label_with_special_tokens)):
+            print("")
+            if self.print_special_tokens_on_prediction:
+                print(f"Label with special tokens - {decoded_label_with_special_tokens[i]}")
+            print(f"Label - {decoded_label[i]}")
+            if self.print_decoder_prompt_on_prediction:
+                print(f"Decoder prompt - {decoded_prediction_with_special_tokens[i].split(decoded_prediction[i])[0]}")
+            if self.print_special_tokens_on_prediction:
+                print(f"Prediction with special tokens - {decoded_prediction_with_special_tokens[i]}")
+            print(f"Prediction - {decoded_prediction[i]}")
+            
 
     def prediction_step(
         self,

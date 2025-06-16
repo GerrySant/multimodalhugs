@@ -183,7 +183,6 @@ def main():
         revision=model_args.model_revision,
         token=model_args.token,
         trust_remote_code=model_args.trust_remote_code,
-        device_map='auto'
     )
     check_t5_fp16_compatibility(model, training_args.fp16)
 
@@ -323,6 +322,7 @@ def main():
     callbacks_list = []
     if training_args.early_stopping_patience is not None:
         callbacks_list.append(EarlyStoppingCallback(early_stopping_patience=training_args.early_stopping_patience))
+
     # Initialize our Trainer
     trainer = MultiLingualSeq2SeqTrainer(
         model=model,
@@ -332,7 +332,9 @@ def main():
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics if training_args.predict_with_generate else None,
-        visualize_prediction_prob=data_args.visualize_prediction_prob,
+        visualize_prediction_prob=training_args.visualize_prediction_prob,
+        print_decoder_prompt_on_prediction=training_args.print_decoder_prompt_on_prediction,
+        print_special_tokens_on_prediction=training_args.print_special_tokens_on_prediction,
         callbacks=callbacks_list
     )
 

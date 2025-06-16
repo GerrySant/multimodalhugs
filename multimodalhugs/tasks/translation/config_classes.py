@@ -98,10 +98,6 @@ class DataTrainingArguments:
             "help": "Whether to ignore the tokens corresponding to padded labels in the loss computation or not."
         },
     )
-    visualize_prediction_prob: float = field(
-        default=0.05,
-        metadata={"help": "Percentage of samples displaying their predictions during evaluation"}
-    )
 
 @dataclass
 class ExtraArguments:
@@ -129,4 +125,20 @@ class ExtendedSeq2SeqTrainingArguments(Seq2SeqTrainingArguments):
                 "If set to `None`, early stopping is disabled."
             )
         }
+    )
+    visualize_prediction_prob: float = field(
+        default=0.05,
+        metadata={"help": "Percentage of samples displaying their predictions during evaluation"}
+    )
+    print_decoder_prompt_on_prediction: bool = field(
+        default=False,
+        metadata={
+            "help": "If True, adds a field called 'Prompt' when performing prediction."
+        },
+    )
+    print_special_tokens_on_prediction: bool = field(
+        default=False,
+        metadata={
+            "help": "If True, also prints a version of prediction and ground truth that contain special tokens."
+        },
     )

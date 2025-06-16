@@ -7,6 +7,15 @@ Usage example:
 
 import sys
 import argparse
+import textwrap
+
+BANNER = textwrap.dedent("""
+--------------------------
+|                        |
+|  multimodalhugs-train  |
+|                        |
+--------------------------
+""")
 
 def print_global_help():
     help_text = """usage: multimodalhugs-train [-h] --task {translation}
@@ -40,6 +49,7 @@ def main():
         help="Specify the training task (e.g. 'translation')."
     )
     global_args, remaining_args = global_parser.parse_known_args()
+    print(BANNER)
     
     if global_args.task == "translation":
         from multimodalhugs.tasks import translation_training_main

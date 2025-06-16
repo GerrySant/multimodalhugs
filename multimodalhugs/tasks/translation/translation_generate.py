@@ -118,7 +118,18 @@ def main():
     extra_args, model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     if extra_args.config_path:
-        training_args = merge_config_and_command_args(extra_args.config_path, ExtendedSeq2SeqTrainingArguments, "training", training_args, sys.argv[1:])
+        for section in ("training", "generation"):
+            try:
+                training_args = merge_config_and_command_args(
+                    extra_args.config_path,
+                    ExtendedSeq2SeqTrainingArguments,
+                    section,
+                    training_args,
+                    sys.argv[1:]
+                )
+                break
+            except KeyError:
+                continue
         model_args = merge_config_and_command_args(extra_args.config_path, ModelArguments, "model", model_args, sys.argv[1:])
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, sys.argv[1:])
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, sys.argv[1:])
@@ -127,7 +138,7 @@ def main():
     setattr(training_args, "remove_unused_columns", False)
     setattr(training_args, "do_predict", True)
     setattr(training_args, "report_to", [])
-    setattr(data_args, "visualize_prediction_prob", 0)
+    setattr(training_args, "visualize_prediction_prob", 0)
 
     # Send telemetry for usage tracking (optional).
     send_example_telemetry("run_translation", model_args, data_args)
@@ -241,7 +252,7 @@ def main():
         data_collator=data_collator,
         compute_metrics=lambda eval_preds: compute_metrics(eval_preds, tokenizer, metric)
             if training_args.predict_with_generate else None,
-        visualize_prediction_prob=data_args.visualize_prediction_prob
+        visualize_prediction_prob=training_args.visualize_prediction_prob
     )
 
     logger.info(f"\n{model}\n")
