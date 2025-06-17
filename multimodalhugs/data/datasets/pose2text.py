@@ -22,6 +22,13 @@ from multimodalhugs.data import (
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
 
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def read_pose_buffer(file_path: str) -> bytes:
+    with open(file_path, "rb") as pose_file:
+        return pose_file.read()
+
 @dataclass
 class Pose2TextDataConfig(MultimodalMTDataConfig):
     """
@@ -173,29 +180,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             )
         return splits
 
-    _last_buffer = None
-    _last_file_path = None
-    
-    def _read_pose(self, file_path):
-        """
-        **Read and cache the pose buffer from a file.**
-
-        If the same file is requested sequentially, reuse the cached buffer to optimize performance.
-
-        **Args:**
-        - `file_path` (str): Path to the pose data file.
-
-        **Returns:**
-        - `bytes`: The binary pose data buffer.
-        """
-        if self._last_file_path != file_path:
-            with open(file_path, "rb") as pose_file:
-                buffer = pose_file.read()
-                self._last_buffer = buffer
-                self._last_file_path = file_path
-        return self._last_buffer
-
-    def _generate_examples(self, **kwargs):
+    def _generate_examples(self, split: str, metafile_path: str, **unused_kwargs):
         """
         **Generate dataset examples as (key, example) tuples.**
 
@@ -206,16 +191,14 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         - Filters samples based on duration constraints.
 
         **Args:**
-        - `**kwargs`: Dictionary containing:
-            - `metafile_path` (str): Path to the metadata file.
-            - `split` (str): The dataset split (`train`, `validation`, or `test`).
+        - `split` (str): The dataset split (`train`, `validation`, or `test`).
+        - `metafile_path` (str): Path to the metadata file.
 
         **Yields:**
         - `Tuple[int, dict]`: Index and dictionary containing processed sample data.
         """
-        metafile_path = kwargs['metafile_path']
-        split = kwargs['split']
-        dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
+    
+        dataset = load_dataset('csv', data_files=str(metafile_path), delimiter="\t", num_proc=get_num_proc())
 
         def mapping_function(sample):
             """
@@ -227,13 +210,11 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             **Returns:**
             - `dict`: The updated sample with the pose data duration.
             """
-            sample['signal'] = sample['signal']
-            
-            buffer = self._read_pose(sample['signal'])
-            if (sample['signal_end'] - sample['signal_start']) == 0:
-                pose = Pose.read(buffer) # [t, people, d, xyz]
-            else:
-                pose = Pose.read(buffer, start_time=sample['signal_start'], end_time=sample['signal_end']) # [t, people, d, xyz]
+            buffer = read_pose_buffer(sample['signal'])
+            # [t, people, d, xyz]
+            pose = Pose.read(buffer, 
+                             start_time=sample['signal_start'] or None, 
+                             end_time=sample['signal_end'] or None) 
             sample['DURATION'] = len(pose.body.data)
 
             return sample
@@ -241,9 +222,10 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         # Filter out samples where the file path does not exist
         dataset = dataset.filter(lambda sample: file_exists_filter('signal', sample), num_proc=get_num_proc())
 
-        # Apply the update to the VIDEO_NAME column
-        dataset = dataset.map(mapping_function, num_proc=get_num_proc())
-        if self.max_frames is not None:
+        # Filter out long samples, except for the test set
+        if split != "test" and self.max_frames is not None:
+            # Apply to create the DURATION column 
+            dataset = dataset.map(mapping_function, num_proc=get_num_proc())
             dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
 
         # Yield examples
