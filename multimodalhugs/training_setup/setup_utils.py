@@ -71,6 +71,15 @@ def build_and_save_model(model_type: str, config_path: str, tokenizer, pretraine
     model.save_pretrained(model_path)
     return model_path
 
+def build_and_save_model_from_init(model_type: str, config_path: str, output_dir: str, run_name: str):
+    """
+    Instantiate model via registry using __init__, save to output_dir/run_name, return path.
+    """
+    model_cls = get_model_class(model_type)
+    model = model_cls(config_path=config_path)
+    model_path = os.path.join(output_dir, run_name)
+    model.save_pretrained(model_path)
+    return model_path
 
 def update_configs(config_path: str, processor_path: Optional[str] = None, data_path: Optional[str] = None, model_path: Optional[str] = None):
     """

@@ -17,7 +17,7 @@ from multimodalhugs.data import (
     pad_and_create_mask,
     center_image_on_white_background,
 )
-from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 from multimodalhugs.processors.utils import frame_skipping
 
 from pose_format import Pose
@@ -26,7 +26,7 @@ from pose_format.utils.generic import reduce_holistic, pose_hide_legs, pose_norm
 logger = logging.getLogger(__name__)
 
 
-class Pose2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+class Pose2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtractionMixin
     name = "pose2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]

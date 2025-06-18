@@ -21,7 +21,7 @@ from transformers.processing_utils import ProcessorMixin
 
 # Local application imports
 from multimodalhugs.data import pad_and_create_mask
-from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 from multimodalhugs.processors.utils import frame_skipping
 
 
@@ -37,7 +37,7 @@ def get_dynamic_cache_size():
     size = int((total * 0.05) / 50e6)  # 5% of RAM, ~50MB per video
     return max(10, size)
 
-class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):
+class Video2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
     """
     Reads video (path / ndarray / tensor) → [T, C, H, W] float32, optionally normalizes,
     resizes, then pads & masks.
@@ -64,7 +64,7 @@ class Video2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor
                 - If tuple (H, W), resize to that shape.
                 - If None, keep original frame size.
             use_cache (bool): If True, cache decoded videos in an LRU cache.
-            **kwargs: Passed to the parent MultimodalSecuence2TextTranslationProcessor.
+            **kwargs: Passed to the parent MultimodalSequence2SequenceProcessor.
         """
         super().__init__(tokenizer=tokenizer, **kwargs)
         self.custom_preprocessor_path = custom_preprocessor_path

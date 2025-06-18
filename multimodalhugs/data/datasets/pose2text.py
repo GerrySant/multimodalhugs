@@ -10,7 +10,7 @@ from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Feature
 from dataclasses import dataclass, field
 
 from multimodalhugs.data import (
-    MultimodalMTDataConfig,
+    MultimodalDataConfig,
     contains_empty,
     file_exists_filter,
     duration_filter,
@@ -23,7 +23,7 @@ from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
 
 @dataclass
-class Pose2TextDataConfig(MultimodalMTDataConfig):
+class Pose2TextDataConfig(MultimodalDataConfig):
     """
     **Pose2TextDataConfig: Configuration class for the Pose-to-Text dataset.**
 

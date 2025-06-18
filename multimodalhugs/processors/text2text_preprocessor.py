@@ -20,14 +20,14 @@ from multimodalhugs.data import (
     center_image_on_white_background,
     get_images
 )
-from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 from pose_format import Pose
 from pose_format.utils.generic import reduce_holistic, pose_hide_legs
 
 logger = logging.getLogger(__name__)
 
 
-class Text2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+class Text2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtractionMixin
     name = "text2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]

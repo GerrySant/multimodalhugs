@@ -1,13 +1,13 @@
-# MultimodalMTDataConfig
+# MultimodalDataConfig
 
 <p>
 
-**MultimodalMTDataConfig: Configuration for multimodal machine translation datasets.**
+**MultimodalDataConfig: Configuration for multimodal machine translation datasets.**
 
 This class defines parameters for handling dataset metadata, preprocessing, 
 tokenization, and data shuffling.</p>
 
-<h2>Configuration Fields for MultimodalMTDataConfig</h2>
+<h2>Configuration Fields for MultimodalDataConfig</h2>
 <table>
   <thead>
     <tr>
@@ -22,7 +22,7 @@ tokenization, and data shuffling.</p>
     <tr>
       <td><strong>name</strong></td>
       <td><code>str</code></td>
-      <td><code>MultimodalMTDataConfig</code></td>
+      <td><code>MultimodalDataConfig</code></td>
       <td>No description provided.</td>
       <td></td>
     </tr>

@@ -11,7 +11,7 @@ from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Feature
 from dataclasses import dataclass, field
 
 from multimodalhugs.data import (
-    MultimodalMTDataConfig,
+    MultimodalDataConfig,
     BilingualText2TextDataset,
     get_images,
     resolve_and_update_config,
@@ -23,11 +23,11 @@ from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
 
 @dataclass
-class BilingualImage2textMTDataConfig(MultimodalMTDataConfig):
+class BilingualImage2textMTDataConfig(MultimodalDataConfig):
     """
     **BilingualImage2textMTDataConfig: Configuration for Bilingual Image-to-Text Machine Translation datasets.**
 
-    This configuration class extends `MultimodalMTDataConfig` to support datasets 
+    This configuration class extends `MultimodalDataConfig` to support datasets 
     where the signal input is an **image representation of text**, rather than raw text. 
     It includes additional parameters for font selection and image generation mode.
     """

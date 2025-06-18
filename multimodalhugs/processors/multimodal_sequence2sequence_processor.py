@@ -25,8 +25,8 @@ from pose_format.utils.generic import reduce_holistic, pose_hide_legs
 logger = logging.getLogger(__name__)
 
 
-class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExtractionMixin
-    name = "multimodal_secuence2text_processor"
+class MultimodalSequence2SequenceProcessor(ProcessorMixin):  # FeatureExtractionMixin
+    name = "multimodal_sequence2sequence_processor"
     attributes = ["frame_preprocessor", "tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
     frame_preprocessor_class = "BaseImageProcessor"
@@ -42,7 +42,7 @@ class MultimodalSecuence2TextTranslationProcessor(ProcessorMixin):  # FeatureExt
         obtainables_list = kwargs.pop('obtainables_list', None)
         self.obtainables_list = obtainables_list
 
-        if self.__class__._transform_get_items_output is MultimodalSecuence2TextTranslationProcessor._transform_get_items_output:
+        if self.__class__._transform_get_items_output is MultimodalSequence2SequenceProcessor._transform_get_items_output:
             logger.warning(
                 f" {self.__class__.__name__} does not override `_transform_get_items_output()`. "
                 "This method should define a dataset-level transformation applied during iteration via "

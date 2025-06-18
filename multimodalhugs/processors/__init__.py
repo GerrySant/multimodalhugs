@@ -1,4 +1,4 @@
-from .multimodal_secuence2text_processor import MultimodalSecuence2TextTranslationProcessor
+from .multimodal_sequence2sequence_processor import MultimodalSequence2SequenceProcessor
 from .signwriting_preprocessor import SignwritingProcessor
 from .pose2text_preprocessor import Pose2TextTranslationProcessor
 from .features2text_preprocessor import Features2TextTranslationProcessor

@@ -340,7 +340,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
     def forward(
         self,
-        input_frames: Optional[torch.LongTensor] = None,
+        input_frames: Optional[Union[torch.Tensor, Dict[str, torch.Tensor]]] = None,
         encoder_prompt: Optional[torch.LongTensor] = None,
         encoder_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
         input_ids: Optional[torch.LongTensor] = None,
@@ -369,13 +369,14 @@ class MultiModalEmbedderModel(PreTrainedModel):
         tokens through the Transformer backbone.
 
         ### **Args:**
-        - `input_frames` (Optional[torch.LongTensor], shape: `(B, N_frames, C, W, H)`):  
-        The batch of video input frames, where:
-            - `B` = batch size  
-            - `N_frames` = number of frames per sample  
-            - `C` = number of channels  
-            - `W` = frame width  
-            - `H` = frame height  
+        - `input_frames` (Optional[Union[torch.Tensor, Dict[str, torch.Tensor]]]):  
+            The input signal(s) to the model. It can be either:  
+            - A single tensor of shape `(B, N_frames, *)`, where:
+                - `B` = batch size  
+                - `N_frames` = number of frames per sample (set to 1 if the signal has no temporal dimension)  
+                - `*` = modality-specific dimensions (e.g., channels, width, height for images or other shapes for non-visual modalities)  
+            - A dictionary mapping modality names (e.g., `'rgb'`, `'pose'`, `'depth'`) to tensors of shape `(B, N_frames, *)`,  
+            allowing the model to receive and distinguish between multiple modalities simultaneously.  
 
         - `encoder_prompt` (Optional[torch.LongTensor], shape: `(B, prompt_n_tokens)`):  
         A prompt consisting of tokenized text that is prepended to the model's input.
@@ -417,7 +418,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
         Used to speed up autoregressive generation.
 
         - `inputs_embeds` (Optional[torch.FloatTensor], shape: `(B, S_text, hidden_dim)`):  
-        Precomputed input embeddings instead of `input_ids`.
+        Precomputed input embeddings instead of `input_ids` or `input_frames`.
 
         - `decoder_inputs_embeds` (Optional[torch.FloatTensor], shape: `(B, T_text, hidden_dim)`):  
         Precomputed embeddings for decoder inputs.

@@ -9,7 +9,7 @@ Contains configuration files and dataset specifications.
 
 - **dataconfigs/**
   - [`BilingualImage2textMTDataConfig`](data/dataconfigs/BilingualImage2textMTDataConfig.md)
-  - [`MultimodalMTDataConfig`](data/dataconfigs/MultimodalMTDataConfig.md)
+  - [`MultimodalDataConfig`](data/dataconfigs/MultimodalDataConfig.md)
   - [`Pose2TextDataConfig`](data/dataconfigs/Pose2TextDataConfig.md)
   - [`PreprocessArguments`](data/dataconfigs/others/PreprocessArguments.md)
 

@@ -7,11 +7,11 @@
 This dataset class is designed for handling bilingual translation datasets 
 where text input in one language is mapped to its corresponding translation.
 
-Go to [MultimodalMTDataConfig documentation](/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.</p>
+Go to [MultimodalDataConfig documentation](/docs/data/dataconfigs/MultimodalDataConfig.md) to find out what arguments to put in the config.</p>
 
 <h2>Constructor</h2>
 <pre><code>
-BilingualText2TextDataset(self, config: multimodalhugs.data.dataset_configs.multimodal_mt_data_config.MultimodalMTDataConfig, info: Optional[datasets.info.DatasetInfo] = None, *args, **kwargs)
+BilingualText2TextDataset(self, config: multimodalhugs.data.dataset_configs.multimodal_mt_data_config.MultimodalDataConfig, info: Optional[datasets.info.DatasetInfo] = None, *args, **kwargs)
 </code></pre>
 
 <h2>Methods</h2>

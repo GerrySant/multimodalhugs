@@ -6,7 +6,7 @@ from .setup_utils import (
     save_processor, build_and_save_model, update_configs
 )
 
-from multimodalhugs.data import SignWritingDataset, MultimodalMTDataConfig
+from multimodalhugs.data import SignWritingDataset, MultimodalDataConfig
 from multimodalhugs.processors import SignwritingProcessor
 from transformers.models.clip.image_processing_clip import CLIPImageProcessor
 
@@ -37,7 +37,7 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
     if do_dataset:
         print("\nSetting Up Dataset:\n")
         # Instantiate and prepare dataset, then save to disk
-        data_cfg = MultimodalMTDataConfig(cfg)
+        data_cfg = MultimodalDataConfig(cfg)
         data_path = prepare_dataset(
             SignWritingDataset,
             data_cfg,
@@ -49,7 +49,7 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
     if do_processor:
         print("\nSetting Up Processor:\n")
         # Load tokenizers (needed for both processor and model)
-        data_cfg = MultimodalMTDataConfig(cfg)
+        data_cfg = MultimodalDataConfig(cfg)
         tok, pre_tok, new = load_tokenizers(
             data_cfg,
             cfg.training.output_dir,
@@ -86,7 +86,7 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         try:
             tok, pre_tok, new
         except NameError:
-            data_cfg = MultimodalMTDataConfig(cfg)
+            data_cfg = MultimodalDataConfig(cfg)
             tok, pre_tok, new = load_tokenizers(
                 data_cfg,
                 cfg.training.output_dir,

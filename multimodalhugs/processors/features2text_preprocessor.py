@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional, Callable, Union
 from transformers.processing_utils import ProcessorMixin
 
 from multimodalhugs.data import pad_and_create_mask
-from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 from multimodalhugs.processors.utils import frame_skipping
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def get_dynamic_cache_size():
     cache_size = int((total_memory * cache_memory_fraction) / avg_feature_size)
     return max(500, cache_size)  # Ensure a minimum cache size of 500
 
-class Features2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):
+class Features2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
     name = "features2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]

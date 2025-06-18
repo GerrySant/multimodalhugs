@@ -1,7 +1,7 @@
 from .utils import *
 from .dataset_configs.multimodal_mt_data_config import (
     PreprocessArguments, 
-    MultimodalMTDataConfig, 
+    MultimodalDataConfig, 
 )
 from .datasets.signwriting import SignWritingDataset
 from .datasets.pose2text import Pose2TextDataset

@@ -8,7 +8,7 @@ from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Feature
 
 from signwriting.tokenizer import normalize_signwriting
 from multimodalhugs.data import (
-    MultimodalMTDataConfig,
+    MultimodalDataConfig,
     check_columns,
     contains_empty,
     resolve_and_update_config,
@@ -26,12 +26,12 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
     It loads structured datasets from metadata files and prepares examples for training, 
     validation, and testing.
 
-    Go to [MultimodalMTDataConfig documentation](/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.
+    Go to [MultimodalDataConfig documentation](/docs/data/dataconfigs/MultimodalDataConfig.md) to find out what arguments to put in the config.
     """
 
     def __init__(
         self,
-        config: Optional[MultimodalMTDataConfig] = None,
+        config: Optional[MultimodalDataConfig] = None,
         *args,
         **kwargs
     ):
@@ -39,17 +39,17 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         **Initialize the SignWritingDataset.**
 
         **Args:**
-        - `config` (MultimodalMTDataConfig): Configuration object containing dataset parameters.
+        - `config` (MultimodalDataConfig): Configuration object containing dataset parameters.
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
 
         You can pass either:
-        - a config object (`MultimodalMTDataConfig`), or
+        - a config object (`MultimodalDataConfig`), or
         - keyword arguments that match its fields.
 
         If both are provided, keyword arguments take priority.
         """
-        config, kwargs = resolve_and_update_config(MultimodalMTDataConfig, config, kwargs)
+        config, kwargs = resolve_and_update_config(MultimodalDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Custom dataset for SignWriting")
         super().__init__(info=dataset_info, *args, **kwargs)
 

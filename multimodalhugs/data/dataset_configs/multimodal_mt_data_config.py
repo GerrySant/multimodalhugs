@@ -53,16 +53,16 @@ class PreprocessArguments:
 
 
 @dataclass
-class MultimodalMTDataConfig(BuilderConfig):
+class MultimodalDataConfig(BuilderConfig):
     """
-    **MultimodalMTDataConfig: Configuration for multimodal machine translation datasets.**
+    **MultimodalDataConfig: Configuration for multimodal machine translation datasets.**
 
     This class defines parameters for handling dataset metadata, preprocessing, 
     tokenization, and data shuffling.
 
     """
 
-    name: str = "MultimodalMTDataConfig"
+    name: str = "MultimodalDataConfig"
     train_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the training dataset metadata file."})
     validation_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the validation dataset metadata file."})
     test_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the test dataset metadata file."})
@@ -75,7 +75,7 @@ class MultimodalMTDataConfig(BuilderConfig):
 
     def __init__(self, cfg=None, **kwargs):
         """
-        **Initialize the MultimodalMTDataConfig class.**
+        **Initialize the MultimodalDataConfig class.**
 
         This constructor assigns dataset configuration parameters and 
         applies values from `cfg` if provided.

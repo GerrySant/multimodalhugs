@@ -9,7 +9,7 @@ from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 
 from multimodalhugs.data import (
-    MultimodalMTDataConfig,
+    MultimodalDataConfig,
     duration_filter,
     resolve_and_update_config,
 )
@@ -24,12 +24,12 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
     This dataset class is designed for handling bilingual translation datasets 
     where text input in one language is mapped to its corresponding translation.
 
-    Go to [MultimodalMTDataConfig documentation](/docs/data/dataconfigs/MultimodalMTDataConfig.md) to find out what arguments to put in the config.
+    Go to [MultimodalDataConfig documentation](/docs/data/dataconfigs/MultimodalDataConfig.md) to find out what arguments to put in the config.
 
     """
     def __init__(
         self,
-        config: Optional[MultimodalMTDataConfig] = None,
+        config: Optional[MultimodalDataConfig] = None,
         info: Optional[DatasetInfo] = None,
         *args,
         **kwargs
@@ -38,19 +38,19 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         **Initialize the BilingualText2TextDataset.**
 
         **Args:**
-        - `config` (MultimodalMTDataConfig): The dataset configuration containing metadata file paths.
+        - `config` (MultimodalDataConfig): The dataset configuration containing metadata file paths.
         - `info` (Optional[DatasetInfo], default=`None`): Dataset metadata. If `None`, 
           a default `DatasetInfo` object is created.
         - `*args`: Additional positional arguments.
         - `**kwargs`: Additional keyword arguments.
 
         You can pass either:
-        - a config object (`MultimodalMTDataConfig`), or
+        - a config object (`MultimodalDataConfig`), or
         - keyword arguments that match its fields.
 
         If both are provided, keyword arguments take priority.
         """
-        config, kwargs = resolve_and_update_config(MultimodalMTDataConfig, config, kwargs)
+        config, kwargs = resolve_and_update_config(MultimodalDataConfig, config, kwargs)
         info = DatasetInfo(description="General Dataset class for bilingual translation datasets.") if info is None else info
         super().__init__(info=info, *args, **kwargs)
         self.config = config

@@ -12,7 +12,7 @@ from datasets import DatasetInfo, SplitGenerator
 from datasets import load_dataset
 
 from multimodalhugs.data import (
-    MultimodalMTDataConfig,
+    MultimodalDataConfig,
     file_exists_filter,
     duration_filter,
     resolve_and_update_config,
@@ -25,7 +25,7 @@ from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
 
 @dataclass
-class Video2TextDataConfig(MultimodalMTDataConfig):
+class Video2TextDataConfig(MultimodalDataConfig):
     """
     Configuration for Video-to-Text dataset.
 

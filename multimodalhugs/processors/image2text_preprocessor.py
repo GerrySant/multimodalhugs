@@ -8,11 +8,11 @@ import logging
 from typing import List, Dict, Any, Optional, Callable, Union
 
 from multimodalhugs.data import pad_and_create_mask, get_images
-from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 
 logger = logging.getLogger(__name__)
 
-class Image2TextTranslationProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+class Image2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtractionMixin
     name = "image2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]

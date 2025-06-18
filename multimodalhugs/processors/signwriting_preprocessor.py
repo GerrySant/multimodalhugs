@@ -11,7 +11,7 @@ from signwriting.visualizer.visualize import signwriting_to_image
 from transformers.feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
 from transformers.processing_utils import ProcessorMixin
-from multimodalhugs.processors import MultimodalSecuence2TextTranslationProcessor
+from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 
 from multimodalhugs.data import (
     pad_and_create_mask,
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 
-class SignwritingProcessor(MultimodalSecuence2TextTranslationProcessor):  # FeatureExtractionMixin
+class SignwritingProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtractionMixin
     name = "signwritting2text_processor"
     attributes = ["frame_preprocessor", "tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
