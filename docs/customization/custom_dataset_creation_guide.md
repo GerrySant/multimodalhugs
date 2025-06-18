@@ -55,8 +55,7 @@ MultimodalHugs encourages a **standard structure** for dataset features. Most da
 
 - If you add a new field (e.g., `"signal_2"`, `"output_2"`, `"output_class"`), make sure that the processor you're using is updated accordingly to **read, process, or ignore** that field.
 - If the processor does not expect the field, it might be ignored or cause errors during batching, tokenization, or training.
-- If any of the above, you can easly create or adapt a processor following [this](customization/custom_processor_creation_guide.md) guidelines.
-
+- If any of the above, you can easly create or adapt a processor following [this](docs/customization/custom_dataset_creation_guide.md) guidelines.
 ---
 
 ### 🧱 Dataset Class Template
