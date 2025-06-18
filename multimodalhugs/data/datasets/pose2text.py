@@ -5,6 +5,7 @@ import datasets
 
 from pathlib import Path
 from pose_format import Pose
+from pose_format.pose_body import EmptyPoseBody
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 from dataclasses import dataclass, field
@@ -217,8 +218,9 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             # [t, people, d, xyz]
             pose = Pose.read(buffer, 
                              start_time=sample['signal_start'] or None, 
-                             end_time=sample['signal_end'] or None) 
-            sample['DURATION'] = len(pose.body.data)
+                             end_time=sample['signal_end'] or None,
+                             pose_body=EmptyPoseBody) 
+            sample['DURATION'] = len(pose.body)
 
             return sample
 
