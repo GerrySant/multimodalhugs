@@ -15,6 +15,8 @@ from torch.utils.data import DataLoader
 from transformers.generation.configuration_utils import GenerationConfig
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 
+from tqdm import tqdm
+
 # -----------------------------
 # Functions for directly perform inference
 # -----------------------------
@@ -170,7 +172,7 @@ def batched_inference(model, processor, tsv_path, modality, batch_size: int = 1)
     dataloader = get_inference_dataloader(processor=processor, tsv_path=tsv_path, modality=modality, batch_size=batch_size)
     predicted_samples = []
     labels_list = []
-    for batch in dataloader:
+    for batch in tqdm(dataloader):
         batch = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in batch.items()}
         with torch.no_grad():
             generated_tokens, labels = batched_prediction(
