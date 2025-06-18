@@ -197,8 +197,11 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         **Yields:**
         - `Tuple[int, dict]`: Index and dictionary containing processed sample data.
         """
-    
-        dataset = load_dataset('csv', data_files=str(metafile_path), delimiter="\t", num_proc=get_num_proc())
+
+        # We always pass split="train" to load_dataset to directly load the TSV as a Dataset object.
+        # This does NOT affect our actual split (train/val/test), which is determined by the `split` argument
+        # passed from _split_generators. load_dataset requires split="train" to avoid returning a dict of splits.
+        dataset = load_dataset('csv', data_files=str(metafile_path), split='train', delimiter="\t", num_proc=get_num_proc()) 
 
         def mapping_function(sample):
             """
