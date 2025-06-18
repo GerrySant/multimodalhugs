@@ -30,8 +30,8 @@ def prepare_dataset(dataset_cls, data_config, output_dir: str):
 
     data_path = Path(output_dir) / "datasets" / dataset.name
     if not data_path.exists():
-        dataset.download_and_prepare(data_path)
-        dataset.as_dataset().save_to_disk(data_path)
+        dataset.download_and_prepare(str(data_path))
+        dataset.as_dataset().save_to_disk(str(data_path))
     return str(data_path)
 
 
