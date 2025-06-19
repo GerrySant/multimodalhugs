@@ -5,6 +5,7 @@ import datasets
 
 from pathlib import Path
 from pose_format import Pose
+from pose_format.pose_body import EmptyPoseBody
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 from dataclasses import dataclass, field
@@ -25,9 +26,11 @@ from multimodalhugs.utils.registry import register_dataset
 from functools import lru_cache
 
 @lru_cache(maxsize=1)
-def read_pose_buffer(file_path: str) -> bytes:
+def read_pose(file_path: str) -> Pose:
+    # This utility speeds up the checking of poses 
+    # if the same pose is accessed multiple times sequentially
     with open(file_path, "rb") as pose_file:
-        return pose_file.read()
+        return Pose.read(pose_file, pose_body=EmptyPoseBody) 
 
 @dataclass
 class Pose2TextDataConfig(MultimodalDataConfig):
@@ -213,12 +216,11 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             **Returns:**
             - `dict`: The updated sample with the pose data duration.
             """
-            buffer = read_pose_buffer(sample['signal'])
-            # [t, people, d, xyz]
-            pose = Pose.read(buffer, 
-                             start_time=sample['signal_start'] or None, 
-                             end_time=sample['signal_end'] or None) 
-            sample['DURATION'] = len(pose.body.data)
+            pose = read_pose(sample['signal'])
+            sample['DURATION'] = pose.body.duration_in_frames(
+                start_time=sample['signal_start'] or None, 
+                end_time=sample['signal_end'] or None
+            )
 
             return sample
 
