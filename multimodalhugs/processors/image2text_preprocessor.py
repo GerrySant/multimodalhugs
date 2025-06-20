@@ -7,8 +7,9 @@ import logging
 
 from typing import List, Dict, Any, Optional, Callable, Union
 
-from multimodalhugs.data import pad_and_create_mask, get_images
+from multimodalhugs.data import pad_and_create_mask, get_images, string_to_list
 from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,35 @@ class Image2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # F
         width: Optional[int] = None,
         height: Optional[int] = None,
         normalize_image: bool = True,
-        mean: Optional[List] = None,
-        std: Optional[List] = None,
+        mean: Optional[Union[str, List[float]]] = None,
+        std: Optional[Union[str, List[float]]] = None,
         **kwargs,
     ):
+        """
+        Initializes the Image2TextTranslationProcessor for converting images into text inputs for multimodal sequence-to-sequence models.
+
+        Args:
+            tokenizer (Optional[Any], optional): A tokenizer object used to tokenize the text output.
+                Usually loaded via Hugging Face's AutoTokenizer.
+            font_path (Optional[str], optional): Path to the `.ttf` file that determines the typography used in the image generation.
+                Useful when rendering text or labels over images for OCR-style training.
+            width (Optional[int], optional): Target width (in pixels) for images after preprocessing.
+                If None, the original image width is preserved.
+            height (Optional[int], optional): Target height (in pixels) for images after preprocessing.
+                If None, the original image height is preserved.
+            normalize_image (bool, optional): If True, normalizes pixel values using the provided mean and standard deviation. Defaults to True.
+            mean (Optional[List], optional): Mean pixel values for normalization, specified as a list (e.g., [0.5, 0.5, 0.5]).
+                Only used if `normalize_image` is True.
+            std (Optional[List], optional): Standard deviation values for normalization, specified as a list (e.g., [0.5, 0.5, 0.5]).
+                Only used if `normalize_image` is True.
+            **kwargs: Additional keyword arguments passed to the parent class (`MultimodalSequence2SequenceProcessor`), such as `max_seq_length`, `padding`, or modality-specific parameters.
+        """
+        if normalize_image and (mean is None or std is None):
+            raise ValueError("Normalization is enabled (normalize_image=True), but 'mean' and/or 'std' were not provided.")
+        if isinstance(mean, str):
+            mean = string_to_list(mean)
+        if isinstance(std, str):
+            std = string_to_list(std)
         self.font_path = font_path
         self.width = width
         self.height = height

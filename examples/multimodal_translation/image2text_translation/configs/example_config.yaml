@@ -39,12 +39,13 @@ data:
   train_metadata_file: "/path/to/train/metadata_file.tsv"  # Path to the training metadata file.
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"    # Path to the test metadata file.
-  font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
   new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  preprocess:                                          # Image preprocessing settings.
-    width: 224                                         # Input image width in pixels.
-    height: 224                                        # Input image height in pixels.
-    channels: 3                                        # Number of image channels (e.g., 3 for RGB).
-    dataset_mean: "<[mean_values]>"                     # Mean pixel values for image normalization (e.g., "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]").
-    dataset_std: "<[std_values]>"                       # Standard deviation of pixel values for normalization (e.g., "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]").
+
+processor:
+  font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
+  width: 224                                         # Input image width in pixels.
+  height: 224                                        # Input image height in pixels.
+  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
+  mean: "<[mean_values]>"                            # Mean pixel values for image normalization (e.g., "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]").
+  std: "<[std_values]>"                              # Standard deviation of pixel values for normalization (e.g., "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]").

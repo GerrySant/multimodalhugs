@@ -9,8 +9,7 @@ from signwriting.tokenizer import normalize_signwriting
 from signwriting.visualizer.visualize import signwriting_to_image
 
 from transformers.feature_extraction_utils import BatchFeature, FeatureExtractionMixin
-from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
-from transformers.processing_utils import ProcessorMixin
+from transformers import AutoProcessor
 from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
 
 from multimodalhugs.data import (
@@ -21,35 +20,43 @@ from multimodalhugs.data import (
 logger = logging.getLogger(__name__)
 
 
-
 class SignwritingProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtractionMixin
     name = "signwritting2text_processor"
-    attributes = ["frame_preprocessor", "tokenizer"]
+    attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
-    frame_preprocessor_class = "CLIPImageProcessor"
     tokenizer_class = "AutoTokenizer"
 
     def __init__(
         self,
-        frame_preprocessor: Optional[Callable] = None,
         tokenizer: Optional[Any] = None,
+        custom_preprocessor_path: Optional[str] = None,
         width: int = 224, #
         height: int = 224, #
         channels: int = 3, #
         invert_frame: bool = True, #
-        dataset_mean: Optional[List[float]] = None, #
-        dataset_std: Optional[List[float]] = None, #
         **kwargs,
     ):
+        """
+        Initializes the SignwritingProcessor for processing signwriting frames and converting them into text-compatible inputs.
+
+        Args:
+            custom_preprocessor_path (Optional[str], optional): Path of a custom imaage procesor used to preprocess the image frames.
+                Typically an instance of a Hugging Face image processor (e.g., CLIPImageProcessor).
+            tokenizer (Optional[Any], optional): A tokenizer object used to tokenize the text output. Usually loaded via Hugging Face's AutoTokenizer.
+            width (int, optional): Target width (in pixels) for images/frames after preprocessing. Defaults to 224.
+            height (int, optional): Target height (in pixels) for images/frames after preprocessing. Defaults to 224.
+            channels (int, optional): Number of color channels in the images/frames (e.g., 3 for RGB). Defaults to 3.
+            invert_frame (bool, optional): If True, inverts pixel values for preprocessing. Useful if input images are white-on-black. Defaults to True.
+            **kwargs: Additional keyword arguments passed to the parent class (`MultimodalSequence2SequenceProcessor`), such as `max_seq_length`, `padding`, or modality-specific parameters.
+        """
 
         self.width = width #
         self.height = height #
         self.channels = channels #
         self.invert_frame = invert_frame #
-        self.dataset_mean = dataset_mean #
-        self.dataset_std = dataset_std #
-        
-        super().__init__(frame_preprocessor=frame_preprocessor, tokenizer=tokenizer, **kwargs)
+        self.custom_preprocessor_path = custom_preprocessor_path
+        self.custom_preprocessor = AutoProcessor.from_pretrained(self.custom_preprocessor_path) if self.custom_preprocessor_path is not None else None
+        super().__init__(tokenizer=tokenizer, **kwargs)
 
     def _ascii_to_tensor(self, sign):
         """
@@ -69,8 +76,7 @@ class SignwritingProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtr
             _sign = center_image_on_white_background(_sign, target_width=self.width, target_height=self.height)
             if self.invert_frame:
                 _sign = ImageOps.invert(_sign)
-
-            _sign = self.frame_preprocessor(_sign, return_tensors="pt")['pixel_values'].squeeze(0) 
+            _sign = self.custom_preprocessor(images=_sign, return_tensors="pt")['pixel_values'].squeeze(0) 
 
             try:
                 assert isinstance(_sign, torch.Tensor), "sign must be a torch tensor"

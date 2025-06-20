@@ -50,18 +50,15 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         # Load tokenizers (needed for both processor and model)
         data_cfg = BilingualImage2textMTDataConfig(cfg)
         tok, pre_tok, new = load_tokenizers(
-            data_cfg,
+            data_cfg.text_tokenizer_path,
+            data_cfg.new_vocabulary,
             cfg.training.output_dir,
             cfg.training.run_name
         )
+        processor_kwargs = OmegaConf.to_container(cfg.processor, resolve=True)
         proc = Image2TextTranslationProcessor(
             tokenizer=tok,
-            font_path=data_cfg.font_path,
-            width=data_cfg.preprocess.width,
-            height=data_cfg.preprocess.height,
-            normalize_image=data_cfg.preprocess.do_normalize,
-            mean=data_cfg.preprocess.dataset_mean,
-            std=data_cfg.preprocess.dataset_std,
+            **processor_kwargs
         )
         proc_path = save_processor(proc, cfg.training.output_dir)
 
@@ -75,7 +72,8 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         except NameError:
             data_cfg = BilingualImage2textMTDataConfig(cfg)
             tok, pre_tok, new = load_tokenizers(
-                data_cfg,
+                data_cfg.text_tokenizer_path,
+                data_cfg.new_vocabulary,
                 cfg.training.output_dir,
                 cfg.training.run_name
             )

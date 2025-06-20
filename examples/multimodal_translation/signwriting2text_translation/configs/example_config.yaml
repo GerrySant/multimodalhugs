@@ -11,7 +11,6 @@ model:
   feature_extractor_config:                              # Configuration for modifying the feature extractor architecture.
     feature_extractor_arguments: "<config-arguments>"  # Arguments to adjust the internal configuration of the feature extractor.
 
-
 training:
   run_name: "multimodal_embedder"                  # The name or identifier of the model configuration.
   logging_dir: "/path/to/output/logs"              # Directory to store training logs.
@@ -54,9 +53,6 @@ data:
   new_vocabulary: "/examples/multimodal_translation/signwritting2text_translation/other/new_languages_sign_bank_plus.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"                 # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
   max_frames: 300                                             # Maximum number of frames to consider.
-  preprocess:                                                 # Image preprocessing configuration.
-    width: 224                                               # Target image width in pixels.
-    height: 224                                              # Target image height in pixels.
-    channels: 3                                              # Number of image channels (e.g., 3 for RGB).
-    dataset_mean: "<[mean_values]>"                            # Mean pixel values for normalization (e.g., "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]").
-    dataset_std: "<[std_values]>"                              # Standard deviation for normalization (e.g., "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]").
+
+processor:                                           # Image preprocessing settings.
+  reduce_holistic_poses: true                        # Number of image channels (e.g., 3 for RGB).

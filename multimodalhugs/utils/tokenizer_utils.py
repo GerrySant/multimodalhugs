@@ -84,15 +84,14 @@ def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=Non
     return tokenizer, added_tokens
 
 
-def extend_tokenizer(dataset_config, training_output_dir=None, model_name=None):
+def extend_tokenizer(tokenizer_path, new_vocabulary, training_output_dir=None, model_name=None):
     """
-    Loads a pretrained tokenizer based on dataset_config.text_tokenizer_path and extends it
-    with the tokens specified in dataset_config.new_vocabulary.
+    Loads a pretrained tokenizer based on tokenizer_path and extends it
+    with the tokens specified in new_vocabulary.
     
     Args:
-        dataset_config: A configuration object that must contain:
-            - text_tokenizer_path: (str) Identifier or path for the pretrained tokenizer.
-            - new_vocabulary: (str) Path to the file with new tokens.
+        tokenizer_path: (str) Identifier or path for the pretrained tokenizer.
+        new_vocabulary: (str) Path to the file with new tokens.
         training_output_dir: (str) Base output directory (e.g., config.training.output_dir).
         model_name: (str) Name of the model (used to determine the output directory for the vocab update).
     
@@ -101,15 +100,15 @@ def extend_tokenizer(dataset_config, training_output_dir=None, model_name=None):
         new_vocab_tokens: A list of new special tokens that were added.
     """
     # Load the pretrained tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(dataset_config.text_tokenizer_path)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     new_vocab_tokens = []
     
     # If new_vocabulary is provided, add the tokens
-    if getattr(dataset_config, "new_vocabulary", None):
+    if new_vocabulary is not None:
         output_dir = os.path.join(training_output_dir, model_name) if training_output_dir is not None and model_name is not None else None
         tokenizer, new_special_tokens = add_new_special_tokens_from_vocab_file(
             tokenizer=copy.deepcopy(tokenizer),
-            vocab_file=dataset_config.new_vocabulary,
+            vocab_file=new_vocabulary,
             output_dir=output_dir,
         )
         new_vocab_tokens.extend(new_special_tokens)

@@ -50,15 +50,16 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         # Load tokenizers (needed for both processor and model)
         data_cfg = Video2TextDataConfig(cfg)
         tok, pre_tok, new = load_tokenizers(
-            data_cfg,
+            data_cfg.text_tokenizer_path,
+            data_cfg.new_vocabulary,
             cfg.training.output_dir,
             cfg.training.run_name
         )
         # Instantiate processor with modality-specific args
+        processor_kwargs = OmegaConf.to_container(cfg.processor, resolve=True)
         proc = Video2TextTranslationProcessor(
             tokenizer=tok,
-            custom_preprocessor_path=data_cfg.custom_preprocessor_path,
-            skip_frames_stride=data_cfg.skip_frames_stride
+            **processor_kwargs
         )
         proc_path = save_processor(proc, cfg.training.output_dir)
 
@@ -72,7 +73,8 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         except NameError:
             data_cfg = Video2TextDataConfig(cfg)
             tok, pre_tok, new = load_tokenizers(
-                data_cfg,
+                data_cfg.text_tokenizer_path,
+                data_cfg.new_vocabulary,
                 cfg.training.output_dir,
                 cfg.training.run_name
             )

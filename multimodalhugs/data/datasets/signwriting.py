@@ -143,9 +143,7 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         - `Tuple[int, dict]`: Index and dictionary containing processed sample data.
         """
         metafile_path = kwargs['metafile_path']
-        split = kwargs['split']
         dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
-        dataset = dataset.filter(lambda sample: not contains_empty(sample), num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

@@ -32,29 +32,11 @@ class Video2TextDataConfig(MultimodalDataConfig):
     Args:
         name (str): Identifier for this config class.
         max_frames (Optional[int]): Filter out videos longer than this many frames.
-        normalize (bool): If True, scales pixel values to [0…1].
-        resize (Optional[int | Tuple[int, int]]):
-            - int → square resize (H=W=resize)
-            - tuple (H, W) → resize to that shape
-            - list [H, W] in your YAML will be auto-converted to tuple
-            - None → keep original size
     """
     name: str = "Video2TextDataConfig"
     max_frames: Optional[int] = field(
         default=None,
         metadata={"help": "Filter out videos longer than this (in frames)."}
-    )
-    custom_preprocessor_path: Optional[str] = field(
-        default=None,
-        metadata={"help": "Path to an Autoprocessor from HuggingFace"}
-    )
-    join_chw: bool = field(
-        default=False,
-        metadata={"help": "if True, it returns a tensor of torch.Size([B, T, C*H*W]). If False, it returns a tensor of torch.Size([B, T, C, H, W])."}
-    )
-    skip_frames_stride: Optional[int] = field(
-        default=None,
-        metadata={"help": "If specified, skips temporal tokens from each signal using the specified stride."}
     )
     def __init__(self, cfg=None, **kwargs):
         data_cfg = gather_appropriate_data_cfg(cfg)
@@ -62,10 +44,6 @@ class Video2TextDataConfig(MultimodalDataConfig):
         super().__init__(cfg=cfg_for_super, **extra_args)
         # pull from OmegaConf yaml (or leave defaults)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
-        self.custom_preprocessor_path = valid_config.get("custom_preprocessor_path", self.custom_preprocessor_path)
-        self.join_chw = valid_config.get("join_chw", self.join_chw)
-        self.skip_frames_stride = valid_config.get("skip_frames_stride", self.skip_frames_stride)
-
 
 @register_dataset("video2text")
 class Video2TextDataset(datasets.GeneratorBasedBuilder):

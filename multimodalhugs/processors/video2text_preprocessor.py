@@ -4,7 +4,7 @@ import os
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 # Third-party libraries
 import cv2
@@ -14,10 +14,8 @@ import torch.nn.functional as F
 import numpy as np
 from PIL import Image
 from torchvision.io import read_video
-from torchvision.transforms import functional as TF
 from transformers import AutoProcessor
 from transformers.feature_extraction_utils import BatchFeature
-from transformers.processing_utils import ProcessorMixin
 
 # Local application imports
 from multimodalhugs.data import pad_and_create_mask
@@ -57,14 +55,16 @@ class Video2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
         **kwargs,
     ):
         """
+        Initializes the Video2TextTranslationProcessor.
+
         Args:
-            tokenizer (Optional[Any]): HuggingFace tokenizer instance for text side.
-            resize (int | tuple[int, int] | None):
-                - If int, resize frames to (resize, resize).
-                - If tuple (H, W), resize to that shape.
-                - If None, keep original frame size.
-            use_cache (bool): If True, cache decoded videos in an LRU cache.
-            **kwargs: Passed to the parent MultimodalSequence2SequenceProcessor.
+            tokenizer (Optional[Any]): A Hugging Face tokenizer used for processing the text output.
+            custom_preprocessor_path (Optional[str]): Optional path to a custom `AutoProcessor` to use for video preprocessing.
+            skip_frames_stride (Optional[int]):  If set, skips input frames at the given stride.
+                Useful for downsampling frame sequences during preprocessing.
+            join_chw (bool): If True, flattens each video frame from [C, H, W] to [C*H*W] before feeding to the model.
+            use_cache (bool): If True, enables an LRU cache to store preprocessed videos for faster repeated access.
+            **kwargs: Additional keyword arguments passed to the parent class `MultimodalSequence2SequenceProcessor`.
         """
         super().__init__(tokenizer=tokenizer, **kwargs)
         self.custom_preprocessor_path = custom_preprocessor_path

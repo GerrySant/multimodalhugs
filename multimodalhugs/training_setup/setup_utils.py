@@ -35,13 +35,14 @@ def prepare_dataset(dataset_cls, data_config, output_dir: str):
     return str(data_path)
 
 
-def load_tokenizers(data_config, output_dir: str, run_name: str):
+def load_tokenizers(tokenizer_path, new_vocabulary, output_dir: str, run_name: str):
     """
     Load pretrained tokenizer, extend vocabulary, return (tokenizer, pretrained_tokenizer, new_tokens).
     """
-    pretrained = AutoTokenizer.from_pretrained(data_config.text_tokenizer_path)
+    pretrained = AutoTokenizer.from_pretrained(tokenizer_path)
     tokenizer, new_tokens = extend_tokenizer(
-        data_config,
+        tokenizer_path,
+        new_vocabulary,
         training_output_dir=output_dir,
         model_name=run_name
     )

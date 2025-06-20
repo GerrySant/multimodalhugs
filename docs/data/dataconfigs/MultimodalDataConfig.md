@@ -103,12 +103,5 @@ tokenization, and data shuffling.</p>
       <td>If True, removes unused columns from the dataset for efficiency.</td>
       <td></td>
     </tr>
-    <tr>
-      <td><strong>preprocess</strong></td>
-      <td><code>Optional</code></td>
-      <td><code>None</code></td>
-      <td>Configuration for dataset-level preprocessing (e.g., resizing, normalization).</td>
-      <td>Check <a href="others/PreprocessArguments.md">PreprocessArguments documentation</a> to see which arguments are accepted.</td>
-    </tr>
   </tbody>
 </table>

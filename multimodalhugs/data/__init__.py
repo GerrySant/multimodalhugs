@@ -1,8 +1,5 @@
 from .utils import *
-from .dataset_configs.multimodal_mt_data_config import (
-    PreprocessArguments, 
-    MultimodalDataConfig, 
-)
+from .dataset_configs.multimodal_mt_data_config import MultimodalDataConfig
 from .datasets.signwriting import SignWritingDataset
 from .datasets.pose2text import Pose2TextDataset
 from .datasets.video2text import Video2TextDataset

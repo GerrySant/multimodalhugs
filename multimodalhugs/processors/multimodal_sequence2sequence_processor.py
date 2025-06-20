@@ -1,31 +1,15 @@
-import os
-import torch
-import random
+import inspect
 import logging
 
-from pathlib import Path
-from torch.nn.utils.rnn import pad_sequence
-from typing import List, Dict, Any, Optional, Callable, Union
+from typing import List, Dict, Any, Optional, Callable
 
-from signwriting.tokenizer import normalize_signwriting
-from signwriting.visualizer.visualize import signwriting_to_image
-
-from transformers.feature_extraction_utils import BatchFeature, FeatureExtractionMixin
-from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
+from transformers.feature_extraction_utils import BatchFeature
 from transformers.processing_utils import ProcessorMixin
-
-from multimodalhugs.data import (
-    pad_and_create_mask,
-    center_image_on_white_background,
-)
-from pose_format import Pose
-from pose_format.utils.generic import reduce_holistic, pose_hide_legs
-
 
 logger = logging.getLogger(__name__)
 
 
-class MultimodalSequence2SequenceProcessor(ProcessorMixin):  # FeatureExtractionMixin
+class MultimodalSequence2SequenceProcessor(ProcessorMixin):
     name = "multimodal_sequence2sequence_processor"
     attributes = ["frame_preprocessor", "tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
@@ -37,10 +21,24 @@ class MultimodalSequence2SequenceProcessor(ProcessorMixin):  # FeatureExtraction
         self,
         frame_preprocessor: Optional[Callable] = None,
         tokenizer: Optional[Any] = None,
+        processor_name_or_path: Optional[Any] = None,
         **kwargs,
     ):
         obtainables_list = kwargs.pop('obtainables_list', None)
         self.obtainables_list = obtainables_list
+
+        # Get valid parameters from ProcessorMixin.__init__
+        valid_super_args = set(inspect.signature(super().__init__).parameters)
+
+        # Filter kwargs into used and unused
+        used_kwargs = {k: v for k, v in kwargs.items() if k in valid_super_args}
+        unused_kwargs = {k: v for k, v in kwargs.items() if k not in valid_super_args}
+
+        print(f"unused_kwargs: {unused_kwargs}")
+        if unused_kwargs:
+            logger.warning(
+                f" The following kwargs are not used by the processor and will be ignored: {list(unused_kwargs.keys())}",
+            )
 
         if self.__class__._transform_get_items_output is MultimodalSequence2SequenceProcessor._transform_get_items_output:
             logger.warning(
@@ -52,13 +50,14 @@ class MultimodalSequence2SequenceProcessor(ProcessorMixin):  # FeatureExtraction
     
         if frame_preprocessor is None:
             super().__init__(
-                tokenizer=tokenizer, 
-                **kwargs)
+                tokenizer=tokenizer,
+                **used_kwargs
+            )
         else:
             super().__init__(
-                frame_preprocessor=frame_preprocessor, 
-                tokenizer=tokenizer, 
-                **kwargs
+                frame_preprocessor=frame_preprocessor,
+                tokenizer=tokenizer,
+                **used_kwargs
             )
 
     def process_prompts(self, prompts):

@@ -63,6 +63,21 @@ class Features2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
         skip_frames_stride: Optional[int] = None,
         **kwargs,
     ):
+        """
+        Initializes the Features2TextTranslationProcessor.
+
+        This processor is designed to handle translation tasks where the input consists
+        of extracted features (e.g., from visual or pose data) and the output is natural language text.
+
+        Args:
+            tokenizer (Optional[Any], optional): A tokenizer object used to tokenize the text output.
+                Usually loaded via Hugging Face's AutoTokenizer.
+            use_cache (bool): Whether to enable caching for feature file to tensor conversion.
+                Enabling this can speed up repeated processing of the same input files.
+            skip_frames_stride (Optional[int]): If set, skips input frames at the given stride.
+                Useful for downsampling frame sequences during preprocessing.
+            **kwargs: Additional keyword arguments passed to the base class.
+        """
         super().__init__(tokenizer=tokenizer, **kwargs)
         self.use_cache = use_cache
         self.skip_frames_stride = skip_frames_stride

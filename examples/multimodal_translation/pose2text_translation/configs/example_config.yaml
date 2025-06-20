@@ -55,3 +55,9 @@ data:
   new_vocabulary: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"                     # Path to the file containing the new tokens that will be added to the tokenizer.
   text_tokenizer_path: "<pretrained-tokenizer>"                                                                                 # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
   max_frames: 300                                                                                                               # Maximum number of frames to consider in video samples; samples exceeding this are filtered.
+
+processor:                                             # Image preprocessing settings.
+  width: 224                                         # Input image width in pixels.
+  height: 224                                        # Input image height in pixels.
+  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
+  custom_preprocessor_path: openai/clip-vit-base-patch32 

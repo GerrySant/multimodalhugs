@@ -8,8 +8,6 @@ from .setup_utils import (
 
 from multimodalhugs.data import SignWritingDataset, MultimodalDataConfig
 from multimodalhugs.processors import SignwritingProcessor
-from transformers.models.clip.image_processing_clip import CLIPImageProcessor
-
 
 def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool):
     """
@@ -51,30 +49,16 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         # Load tokenizers (needed for both processor and model)
         data_cfg = MultimodalDataConfig(cfg)
         tok, pre_tok, new = load_tokenizers(
-            data_cfg,
+            data_cfg.text_tokenizer_path,
+            data_cfg.new_vocabulary,
             cfg.training.output_dir,
             cfg.training.run_name
         )
         # Instantiate processor with modality-specific args
-        frame_preprocessor = CLIPImageProcessor(
-            do_resize=data_cfg.preprocess.do_resize,
-            size=data_cfg.preprocess.width,
-            do_center_crop=data_cfg.preprocess.do_center_crop,
-            do_rescale=data_cfg.preprocess.do_rescale,
-            do_normalize=data_cfg.preprocess.do_normalize,
-            image_mean=data_cfg.preprocess.dataset_mean,
-            image_std=data_cfg.preprocess.dataset_std,
-        )
-
+        processor_kwargs = OmegaConf.to_container(cfg.processor, resolve=True)
         proc = SignwritingProcessor(
             tokenizer=tok,
-            width=data_cfg.preprocess.width,
-            height=data_cfg.preprocess.height,
-            channels=data_cfg.preprocess.channels,
-            invert_frame=data_cfg.preprocess.invert_frame,
-            dataset_mean=data_cfg.preprocess.dataset_mean,
-            dataset_std=data_cfg.preprocess.dataset_std,
-            frame_preprocessor=frame_preprocessor,
+            **processor_kwargs
         )
         proc_path = save_processor(proc, cfg.training.output_dir)
 
@@ -88,7 +72,8 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         except NameError:
             data_cfg = MultimodalDataConfig(cfg)
             tok, pre_tok, new = load_tokenizers(
-                data_cfg,
+                data_cfg.text_tokenizer_path,
+                data_cfg.new_vocabulary,
                 cfg.training.output_dir,
                 cfg.training.run_name
             )

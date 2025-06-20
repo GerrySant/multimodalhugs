@@ -32,8 +32,6 @@ class BilingualImage2textMTDataConfig(MultimodalDataConfig):
     It includes additional parameters for font selection and image generation mode.
     """
     name: str = "BilingualImage2textMTDataConfig"
-    font_path: Optional[str] = field(default=None, metadata={"help": "Path to the '.ttf' file that determines the Path to the .tff file which determines the typography used in the image generation"})
-    as_numpy: Optional[bool] = field(default=False, metadata={"help": "If True, it creates the images when creating the dataset. If False, the image are created in an online manner."})
     def __init__(self, cfg=None, **kwargs):
         """
         **Initialize the BilingualImage2textMTDataConfig.**
@@ -45,9 +43,6 @@ class BilingualImage2textMTDataConfig(MultimodalDataConfig):
         data_cfg = gather_appropriate_data_cfg(cfg)
         valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
         super().__init__(cfg=cfg_for_super, **extra_args)
-        # Assign new arguments from config if available
-        self.font_path = valid_config.get("font_path", self.font_path)
-        self.as_numpy = valid_config.get("as_numpy", self.as_numpy)
 
 @register_dataset("bilingual_image2text")
 class BilingualImage2TextDataset(BilingualText2TextDataset):
@@ -83,7 +78,6 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         """
         config, kwargs = resolve_and_update_config(BilingualImage2textMTDataConfig, config, kwargs)
         info = DatasetInfo(description="General Dataset class for bilingual image2Text translation datasets.")
-        self.as_numpy = config.as_numpy
         super().__init__(config=config, info=info, *args, **kwargs)
     
     def _info(self):
@@ -106,10 +100,6 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
                 "decoder_prompt": Optional[str],
                 "output": Optional[str],
             }
-        if self.as_numpy:
-            dataset_features["signal"] = np.ndarray
-        else:
-            dataset_features["signal"] = str
         dataset_features = datasets.Features(dataset_features)
         return DatasetInfo(
             description="General class for bilingual image2Text translation datasets",
@@ -134,37 +124,11 @@ class BilingualImage2TextDataset(BilingualText2TextDataset):
         **Yields:**
         - `Tuple[int, dict]`: Index and dictionary containing processed sample data.
         """
-        def create_image_secuences(sample):
-            """
-            **Generate an image representation of the text signal.**
-
-            This function converts the text signal into an image using 
-            the specified font and preprocessing parameters.
-
-            **Args:**
-            - `sample` (dict): Dictionary containing the signal text.
-
-            **Returns:**
-            - `dict`: Updated sample with `signal` replaced by an image representation.
-            """
-            sample['signal'] = get_images(
-                src_text=sample['signal'],
-                font_path=self.config.font_path,
-                width=self.config.preprocess.width,
-                height=self.config.preprocess.height,
-                normalize_image=self.config.preprocess.do_normalize,
-                mean=self.config.preprocess.dataset_mean,
-                std=self.config.preprocess.dataset_std,
-            )
-            return sample
 
         metafile_path = kwargs['metafile_path']
         split = kwargs['split']
 
         dataset = load_dataset('csv', data_files=[str(metafile_path)], split="train", delimiter="\t", num_proc=get_num_proc())
-
-        if self.as_numpy:
-            dataset = dataset.map(create_image_secuences, num_proc=get_num_proc())
 
         # Yield examples
         for idx, item in enumerate(dataset):

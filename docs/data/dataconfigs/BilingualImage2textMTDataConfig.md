@@ -104,26 +104,5 @@ It includes additional parameters for font selection and image generation mode.<
       <td>If True, removes unused columns from the dataset for efficiency.</td>
       <td></td>
     </tr>
-    <tr>
-      <td><strong>preprocess</strong></td>
-      <td><code>Optional</code></td>
-      <td><code>None</code></td>
-      <td>Configuration for dataset-level preprocessing (e.g., resizing, normalization).</td>
-      <td>Check <a href="others/PreprocessArguments.md">PreprocessArguments documentation</a> to see which arguments are accepted.</td>
-    </tr>
-    <tr>
-      <td><strong>font_path</strong></td>
-      <td><code>Optional</code></td>
-      <td><code>None</code></td>
-      <td>Path to the '.ttf' file that determines the Path to the .tff file which determines the typography used in the image generation</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td><strong>as_numpy</strong></td>
-      <td><code>Optional</code></td>
-      <td><code>False</code></td>
-      <td>If True, it creates the images when creating the dataset. If False, the image are created in an online manner.</td>
-      <td></td>
-    </tr>
   </tbody>
 </table>

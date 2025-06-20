@@ -39,10 +39,25 @@ class Pose2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # Fe
         skip_frames_stride: Optional[int] = None, 
         **kwargs,
     ):
-        self.reduce_holistic_poses = reduce_holistic_poses
-        super().__init__(tokenizer=tokenizer, **kwargs)
-        self.skip_frames_stride = skip_frames_stride
+        """
+        Initializes the Pose2TextTranslationProcessor for converting sequences of body poses into text inputs
+        for multimodal sequence-to-sequence models.
 
+        Args:
+            tokenizer (Optional[Any], optional): A tokenizer object used to tokenize the text output.
+                Usually loaded via Hugging Face's AutoTokenizer.
+            reduce_holistic_poses (bool, optional): If True, reduces the dimensionality of holistic pose representations.
+                This can help simplify the input by selecting a subset of keypoints. See more at:
+                https://github.com/sign-language-processing/pose. Defaults to True.
+            skip_frames_stride (Optional[int], optional):  If set, skips input frames at the given stride.
+                Useful for downsampling frame sequences during preprocessing.
+            **kwargs: Additional keyword arguments passed to the parent class (`MultimodalSequence2SequenceProcessor`),
+                such as `max_seq_length`, `padding`, or other modality-specific parameters.
+        """
+        self.reduce_holistic_poses = reduce_holistic_poses
+        self.skip_frames_stride = skip_frames_stride
+        super().__init__(tokenizer=tokenizer, **kwargs)
+        
     def _pose_file_to_tensor(
         self, 
         pose_file: Union[str, Path, torch.Tensor], 

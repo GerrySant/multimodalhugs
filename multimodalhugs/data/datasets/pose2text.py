@@ -41,17 +41,9 @@ class Pose2TextDataConfig(MultimodalDataConfig):
     pose sequences in the Pose2Text dataset.
     """
     name: str = "Pose2TextDataConfig"
-    reduce_holistic_poses: bool = field(
-        default=True, 
-        metadata={"help": "If True, it reduces holistic poses. See https://github.com/sign-language-processing/pose for more information."}
-    )
     max_frames: Optional[int] = field(
         default=None, 
         metadata={"help": "Pose related samples larger than this value will be filtered"}
-    )
-    skip_frames_stride: Optional[int] = field(
-        default=None,
-        metadata={"help": "If specified, skips temporal tokens from each signal using the specified stride."}
     )
     def __init__(self, cfg=None, **kwargs):
         """
@@ -66,9 +58,7 @@ class Pose2TextDataConfig(MultimodalDataConfig):
         super().__init__(cfg=cfg_for_super, **extra_args)
 
         # Assign new arguments from config if available
-        self.reduce_holistic_poses = valid_config.get("reduce_holistic_poses", self.reduce_holistic_poses)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
-        self.skip_frames_stride = valid_config.get("skip_frames_stride", self.skip_frames_stride)
 
         # Store any remaining kwargs (not expected by dataclass)
         self._extra_args = extra_args

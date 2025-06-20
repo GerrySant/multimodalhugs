@@ -104,20 +104,6 @@ pose sequences in the Pose2Text dataset.</p>
       <td></td>
     </tr>
     <tr>
-      <td><strong>preprocess</strong></td>
-      <td><code>Optional</code></td>
-      <td><code>None</code></td>
-      <td>Configuration for dataset-level preprocessing (e.g., resizing, normalization).</td>
-      <td>Check <a href="others/PreprocessArguments.md">PreprocessArguments documentation</a> to see which arguments are accepted.</td>
-    </tr>
-    <tr>
-      <td><strong>reduce_holistic_poses</strong></td>
-      <td><code>bool</code></td>
-      <td><code>True</code></td>
-      <td>If True, it reduces holistic poses. See https://github.com/sign-language-processing/pose for more information.</td>
-      <td></td>
-    </tr>
-    <tr>
       <td><strong>max_frames</strong></td>
       <td><code>Optional</code></td>
       <td><code>None</code></td>

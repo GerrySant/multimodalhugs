@@ -36,6 +36,7 @@ This section handles dataset configuration.
 This section defines processor-specific parameters.
 
 - **processor_name_or_path** (*General argument*): Points to the processor instance created by `multimodalhugs-setup`. Like the dataset, this field is optional during setup but required for loading the processor during training.
+> **Note:** Specific processor-related arguments depend on the processor type. 
 
 ---
 
