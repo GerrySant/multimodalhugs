@@ -18,13 +18,13 @@ BANNER = textwrap.dedent("""
 """)
 
 def print_global_help():
-    help_text = """usage: multimodalhugs-train [-h] --task {translation}
+    help_text = """usage: multimodalhugs-train [-h] --task {translation, seq2seq}
 
 MultimodalHugs Training CLI. Use --task to select the training task.
 
 options:
   -h, --help            show this help message and exit
-  --task {translation}  Specify the training task (e.g. 'translation').
+  --task {translation, seq2seq}  Specify the training task (e.g. 'translation').
 
 For details on task-specific arguments, run:
     multimodalhugs-train --task <selected_task> --help
@@ -45,13 +45,13 @@ def main():
     global_parser.add_argument(
         "--task",
         required=True,
-        choices=["translation"],  # More choices can be added in the future.
+        choices=["translation", "seq2seq"],  # More choices can be added in the future.
         help="Specify the training task (e.g. 'translation')."
     )
     global_args, remaining_args = global_parser.parse_known_args()
     print(BANNER)
     
-    if global_args.task == "translation":
+    if global_args.task == "translation" or global_args.task == "seq2seq":
         from multimodalhugs.tasks import translation_training_main
         # Pass all remaining arguments (which can include --help) to the task-specific parser.
         sys.argv = [sys.argv[0]] + remaining_args

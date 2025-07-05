@@ -21,8 +21,6 @@ class MultimodalDataConfig(BuilderConfig):
     test_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the test dataset metadata file."})
     dataset_dir: Optional[str] = field(default=None, metadata={"help": "Path to the data directory if the dataset actor instance has already been created"})
     shuffle: bool = field(default=True, metadata={"help": "If True, shuffles the dataset samples."})
-    new_vocabulary: Optional[str] = field(default=None, metadata={"help": "Path to a file containing new tokens for the tokenizer."})
-    text_tokenizer_path: Optional[str] = field(default=None, metadata={"help": "Path to the pre-trained text tokenizer."})
     remove_unused_columns: bool = field(default=True, metadata={"help": "If True, removes unused columns from the dataset for efficiency."})
 
     def __init__(self, cfg=None, **kwargs):
@@ -45,5 +43,3 @@ class MultimodalDataConfig(BuilderConfig):
         self.test_metadata_file = getattr(data_cfg, 'test_metadata_file', self.test_metadata_file)
         self.dataset_dir = getattr(data_cfg, 'dataset_dir', self.dataset_dir)
         self.shuffle = getattr(data_cfg, 'shuffle', self.shuffle)
-        self.new_vocabulary = getattr(data_cfg, 'new_vocabulary', self.new_vocabulary)
-        self.text_tokenizer_path = getattr(data_cfg, 'text_tokenizer_path', self.text_tokenizer_path)

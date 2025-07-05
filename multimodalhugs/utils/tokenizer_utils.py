@@ -54,32 +54,58 @@ def load_tokenizer_from_vocab_file(vocab_file, special_tokens_dict=None, output_
 
 def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=None):
     """
-    Reads a vocabulary file and adds new special tokens to the tokenizer,
-    skipping any token that the tokenizer already has.
+    Adds new special tokens to the tokenizer from either:
+      - a vocabulary file (one token per line, optional whitespace/comments), or
+      - a comma-separated string of tokens.
+    Skips any token already present in the tokenizer.
+    
+    Args:
+        tokenizer: The tokenizer instance.
+        vocab_file: str, either a path to a file or a comma-separated string.
+        output_dir: Optional directory to save the updated tokenizer.
+
+    Returns:
+        tokenizer: The updated tokenizer.
+        added_tokens: List of tokens added.
     """
+    # Determine if vocab_file is a file path or a comma-separated string
+    if not isinstance(vocab_file, str) or not vocab_file.strip():
+        raise ValueError("vocab_file must be a non-empty string (file path or comma-separated list) or None if no new_vocabulary is needed.")
+
+    if os.path.isfile(vocab_file):
+        with open(vocab_file, 'r') as f:
+            raw_tokens = [line.strip().split()[0] for line in f if line.strip()]
+    else:
+        # assume it's a comma-separated string
+        raw_tokens = [tok.strip() for tok in vocab_file.split(',') if tok.strip()]
+
     added_tokens = []
     skipped_tokens = []
 
-    with open(vocab_file, 'r') as f:
-        for line in f:
-            token = line.strip().split()[0]
-            if token not in tokenizer.get_vocab():
-                added_tokens.append(token)
-            else:
-                skipped_tokens.append(token)
-
-    print(f"The following tokens have been added to the tokenizer: {added_tokens}")
-    print(f"The following tokens have not been added because the tokenizer already has them: {skipped_tokens}")
+    existing_vocab = tokenizer.get_vocab()
+    for token in raw_tokens:
+        if token not in existing_vocab:
+            added_tokens.append(token)
+        else:
+            skipped_tokens.append(token)
 
     if added_tokens:
         tokenizer.add_special_tokens(
-            special_tokens_dict={'additional_special_tokens': added_tokens},
+            {'additional_special_tokens': added_tokens},
             replace_additional_special_tokens=False
         )
+        print(f"Added tokens: {added_tokens}")
+    else:
+        print("No new tokens to add.")
+
+    if skipped_tokens:
+        print(f"Skipped tokens (already present): {skipped_tokens}")
 
     if output_dir is not None:
         tokenizer_output_dir = os.path.join(output_dir, "tokenizer")
-        # Optionally, save the updated tokenizer to tokenizer_output_dir
+        os.makedirs(tokenizer_output_dir, exist_ok=True)
+        tokenizer.save_pretrained(tokenizer_output_dir)
+        print(f"Tokenizer saved to {tokenizer_output_dir}")
 
     return tokenizer, added_tokens
 

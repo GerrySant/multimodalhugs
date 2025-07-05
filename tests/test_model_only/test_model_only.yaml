@@ -43,6 +43,6 @@ model:
       projection_dim: 32
       image_size: 32
   decoder_start_token_id: 2
-data:
+processor:
   new_vocabulary: tests/test_model_only/new_languages.txt
   text_tokenizer_path: tests/test_model_only/tiny_tokenizer

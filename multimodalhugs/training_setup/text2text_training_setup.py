@@ -49,17 +49,26 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
     if do_processor:
         print("\nSetting Up Processor:\n")
         # Load tokenizers (needed for both processor and model)
-        data_cfg = MultimodalDataConfig(cfg)
+        processor_cfg = getattr(cfg, "processor", None)
+
+        text_tokenizer_path  = getattr(processor_cfg, "text_tokenizer_path", None) if processor_cfg else None
+        new_vocabulary       = getattr(processor_cfg, "new_vocabulary", None) if processor_cfg else None
+        processor_output_dir = (getattr(processor_cfg, "output_dir", None) or getattr(cfg.training, "output_dir", None))
+        processor_run_name   = (getattr(processor_cfg, "run_name", None) or getattr(cfg.training, "run_name", None))
+        
+        # Load tokenizers (needed for both processor and model)
         tok, pre_tok, new = load_tokenizers(
-            data_cfg,
-            cfg.training.output_dir,
-            cfg.training.run_name
+            text_tokenizer_path,
+            new_vocabulary,
+            processor_output_dir,
+            processor_run_name
         )
+
         # Instantiate processor with modality-specific args
         proc = Text2TextTranslationProcessor(
             tokenizer=tok
         )
-        proc_path = save_processor(proc, cfg.training.output_dir)
+        proc_path = save_processor(proc, processor_output_dir)
 
     # 3) Model setup
     model_path = None
@@ -69,11 +78,12 @@ def main(config_path: str, do_dataset: bool, do_processor: bool, do_model: bool)
         try:
             tok, pre_tok, new
         except NameError:
-            data_cfg = MultimodalDataConfig(cfg)
+            processor_cfg = getattr(cfg, "processor", None)
             tok, pre_tok, new = load_tokenizers(
-                data_cfg,
-                cfg.training.output_dir,
-                cfg.training.run_name
+                getattr(processor_cfg, "text_tokenizer_path", None) if processor_cfg else None,
+                getattr(processor_cfg, "new_vocabulary", None) if processor_cfg else None,
+                (getattr(processor_cfg, "output_dir", None) or getattr(cfg.training, "output_dir", None)),
+                (getattr(processor_cfg, "run_name", None) or getattr(cfg.training, "run_name", None))
             )
 
         # Convert OmegaConf to primitive dict for model constructor
