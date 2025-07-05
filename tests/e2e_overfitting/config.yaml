@@ -123,12 +123,12 @@ data:
   train_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
   validation_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
   test_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
-  text_tokenizer_path: google/t5-efficient-tiny
 
 processor:
   font_path: tests/e2e_overfitting/other_files/Arial.ttf
   width: 224
   height: 224
   channels: 3
+  text_tokenizer_path: google/t5-efficient-tiny
   mean: '[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]'
   std: '[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]'

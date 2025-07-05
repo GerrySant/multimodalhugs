@@ -36,8 +36,8 @@ def model_setup():
     config_path = 'tests/test_model_only/test_model_only.yaml'
     cfg = OmegaConf.load(config_path)
 
-    src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.data.new_vocabulary)
-    tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(cfg.data.text_tokenizer_path)
+    src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.processor.new_vocabulary)
+    tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(cfg.processor.text_tokenizer_path)
 
     # Convert the model config into a dict and update it with the common arguments
     model_kwargs = OmegaConf.to_container(cfg.model, resolve=True)

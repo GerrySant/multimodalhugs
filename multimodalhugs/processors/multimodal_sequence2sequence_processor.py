@@ -22,6 +22,8 @@ class MultimodalSequence2SequenceProcessor(ProcessorMixin):
         frame_preprocessor: Optional[Callable] = None,
         tokenizer: Optional[Any] = None,
         processor_name_or_path: Optional[Any] = None,
+        text_tokenizer_path: Optional[Any] = None,
+        new_vocabulary: Optional[Any] = None,
         **kwargs,
     ):
         obtainables_list = kwargs.pop('obtainables_list', None)
@@ -34,7 +36,6 @@ class MultimodalSequence2SequenceProcessor(ProcessorMixin):
         used_kwargs = {k: v for k, v in kwargs.items() if k in valid_super_args}
         unused_kwargs = {k: v for k, v in kwargs.items() if k not in valid_super_args}
 
-        print(f"unused_kwargs: {unused_kwargs}")
         if unused_kwargs:
             logger.warning(
                 f" The following kwargs are not used by the processor and will be ignored: {list(unused_kwargs.keys())}",
