@@ -33,9 +33,9 @@ This script extracts sentence-level clips and generates a TSV file listing video
 
 Each modality experiment has its own subdirectory with detailed instructions and scripts:
 
-- 📹 [Video](modality_matters_experiments/video_h2s/README.md)  
-- 🕺 [Poses](modality_matters_experiments/poses_h2s/README.md)  
-- 🎞️ [Features](modality_matters_experiments/features_h2s/README.md)
+- 📹 [Video](/modality_matters_experiments/video_h2s/README.md)  
+- 🕺 [Poses](/modality_matters_experiments/poses_h2s/README.md)  
+- 🎞️ [Features](/modality_matters_experiments/features_h2s/README.md)
 
 Please refer to each subdirectory’s README for specifics on preprocessing, configuration, and training.
 
