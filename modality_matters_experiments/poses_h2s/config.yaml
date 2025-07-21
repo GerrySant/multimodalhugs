@@ -1,0 +1,70 @@
+model:
+  type: multimodal_embedder
+  multimodal_mapper_type: linear
+  multimodal_mapper_layer_norm_before: true
+  multimodal_mapper_layer_norm: false
+  multimodal_mapper_activation: false
+  multimodal_mapper_dropout: 0.1
+  backbone_type: m2m_100
+  pretrained_backbone: facebook/m2m100_418M
+  feat_dim: 534
+  num_labels: 2
+  freeze_feature_extractor: false
+  freeze_multimodal_mapper: false
+  freeze_backbone: false
+  freeze_decoder_embed_tokens: false
+  freeze_encoder_embed_tokens: false
+  freeze_lm_head: false
+  max_length: 300
+  max_new_tokens: 100
+
+training:
+  run_name: poses_h2s_aligned
+  do_train: true
+  do_eval: true
+  predict_with_generate: true
+  overwrite_output_dir: true
+  eval_strategy: steps
+  save_strategy: steps
+  eval_steps: 2000
+  save_steps: 2000
+  logging_steps: 100
+  per_device_train_batch_size: 32
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 5e-05
+  weight_decay: 0
+  adam_beta1: 0.9
+  adam_beta2: 0.998
+  max_grad_norm: 0.0
+  num_train_epochs: 1
+  max_steps: 200000
+  lr_scheduler_type: inverse_sqrt
+  warmup_steps: 20000
+  save_total_limit: 3
+  seed: 3435
+  dataloader_drop_last: false
+  metric_for_best_model: sacrebleu
+  metric_name: sacrebleu,chrf
+  greater_is_better: true
+  load_best_model_at_end: true
+  remove_unused_columns: false
+  dataloader_num_workers: 10
+  dataloader_prefetch_factor: 2
+  fp16: true
+
+data:
+  train_metadata_file:
+    /path/to/train_poses_h2s_aligned_metadata.tsv
+  validation_metadata_file:
+    /path/to/val_poses_h2s_aligned_metadata.tsv
+  test_metadata_file:
+    /path/to/test_poses_h2s_aligned_metadata.tsv
+  shuffle: true
+  max_frames: 700
+
+processor:
+  new_vocabulary: "__asl__"
+  text_tokenizer_path: facebook/m2m100_418M
+  reduce_holistic_poses: true
+  # skip_frames_stride: <factor> Use this argument for uniform temporal downsampling

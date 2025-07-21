@@ -1,146 +1,59 @@
 <div align="center">
-  <h1>🎨 MultiModalHugs</h1>
+  <h1>🎨 MultiModalHugs — *Modality Matters Branch*</h1>
 </div>
 
-**MultimodalHugs** is a lightweight, modular framework built on top of [Hugging Face](https://huggingface.co/) for training, evaluating, and deploying **multimodal AI models** with minimal code.
+This branch of **MultimodalHugs** contains the scripts, configurations, and instructions to reproduce the experiments from the paper:  
 
-It supports diverse input modalities—including text, images, video, and pose sequences—and integrates seamlessly with the Hugging Face ecosystem (Trainer API, model hub, `evaluate`, etc.).
+> **"Modality Matters: Training and Tokenization Effects in Sign-to-Text Translation"**  
+> *Accepted to SLTAT 2025*
 
----
-
-## Key Features
-
-- ✅ **Minimal boilerplate**: Standardized TSV format for datasets and YAML-based configuration.
-- 🔁 **Reproducible pipelines**: Consistent setup for training, evaluation, and inference.
-- 🔌 **Modular design**: Easily extend or swap models, processors, and modalities.
-- 📦 **Hugging Face native**: Built to work out-of-the-box with existing models and tools.
-- **Examples Included**: Refer to the `examples/` directory for guided scripts, configurations, and best practices.
-  
-Whether you're working on sign language translation, image-to-text, or token-free language modeling, MultimodalHugs simplifies experimentation while keeping your codebase clean.
-
-For more details, refer to the [documentation](docs/README.md).
+The experiments explore the impact of input modality and tokenization strategies on sign language to text translation, using the [How2Sign](https://how2sign.github.io/) dataset.
 
 ---
 
-## Installation
+## 📄 Where to Start
 
-1. **Clone the repository**:
+We provide separate folders with scripts and configurations for each modality explored in the paper:
 
-   ```bash
-   git clone https://github.com/GerrySant/multimodalhugs.git
-   ```
+- `modality_matters_experiments/video_h2s`
+- `modality_matters_experiments/poses_h2s`
+- `modality_matters_experiments/features_h2s`
 
-2. **Navigate and install the package**:
+Additionally, the script `modality_matters_experiments/create_realigned_clips.py` allows you to generate the **realigned video clips** version of How2Sign used in our experiments.
 
-   - **Standard installation**:
-      ```bash
-       cd multimodalhugs
-       pip install .
-      ```
-   - **Developer installation**:
-      ```bash
-       cd multimodalhugs
-       pip install -e .[dev]
-      ```
+For detailed instructions and guidance on replicating the experiments, please see:
 
-## Usage
+👉 [**modality_matters_experiments/README.md**](modality_matters_experiments/README.md)
 
-### 🚀 Getting Started
+This README provides:
+- An overview of the dataset versions used
+- Instructions for preparing realigned clips
+- Pointers to each modality’s specific README for modality-specific details
 
-To set up, train, and evaluate a model, follow these steps:
+---
 
-![Steps Overview](docs/media/steps.png)
+## ℹ️ About MultimodalHugs
 
-### 1. Dataset Preparation
+**MultimodalHugs** is a lightweight, modular framework built on top of [Hugging Face](https://huggingface.co/) for training, evaluating, and deploying multimodal AI models.  
 
-For each partition (train, val, test), create a TSV file that captures essential sample details for consistency.
+If you’re looking for the general-purpose framework documentation, please refer to the `main` branch of this repository.
 
-#### Metadata File Requirements
-
-The `metadata.tsv` files for each partition must include the following fields:
-
-- `signal`: The primary input to the model, either as raw text or a file path pointing to a multimodal resource (e.g., an image, pose sequence, or audio file).
-- `signal_start`: Start timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
-- `signal_end`: End timestamp (commonly in milliseconds) of the input segment. Can be left empty or `0` if not required by the setup.
-- `encoder_prompt`: An optional text field providing additional context to the input; this may include instructions (e.g., `Translate the pose to English`), modality tags (e.g., `__asl__` for American Sign Languge, ASL), or any text relevant to the task.
-- `decoder_prompt`: An optional textual prompt used during decoding to guide the model’s output generation, corresponding to Hugging Face’s `decoder_input_ids`.
-- `output`: The expected textual output corresponding to the input signal.
-
-
-### 2. Setup Datasets, Model, and Processors
-
-```bash
-multimodalhugs-setup --modality {pose2text,signwriting2text,image2text} --config_path CONFIG_PATH
-```
-
-### 3. Train a Model
-
-```bash
-multimodalhugs-train --task <task_name> --config_path CONFIG_PATH
-```
-
-### 4. Generate Outputs with a Trained Model
-
-```bash
-multimodalhugs-generate --task <task_name> \
-      --metric_name METRIC_NAME \
-      --config_path CONFIG_PATH \
-      --model_name_or_path MODEL_PATH \
-      --processor_name_or_path PROCESSOR_PATH \
-      --dataset_dir DATASET_PATH \
-      --output_dir OUTPUT_DIR
-```
-
-
-For more details, refer to the [CLI documentation](docs/general/CLI.md).
-
-[Here](/examples/multimodal_translation/) you can find some sample end-to-end experimentation pipelines.
-
-## Directory Overview
-
-```yaml
-multimodalhugs/
-├── README.md               # Project overview
-├── LICENSE                 # License information
-├── pyproject.toml          # Package dependencies and setup
-├── docs/                   # Documentation
-│   ├── data/               # Data-related documentation
-│   ├── general/            # General framework documentation
-│   ├── models/             # Model-related documentation
-│   ├── media/              # Visual guides
-│   └── README.md           # Documentation overview
-├── examples/               # Example scripts and configurations
-│   ├── multimodal_translation/
-│   │   ├── image2text_translation/
-│   │   ├── pose2text_translation/
-│   │   └── signwriting2text_translation/
-├── multimodalhugs/         # Core framework
-│   ├── data/               # Data handling utilities
-│   ├── models/             # Model implementations
-│   ├── modules/            # Custom components (adapters, embeddings, etc.)
-│   ├── processors/         # Preprocessing modules
-│   ├── tasks/              # Task-specific logic (e.g., translation)
-│   ├── training_setup/     # Training pipeline setup
-│   ├── multimodalhugs_cli/ # Command-line interface for training/inference
-│   └── utils/              # Helper functions
-├── scripts/                # Utility scripts (e.g., documentation generation)
-├── tests/                  # Unit tests
-└── .github/                # GitHub actions and workflows
-```
-
-For a detailed breakdown of each directory, see [docs/README.md](docs/README.md).
-
-## Contributing
-
-All contributions—bug reports, feature requests, or pull requests—are welcome. Please see our [GitHub repository](https://github.com/GerrySant/multimodalhugs) to get involved.
-
-## License
-
-This project is licensed under the terms of the MIT License.
+---
 
 ## Citing this Work
 
-If you use MultimodalHugs in your research or applications, please cite:
+If you use this code or the results from the *Modality Matters* paper, please cite:  
+
+```bibtex
+@misc{modalitymatters2025,
+    title={Modality Matters: Training and Tokenization Effects in Sign-to-Text Translation},
+    author={Sant, Gerard and Moryossef, Amit and Jiang, Zifan and Escolano, Carlos},
+    year={2025},
+    note={Submitted to SLTAT 2025}
+}
+```
+
+And also cite MultimodalHugs as:
 
 ```bibtex
 @misc{multimodalhugs2024,
@@ -149,5 +62,5 @@ If you use MultimodalHugs in your research or applications, please cite:
     howpublished={\url{https://github.com/GerrySant/multimodalhugs}},
     year={2024}
 }
-```
 
+```
