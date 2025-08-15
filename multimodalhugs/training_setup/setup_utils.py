@@ -8,7 +8,7 @@ import yaml
 from pathlib import Path
 from omegaconf import OmegaConf
 from transformers import AutoTokenizer
-from typing import Optional
+from typing import Optional, Union
 
 from multimodalhugs.utils.registry import get_model_class
 from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
@@ -147,10 +147,10 @@ def print_artifact_summary(
         print(f"\t{k:<{key_w}} : {fmt(v)}")
     print()
 
-def save_actor_paths(final_output_dir: str | Path,
-                     proc_path: str | Path,
-                     data_path: str | Path,
-                     model_path: str | Path) -> Path:
+def save_actor_paths(final_output_dir: Union[str, Path],
+                     proc_path: Union[str, Path],
+                     data_path: Union[str, Path],
+                     model_path: Union[str, Path]) -> Path:
     """Guarda los paths en final_output_dir/actors_paths.yaml con las claves requeridas."""
     final_dir = Path(final_output_dir).expanduser().resolve()
     final_dir.mkdir(parents=True, exist_ok=True)
