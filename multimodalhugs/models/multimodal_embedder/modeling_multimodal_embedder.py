@@ -304,24 +304,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         cfg.bos_token_id = cfg.bos_token_id or bos_token_id
         cfg.eos_token_id = cfg.eos_token_id or eos_token_id
         tokenizer_vocab_size = getattr(src_tokenizer, "total_vocab_size", src_tokenizer.vocab_size)
-        #cfg.backbone_used_vocab_size = cfg.backbone_used_vocab_size or (tokenizer_vocab_size - len(new_vocab_tokens))
-
-        # Update YAML configuration file
-        if config_path:
-            yaml = YAML()
-            with open(config_path, 'r') as file:
-                config_data = yaml.load(file)
-
-            # Add or update these keys in the YAML file
-            config_data['model']['d_model'] = cfg.d_model
-            config_data['model']['pad_token_id'] = cfg.pad_token_id
-            config_data['model']['bos_token_id'] = cfg.bos_token_id
-            config_data['model']['eos_token_id'] = cfg.eos_token_id
-            config_data['model']['decoder_start_token_id'] = cfg.decoder_start_token_id
-            
-            # Save the updated configuration back to the file
-            with open(config_path, 'w') as file:
-                yaml.dump(config_data, file)
 
         backbone, new_vocab_size = extend_all_embeddings_and_lm_head(backbone=backbone, num_new_tokens=len(new_vocab_tokens), verbose=True)
         cfg.backbone_config.vocab_size = new_vocab_size

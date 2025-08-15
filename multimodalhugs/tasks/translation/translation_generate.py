@@ -69,7 +69,15 @@ from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
 from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments, ExtendedSeq2SeqTrainingArguments
-from multimodalhugs.tasks.translation.utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args
+
+from multimodalhugs.tasks.translation.utils import (
+    merge_arguments,
+    construct_kwargs,
+    filter_config_keys,
+    merge_config_and_command_args,
+    ensure_train_output_dir,
+    resolve_missing_arg,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +147,10 @@ def main():
     setattr(training_args, "do_predict", True)
     setattr(training_args, "report_to", [])
     setattr(training_args, "visualize_prediction_prob", 0)
+
+    resolve_missing_arg(model_args, 'model_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+    resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+    resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
 
     # Send telemetry for usage tracking (optional).
     send_example_telemetry("run_translation", model_args, data_args)

@@ -1,15 +1,30 @@
-from dataclasses import asdict, fields, is_dataclass
+import os
+import yaml
+import logging
 import dataclasses
-from typing import List, TypeVar
 
+from dataclasses import asdict, fields, is_dataclass
+
+from pathlib import Path
+from typing import List, TypeVar
 from omegaconf import OmegaConf
 from transformers import HfArgumentParser
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
 # -----------------------------
 # Functions for managing YAML configuration
 # -----------------------------
+
+def _only_parser_fields(d: dict, cls):
+    # Acepta solo nombres de campo del dataclass y descarta privados (_...)
+    valid = {f.name for f in fields(cls) if not f.name.startswith("_")}
+    return {k: v for k, v in d.items() if k in valid}
+
 def merge_arguments(cmd_args: T, extra_args: T, command_arg_names: List[str], yaml_arg_keys: List[str]) -> T:
     """
     Merge command-line arguments and configuration arguments for any dataclass instance.
@@ -104,7 +119,9 @@ def merge_config_and_command_args(config_path, class_type, section, _args, remai
     yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
     _parser = HfArgumentParser((class_type,))
     filtered_yaml = filter_config_keys(yaml_dict[section], class_type)
-    extra_args = _parser.parse_dict(filtered_yaml)[0]
+    base = _only_parser_fields(asdict(_args), class_type)
+    base.update(filtered_yaml)
+    extra_args = _parser.parse_dict(base)[0]
     command_arg_names = [value[2:].replace("-", "_") for value in remaining_args if value.startswith('--')]
     yaml_keys = yaml_dict[section].keys()
     _args = merge_arguments(
@@ -151,3 +168,40 @@ def check_t5_fp16_compatibility(model, fp16: bool):
             "You can find out more information on "
             "https://github.com/huggingface/transformers/issues?q=is%3Aissue%20t5%20NaN"
         )
+
+def ensure_train_output_dir(output_dir: str) -> str:
+    """
+    Ensure output_dir ends with a 'train' subfolder.
+    If output_dir already ends with 'train', return it unchanged.
+    """
+    p = Path(output_dir)
+    return str(p if p.name == "train" else p / "train")
+
+def resolve_missing_arg(whatever_args, arg_name, output_dir, setup_path=None):
+    if hasattr(whatever_args, arg_name) and getattr(whatever_args, arg_name) is not None:
+        return  # Already set, no action needed
+
+    # Determine the setup directory: use provided setup_path or default to output_dir/setup
+    if setup_path and os.path.exists(setup_path):
+        setup_dir = setup_path
+        logger.info(f"{arg_name} has not been specified in the config or as a commandline, trying to infer it from {setup_path}/actors_paths.yaml")
+    else:
+        setup_dir = os.path.join(output_dir, 'setup')
+        logger.info(f"{arg_name} has not been specified in the config or as a commandline, trying to infer it from {output_dir}/setup/actors_paths.yaml")
+
+    yaml_path = os.path.join(setup_dir, 'actors_paths.yaml')
+
+    if not os.path.exists(setup_dir):
+        raise ValueError(f"The parameter {arg_name} was not specified in config or commandline. Tried to infer from {setup_dir} but the setup directory does not exist.")
+
+    if not os.path.exists(yaml_path):
+        raise ValueError(f"The parameter {arg_name} was not specified in config or commandline. Tried to infer from {yaml_path} but the file does not exist.")
+
+    with open(yaml_path, 'r') as f:
+        data = yaml.safe_load(f)
+
+    if arg_name not in data:
+        raise ValueError(f"The parameter {arg_name} was not specified in config or commandline. Tried to infer from {yaml_path} but the file does not contain the key {arg_name}.")
+
+    setattr(whatever_args, arg_name, data[arg_name])
+    logger.info(f"Successfully inferred {arg_name} as {data[arg_name]} from {yaml_path}")

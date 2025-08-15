@@ -51,7 +51,7 @@ def test_setup_runs_successfully():
     set_global_seed(42)
     _ = run_python_script(
         "multimodalhugs/multimodalhugs_cli/training_setup.py",
-        ["--modality", "image2text", "--config_path", CONFIG_PATH],
+        ["--modality", "image2text", "--config_path", CONFIG_PATH, "--output_dir", OUTPUT_PATH],
     )
 
 
@@ -70,10 +70,10 @@ def test_model_converges_in_training():
     )
 
     # === Read trainer_state.json from best checkpoint ===
-    state_path = os.path.join(OUTPUT_PATH, "trainer_state.json")
+    state_path = os.path.join(OUTPUT_PATH, "train", "trainer_state.json")
     if not os.path.exists(state_path):
         # fallback: try reading from best checkpoint path
-        with open(os.path.join(OUTPUT_PATH, "trainer_state.json")) as f:
+        with open(os.path.join(OUTPUT_PATH, "train", "trainer_state.json")) as f:
             best_path = json.load(f)["best_model_checkpoint"]
             state_path = os.path.join(best_path, "trainer_state.json")
 
@@ -94,11 +94,15 @@ def test_model_converges_in_training():
 def test_generation_score_is_perfect():
     set_global_seed(42)
     # Find last checkpoint
+    train_dir = os.path.join(OUTPUT_PATH, "train")
+    search_path = train_dir if os.path.exists(train_dir) else OUTPUT_PATH
+
     checkpoints = [
-        os.path.join(OUTPUT_PATH, d)
-        for d in os.listdir(OUTPUT_PATH)
+        os.path.join(search_path, d)
+        for d in os.listdir(search_path)
         if d.startswith("checkpoint-")
     ]
+
     assert checkpoints, "No checkpoint found"
     ckpt_path = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[-1]
 
@@ -110,6 +114,7 @@ def test_generation_score_is_perfect():
             "--config_path", CONFIG_PATH,
             "--model_name_or_path", ckpt_path,
             "--metric_name", "chrf",
+            "--setup_path", f"{OUTPUT_PATH}/setup",
             "--output_dir", GENERATE_PATH,
             "--do_predict", "true",
             "--use_cpu",

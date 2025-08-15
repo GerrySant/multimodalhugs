@@ -4,6 +4,7 @@ multimodalhugs/utils/training_setup.py
 Common utilities to initialize dataset, processor, and model for all modalities.
 '''
 import os
+import yaml
 from pathlib import Path
 from omegaconf import OmegaConf
 from transformers import AutoTokenizer
@@ -35,7 +36,7 @@ def prepare_dataset(dataset_cls, data_config, output_dir: str):
     return str(data_path)
 
 
-def load_tokenizers(tokenizer_path, new_vocabulary, output_dir: str, run_name: str):
+def load_tokenizers(tokenizer_path, new_vocabulary, output_dir: Optional[str] = None, run_name: Optional[str] = None):
     """
     Load pretrained tokenizer, extend vocabulary, return (tokenizer, pretrained_tokenizer, new_tokens).
     """
@@ -55,9 +56,9 @@ def save_processor(processor, output_dir: str):
     return path
 
 
-def build_and_save_model(model_type: str, config_path: str, tokenizer, pretrained_tokenizer, new_tokens, model_cfg: dict, output_dir: str, run_name: str):
+def build_and_save_model(model_type: str, config_path: str, tokenizer, pretrained_tokenizer, new_tokens, model_cfg: dict, output_dir: str, modal_name: str):
     """
-    Instantiate model via registry, save to output_dir/run_name, return path.
+    Instantiate model via registry, save to output_dir/model, return path.
     """
     model_cls = get_model_class(model_type)
     kwargs = dict(
@@ -68,7 +69,7 @@ def build_and_save_model(model_type: str, config_path: str, tokenizer, pretraine
         **model_cfg
     )
     model = model_cls.build_model(**kwargs)
-    model_path = os.path.join(output_dir, run_name)
+    model_path = os.path.join(output_dir, modal_name)
     model.save_pretrained(model_path)
     return model_path
 
@@ -93,3 +94,74 @@ def update_configs(config_path: str, processor_path: Optional[str] = None, data_
     if model_path is not None:
         add_argument_to_the_config(config_path, "model", "model_name_or_path", model_path)
     reformat_yaml_file(config_path)
+
+def resolve_setup_paths(cfg, cli_output_dir=None):
+    """
+    Returns:
+      - <output_dir>/setup  if output_dir's last component is not 'setup'
+      - <output_dir>        if it already ends with 'setup'
+    """
+    setup_cfg = getattr(cfg, "setup", None)
+    base_output_dir = cli_output_dir or (getattr(setup_cfg, "output_dir", None) if setup_cfg else None)
+    if not base_output_dir:
+        raise ValueError("Missing required 'output_dir'. Specify via --output_dir or cfg.setup.output_dir.")
+
+    base_norm = os.path.normpath(base_output_dir)
+    final_output_dir = base_norm if os.path.basename(base_norm) == "setup" else os.path.join(base_norm, "setup")
+    return final_output_dir
+
+
+def resolve_update_choice(cfg, cli_update_config: Optional[bool]) -> bool:
+    """
+    Decide whether to update the config file with created artifact paths.
+    Priority: CLI (--update_config True/None) > cfg.setup.update_config (bool) > default False.
+    """
+    if cli_update_config is not None:
+        return bool(cli_update_config)
+    setup_cfg = getattr(cfg, "setup", None)
+    cfg_val = getattr(setup_cfg, "update_config", None) if setup_cfg else None
+    return bool(cfg_val) if isinstance(cfg_val, bool) else False
+
+def print_artifact_summary(
+    processor_path: Optional[str],
+    model_path: Optional[str],
+    data_path: Optional[str],
+) -> None:
+    """Print a concise summary of created actors."""
+    def fmt(p: Optional[str]) -> str:
+        if not p:
+            return "-"
+        p = str(Path(p).expanduser())
+        home = str(Path.home())
+        return "~" + p[len(home):] if p.startswith(home + "/") else p
+
+    rows = [
+        ("processor_name_or_path", processor_path),
+        ("model_name_or_path",     model_path),
+        ("dataset_dir",            data_path),
+    ]
+    key_w = max(len(k) for k, _ in rows)
+
+    print("\nTraining actors created at:\n")
+    for k, v in rows:
+        print(f"\t{k:<{key_w}} : {fmt(v)}")
+    print()
+
+def save_actor_paths(final_output_dir: str | Path,
+                     proc_path: str | Path,
+                     data_path: str | Path,
+                     model_path: str | Path) -> Path:
+    """Guarda los paths en final_output_dir/actors_paths.yaml con las claves requeridas."""
+    final_dir = Path(final_output_dir).expanduser().resolve()
+    final_dir.mkdir(parents=True, exist_ok=True)
+    out_file = final_dir / "actors_paths.yaml"
+
+    payload = {
+        "processor_name_or_path": str(Path(proc_path).expanduser().resolve()),
+        "dataset_dir":            str(Path(data_path).expanduser().resolve()),
+        "model_name_or_path":     str(Path(model_path).expanduser().resolve()),
+    }
+    with out_file.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(payload, f, sort_keys=False, allow_unicode=True)
+
+    return out_file

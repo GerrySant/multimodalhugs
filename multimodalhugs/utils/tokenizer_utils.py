@@ -112,18 +112,23 @@ def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=Non
 
 def extend_tokenizer(tokenizer_path, new_vocabulary, training_output_dir=None, model_name=None):
     """
-    Loads a pretrained tokenizer based on tokenizer_path and extends it
-    with the tokens specified in new_vocabulary.
-    
+    Load a pretrained tokenizer and optionally extend it with tokens from a vocabulary file.
+    The extended tokenizer is **saved to disk only if all of the following are true**:
+    1) `new_vocabulary` is not None,
+    2) `training_output_dir` is not None, and
+    3) `model_name` is not None.
+    In that case, the save path passed downstream is `os.path.join(training_output_dir, model_name)`.
+    If any of these are missing, the tokenizer is updated in-memory only and not saved.
+
     Args:
-        tokenizer_path: (str) Identifier or path for the pretrained tokenizer.
-        new_vocabulary: (str) Path to the file with new tokens.
-        training_output_dir: (str) Base output directory (e.g., config.training.output_dir).
-        model_name: (str) Name of the model (used to determine the output directory for the vocab update).
-    
+        tokenizer_path (str): Hugging Face identifier or local path to the pretrained tokenizer.
+        new_vocabulary (str | None): Path to a text file with tokens to add (e.g., one per line).
+        training_output_dir (str | None): Base output directory for saving the extended tokenizer.
+        model_name (str | None): Subdirectory name under `training_output_dir` used for saving.
+
     Returns:
-        tokenizer: The updated tokenizer (an instance of AutoTokenizer).
-        new_vocab_tokens: A list of new special tokens that were added.
+        AutoTokenizer: The updated tokenizer.
+        list[str]: Newly added special tokens.
     """
     # Load the pretrained tokenizer
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)

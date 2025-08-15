@@ -108,6 +108,10 @@ class ExtraArguments:
         default=None,
         metadata={"help": "Path to YAML config file"}
     )
+    setup_path: Optional[str] = field(
+        default=None,
+        metadata={"help": "Path to the setup directory containing actors_paths.yaml, used only if model_name_or_path, processor_name_or_path, or dataset_dir are not provided via commandline or config file. In train, if not provided, the path is inferred from training_args.output_dir/setup."}
+    )
 
 @dataclass
 class ExtendedSeq2SeqTrainingArguments(Seq2SeqTrainingArguments):

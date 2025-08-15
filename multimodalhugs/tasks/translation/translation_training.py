@@ -65,7 +65,15 @@ from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
 from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments, ExtendedSeq2SeqTrainingArguments
-from multimodalhugs.tasks.translation.utils import merge_arguments, construct_kwargs, filter_config_keys, merge_config_and_command_args, check_t5_fp16_compatibility
+from multimodalhugs.tasks.translation.utils import (
+    merge_arguments,
+    construct_kwargs,
+    filter_config_keys,
+    merge_config_and_command_args,
+    check_t5_fp16_compatibility,
+    ensure_train_output_dir,
+    resolve_missing_arg,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +90,13 @@ def main():
         model_args = merge_config_and_command_args(extra_args.config_path, ModelArguments, "model", model_args, sys.argv[1:])
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, sys.argv[1:])
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, sys.argv[1:])
-            
+
+    resolve_missing_arg(model_args, 'model_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+    resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+    resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+
+    training_args.output_dir = ensure_train_output_dir(training_args.output_dir)
+
     # set remove_unused_columns to false
     setattr(training_args, "remove_unused_columns", False)
 

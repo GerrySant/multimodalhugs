@@ -44,6 +44,16 @@ def main():
         "--model", action="store_true",
         help="Build the model (skip other non-specified actors)."
     )
+    parser.add_argument(
+        "--output_dir", type=str, default=None,
+        help="Base output directory (required if not provided in cfg.setup.output_dir)."
+    )
+    parser.add_argument(
+        "--update_config", dest="update_config", action="store_true", default=None,
+        help="If set, write created artifact paths back into the config file "
+             "(overrides cfg.setup.update_config)."
+    )
+
     # Allow additional arguments if needed by the underlying setup scripts.
     args, remaining_args = parser.parse_known_args()
     print(BANNER)
@@ -57,6 +67,8 @@ def main():
             do_dataset=args.dataset,
             do_processor=args.processor,
             do_model=args.model,
+            cli_output_dir=args.output_dir,
+            cli_update_config=args.update_config,
         )
     elif args.modality == "video2text":
         from multimodalhugs.training_setup.video2text_training_setup import main as video2text_setup
@@ -66,6 +78,8 @@ def main():
             do_dataset=args.dataset,
             do_processor=args.processor,
             do_model=args.model,
+            cli_output_dir=args.output_dir,
+            cli_update_config=args.update_config,
         )
     elif args.modality == "features2text":
         from multimodalhugs.training_setup.features2text_training_setup import main as features2text_setup
@@ -75,6 +89,8 @@ def main():
             do_dataset=args.dataset,
             do_processor=args.processor,
             do_model=args.model,
+            cli_output_dir=args.output_dir,
+            cli_update_config=args.update_config,
         )
     elif args.modality == "signwriting2text":
         from multimodalhugs.training_setup.signwriting2text_training_setup import main as signwriting_setup
@@ -84,6 +100,8 @@ def main():
             do_dataset=args.dataset,
             do_processor=args.processor,
             do_model=args.model,
+            cli_output_dir=args.output_dir,
+            cli_update_config=args.update_config,
         )
     elif args.modality == "image2text":
         from multimodalhugs.training_setup.image2text_training_setup import main as image2text_setup
@@ -93,6 +111,8 @@ def main():
             do_dataset=args.dataset,
             do_processor=args.processor,
             do_model=args.model,
+            cli_output_dir=args.output_dir,
+            cli_update_config=args.update_config,
         )
     elif args.modality == "text2text":
         from multimodalhugs.training_setup.text2text_training_setup import main as text2text_setup
@@ -102,6 +122,8 @@ def main():
             do_dataset=args.dataset,
             do_processor=args.processor,
             do_model=args.model,
+            cli_output_dir=args.output_dir,
+            cli_update_config=args.update_config,
         )
     else:
         sys.exit(f"Unknown modality: {args.modality}")
