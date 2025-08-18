@@ -116,21 +116,39 @@ def merge_config_and_command_args(config_path, class_type, section, _args, remai
         The updated dataclass instance with merged configuration values.
     """
     yaml_conf = OmegaConf.load(config_path)
-    yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True)
+    yaml_dict = OmegaConf.to_container(yaml_conf, resolve=True) or {}
+
+    section_conf = yaml_dict.get(section)
+    if not section_conf:
+        logger.warning(
+            "No parameters related to section '%s' were found in config '%s'. "
+            "Using command-line arguments as-is.",
+            section, config_path
+        )
+        return _args  # leave args untouched
+
     _parser = HfArgumentParser((class_type,))
-    filtered_yaml = filter_config_keys(yaml_dict[section], class_type)
+    filtered_yaml = filter_config_keys(section_conf, class_type)
+
+    # Start from CLI-provided dataclass, but only fields known to class_type
     base = _only_parser_fields(asdict(_args), class_type)
     base.update(filtered_yaml)
+
+    # Parse combined dict into a dataclass instance of class_type
     extra_args = _parser.parse_dict(base)[0]
-    command_arg_names = [value[2:].replace("-", "_") for value in remaining_args if value.startswith('--')]
-    yaml_keys = yaml_dict[section].keys()
-    _args = merge_arguments(
+
+    # Command-line flags that should take precedence
+    command_arg_names = [
+        v[2:].replace("-", "_") for v in (remaining_args or []) if v.startswith("--")
+    ]
+
+    yaml_keys = section_conf.keys()
+    return merge_arguments(
         cmd_args=_args,
         extra_args=extra_args,
         command_arg_names=command_arg_names,
-        yaml_arg_keys=yaml_keys
+        yaml_arg_keys=yaml_keys,
     )
-    return _args
 
 def check_t5_fp16_compatibility(model, fp16: bool):
     """

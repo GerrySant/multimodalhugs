@@ -60,9 +60,11 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-multimodalhugs-setup --modality "image2text" --config_path </path/to/example_config.yaml>
+multimodalhugs-setup --modality "image2text" \
+  --config_path </path/to/example_config.yaml> \
+  --output_dir </path/to/your/output_directory>
 ```
-The script will automatically save the paths of each of the training actors created in their respective section of the configuration.
+The script will automatically create the training actors at `</path/to/your/output_directory>/setup` and save their paths (needed for the `multimodalhugs-train`) at `</path/to/your/output_directory>/setup/actors_paths.yaml`.
 
 > **Note:** In this example, the model uses `m2m_100` as a pretrained backbone, along with its corresponding tokenizer. This can be seen in the configuration fields:  
 > - `model.pretrained_backbone: facebook/m2m100_418M`  
@@ -175,9 +177,8 @@ image2text_translation
 │   ├── hebrew_dataset_preprocessing_script.py
 │   └── hebrew_training_pipeline.sh
 └── other
-    ├── Arial.ttf                   # File needed for the creation of the images
-    └── new_languages_hebrew.txt    # Contains a dictionary with the new tokens to be added to the tokenizer.
+    └── Arial.ttf                   # File needed for the creation of the images
 ```
 - `configs`: Contains YAML config files (e.g., model / data / training hyperparameters).
 - `example_scripts`: Contains sample Python and bash scripts for preprocessing, setting up training, and launching experiments.
-- `other`: Additional resources (e.g., a file listing new tokens).
+- `other`: Additional resources (e.g., file containig the font used).

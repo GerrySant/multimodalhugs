@@ -2,6 +2,14 @@
 # This file contains settings for the model, common experiment parameters,
 # training hyperparameters, and dataset/data loading options.
 
+data:
+  # Dataset and preprocessing settings:
+  train_metadata_file: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
+  validation_metadata_file: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
+  test_metadata_file: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.
+  shuffle: True                                                                                                                 # Shuffle the dataset samples during loading.                                                                                # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
+  max_frames: 300                                                                                                               # Maximum number of frames to consider in video samples; samples exceeding this are filtered.
+
 model:
   # Model-specific settings:
   type: "multimodal_embedder" 
@@ -11,6 +19,18 @@ model:
   backbone_type: "<pretrained-backbone-model>"            # Identifier for the pretrained backbone (e.g., "m2m100").
   pretrained_backbone: "<pretrained-backbone-weights>"    # Weights or checkpoint identifier for the pretrained backbone.
   feat_dim: 534                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
+
+processor:                                             # Image preprocessing settings.
+  reduce_holistic_poses: true
+  text_tokenizer_path: "<pretrained-tokenizer>"
+  new_vocabulary: "__asl__"                          # Comma-separated list of new tokens that will be added to the tokenizer. It can also be a Path to the file containing the new tokens that will be added to the tokenizer.
+
+setup:
+  output_dir: "</path/to/your/output_directory>"   # Base directory for saving setup artifacts
+  do_dataset: true                                 # Whether to prepare the dataset during setup
+  do_processor: true                               # Whether to set up the processor during setup
+  do_model: true                                   # Whether to build the model during setup
+  update_config: false                             # Whether to write created artifact paths back to the config file
 
 training:
   run_name: "how2sign_pose_2_text_model"           # The name or identifier of the model configuration.
@@ -45,16 +65,3 @@ training:
   dataloader_drop_last: false                      # Drop the last incomplete batch in the dataloader.
   fp16: True                                       # Enable mixed-precision (FP16) training for faster computation.
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
-
-data:
-  # Dataset and preprocessing settings:
-  train_metadata_file: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
-  validation_metadata_file: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
-  test_metadata_file: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.
-  shuffle: True                                                                                                                 # Shuffle the dataset samples during loading.                                                                                # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
-  max_frames: 300                                                                                                               # Maximum number of frames to consider in video samples; samples exceeding this are filtered.
-
-processor:                                             # Image preprocessing settings.
-  reduce_holistic_poses: true
-  text_tokenizer_path: "<pretrained-tokenizer>"
-  new_vocabulary: "/examples/multimodal_translation/pose2text_translation/other/new_languages_how2sign.txt"                     # Path to the file containing the new tokens that will be added to the tokenizer.

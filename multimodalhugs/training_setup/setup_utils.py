@@ -148,19 +148,23 @@ def print_artifact_summary(
     print()
 
 def save_actor_paths(final_output_dir: Union[str, Path],
-                     proc_path: Union[str, Path],
-                     data_path: Union[str, Path],
-                     model_path: Union[str, Path]) -> Path:
+                     proc_path: Union[str, Path, None] = None,
+                     data_path: Union[str, Path, None] = None,
+                     model_path: Union[str, Path, None] = None) -> Path:
     """Guarda los paths en final_output_dir/actors_paths.yaml con las claves requeridas."""
     final_dir = Path(final_output_dir).expanduser().resolve()
     final_dir.mkdir(parents=True, exist_ok=True)
     out_file = final_dir / "actors_paths.yaml"
 
-    payload = {
-        "processor_name_or_path": str(Path(proc_path).expanduser().resolve()),
-        "dataset_dir":            str(Path(data_path).expanduser().resolve()),
-        "model_name_or_path":     str(Path(model_path).expanduser().resolve()),
-    }
+    payload = {}
+
+    if proc_path is not None:
+        payload["processor_name_or_path"] = str(Path(proc_path).expanduser().resolve())
+    if data_path is not None:
+        payload["dataset_dir"] = str(Path(data_path).expanduser().resolve())
+    if model_path is not None:
+        payload["model_name_or_path"] = str(Path(model_path).expanduser().resolve())
+
     with out_file.open("w", encoding="utf-8") as f:
         yaml.safe_dump(payload, f, sort_keys=False, allow_unicode=True)
 

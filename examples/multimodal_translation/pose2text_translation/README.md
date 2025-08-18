@@ -63,9 +63,11 @@ Below is an example of how your metadata file should be structured. Each row rep
 Run the setup:
 
 ```bash
-multimodalhugs-setup --modality "pose2text" --config_path </path/to/example_config.yaml>
+multimodalhugs-setup --modality "pose2text" \
+  --config_path </path/to/example_config.yaml> \
+  --output_dir </path/to/your/output_directory>
 ```
-The script will automatically save the paths of each of the training actors created in their respective section of the configuration.
+The script will automatically create the training actors at `</path/to/your/output_directory>/setup` and save their paths (needed for the `multimodalhugs-train`) at `</path/to/your/output_directory>/setup/actors_paths.yaml`.
 
 > **Note:** In this example, the model uses `m2m_100` as a pretrained backbone, along with its corresponding tokenizer. This can be seen in the configuration fields:  
 > - `model.pretrained_backbone: facebook/m2m100_418M`  
@@ -173,12 +175,9 @@ pose2text_translation
 ├── README.md                  # Current documentation
 ├── configs
 │   └── example_config.yaml    # Example config template
-├── example_scripts
-│   ├── how2sign_dataset_preprocessing_script.py
-│   └── how2sign_training_pipeline.sh
-└── other
-    └── new_languages_how2sign.txt  # Optional: new tokens for tokenizer
+└── example_scripts
+    ├── how2sign_dataset_preprocessing_script.py
+    └── how2sign_training_pipeline.sh
 ```
 - `configs`: Contains YAML config files (e.g., model / data / training hyperparameters).
 - `example_scripts`: Contains sample Python and bash scripts for preprocessing, setting up training, and launching experiments.
-- `other`: Additional resources (e.g., a file listing new tokens).

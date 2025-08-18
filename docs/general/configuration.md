@@ -5,6 +5,7 @@ The MultiModalHugs configuration file standardizes the setup for training, evalu
 - **Model**
 - **Data**
 - **Processor**
+- **Setup**
 - **Training**
 
 Each section is explained in detail below.
@@ -37,6 +38,22 @@ This section defines processor-specific parameters.
 
 - **processor_name_or_path** (*General argument*): Points to the processor instance created by `multimodalhugs-setup`. Like the dataset, this field is optional during setup but required for loading the processor during training.
 > **Note:** Specific processor-related arguments depend on the processor type. 
+
+---
+
+## Setup Section
+
+This section defines parameters for preparing the dataset, processor, and model. The `modality` and `config_path` arguments must be specified via the command line, while the following arguments can be included in the configuration file:
+
+- **output_dir** (*Optional, default: None*): Specifies the base output directory for saving artifacts.
+- **do_dataset** (*Optional, default: False*): If set to `true`, prepares the dataset during setup.
+- **do_processor** (*Optional, default: False*): If set to `true`, sets up the processor during setup.
+- **do_model** (*Optional, default: False*): If set to `true`, builds the model during setup.
+- **update_config** (*Optional, default: None*): If set to `true`, writes the created artifact paths back into the configuration file.
+
+> **Note:** The `modality` argument, which specifies the training setup modality (e.g., `"pose2text"`, `"signwriting2text"`, `"image2text"`, `"text2text"`, `"features2text"`, etc), and the `config_path` argument, which points to the YAML configuration file, are required and must be provided via the command line when running `multimodalhugs-setup`.
+
+> **Note:** If all `do_*` arguments (`do_dataset`, `do_processor`, `do_model`) are set to `false`, the setup process will attempt to create all actors (dataset, processor, and model).
 
 ---
 

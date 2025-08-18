@@ -1,3 +1,14 @@
+# Configuration file for training with the multimodalhugs framework.
+# This file contains settings for the model, common experiment parameters,
+# training hyperparameters, and dataset/data loading options.
+
+data:
+  train_metadata_file: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
+  validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
+  test_metadata_file: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
+  shuffle: True                                                # Shuffle dataset samples during loading.
+  max_frames: 300                                             # Maximum number of frames to consider.
+
 model:
   type: "multimodal_embedder" 
   feature_extractor_type: "<feature_extractor_type>"   # Type of feature extractor (e.g., "clip" for CLIP).
@@ -10,6 +21,21 @@ model:
   feat_dim: 512                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
   feature_extractor_config:                              # Configuration for modifying the feature extractor architecture.
     feature_extractor_arguments: "<config-arguments>"  # Arguments to adjust the internal configuration of the feature extractor.
+
+processor:                                           # Image preprocessing settings.
+  width: 224                                         # Input image width in pixels.
+  height: 224                                        # Input image height in pixels.
+  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
+  custom_preprocessor_path: openai/clip-vit-base-patch32 
+  text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
+  new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
+
+setup:
+  output_dir: "</path/to/your/output_directory>"   # Base directory for saving setup artifacts
+  do_dataset: true                                 # Whether to prepare the dataset during setup
+  do_processor: true                               # Whether to set up the processor during setup
+  do_model: true                                   # Whether to build the model during setup
+  update_config: false                             # Whether to write created artifact paths back to the config file
 
 training:
   run_name: "multimodal_embedder"                  # The name or identifier of the model configuration.
@@ -44,18 +70,3 @@ training:
   dataloader_drop_last: false                      # Drop the last incomplete batch in the dataloader.
   fp16: True                                       # Enable mixed-precision (FP16) training for faster computation.
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
-
-data:
-  train_metadata_file: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
-  validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
-  test_metadata_file: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
-  shuffle: True                                                # Shuffle dataset samples during loading.
-  max_frames: 300                                             # Maximum number of frames to consider.
-
-processor:                                           # Image preprocessing settings.
-  width: 224                                         # Input image width in pixels.
-  height: 224                                        # Input image height in pixels.
-  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
-  custom_preprocessor_path: openai/clip-vit-base-patch32 
-  text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.

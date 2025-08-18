@@ -1,3 +1,12 @@
+# Configuration file for training with the multimodalhugs framework.
+# This file contains settings for the model, common experiment parameters,
+# training hyperparameters, and dataset/data loading options.
+
+data:
+  train_metadata_file: "/path/to/train/metadata_file.tsv"  # Path to the training metadata file.
+  validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
+  test_metadata_file: "/path/to/test/metadata_file.tsv"    # Path to the test metadata file.
+
 model:
   type: "multimodal_embedder" 
   feature_extractor_type: "<feature_extractor_type>"     # Type of the feature extractor to use (e.g., "clip" for CLIP).
@@ -11,9 +20,25 @@ model:
   feature_extractor_config:                                 # Configuration for the feature extractor.
     feature_extractor_arguments: "<config-arguments>"   # Arguments to adjust the feature extractor's internal configuration.
 
+processor:
+  font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
+  width: 224                                         # Input image width in pixels.
+  height: 224                                        # Input image height in pixels.
+  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
+  mean: "<[mean_values]>"                            # Mean pixel values for image normalization (e.g., "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]").
+  std: "<[std_values]>"                              # Standard deviation of pixel values for normalization (e.g., "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]").
+  text_tokenizer_path: "<pretrained-tokenizer>"      # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
+  new_vocabulary: "__vhe__"                          # Comma-separated list of new tokens that will be added to the tokenizer. It can also be a Path to the file containing the new tokens that will be added to the tokenizer.
+
+setup:
+  output_dir: "</path/to/your/output_directory>"   # Base directory for saving setup artifacts
+  do_dataset: true                                 # Whether to prepare the dataset during setup
+  do_processor: true                               # Whether to set up the processor during setup
+  do_model: true                                   # Whether to build the model during setup
+  update_config: false                             # Whether to write created artifact paths back to the config file
+
 training:
   run_name: "hebrew_multimodalhugs"                # The name or identifier of the model configuration.
-  output_dir: "/path/to/output/"                   # Directory to store training outputs.
   do_train: true                                   # Whether to run training.
   do_eval: true                                    # Whether to run evaluation on the validation set.
   eval_strategy: "steps"                           # Evaluation strategy ("steps" or "epoch").
@@ -34,18 +59,3 @@ training:
   load_best_model_at_end: true                     # Load the best model found during training at the end.
   seed: 3435                                       # Random seed for reproducibility.
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
-
-data:
-  train_metadata_file: "/path/to/train/metadata_file.tsv"  # Path to the training metadata file.
-  validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
-  test_metadata_file: "/path/to/test/metadata_file.tsv"    # Path to the test metadata file.
-
-processor:
-  font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
-  width: 224                                         # Input image width in pixels.
-  height: 224                                        # Input image height in pixels.
-  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
-  mean: "<[mean_values]>"                            # Mean pixel values for image normalization (e.g., "[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]").
-  std: "<[std_values]>"                              # Standard deviation of pixel values for normalization (e.g., "[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]").
-  text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.

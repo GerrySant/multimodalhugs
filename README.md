@@ -70,25 +70,25 @@ The `metadata.tsv` files for each partition must include the following fields:
 ### 2. Setup Datasets, Model, and Processors
 
 ```bash
-multimodalhugs-setup --modality {pose2text,signwriting2text,image2text} --config_path CONFIG_PATH
+multimodalhugs-setup --modality {pose2text,signwriting2text,image2text,etc} --config_path $CONFIG_PATH --output_dir $OUTPUT_PATH
 ```
 
 ### 3. Train a Model
 
 ```bash
-multimodalhugs-train --task <task_name> --config_path CONFIG_PATH
+multimodalhugs-train --task <task_name> --config_path $CONFIG_PATH --output_dir $OUTPUT_PATH
 ```
 
 ### 4. Generate Outputs with a Trained Model
 
 ```bash
 multimodalhugs-generate --task <task_name> \
-      --metric_name METRIC_NAME \
-      --config_path CONFIG_PATH \
-      --model_name_or_path MODEL_PATH \
-      --processor_name_or_path PROCESSOR_PATH \
-      --dataset_dir DATASET_PATH \
-      --output_dir OUTPUT_DIR
+      --metric_name $METRIC_NAME \
+      --config_path $CONFIG_PATH \
+      --model_name_or_path $CKPT_PATH \
+      --processor_name_or_path $PROCESSOR_PATH \
+      --dataset_dir $DATASET_PATH \
+      --output_dir $GENERATION_OUTPUT_DIR
 ```
 
 
@@ -103,18 +103,23 @@ multimodalhugs/
 ├── README.md               # Project overview
 ├── LICENSE                 # License information
 ├── pyproject.toml          # Package dependencies and setup
+├── .gitignore              # Git ignore rules
+├── .github/                # GitHub actions and workflows
+│   └── workflows/
 ├── docs/                   # Documentation
-│   ├── data/               # Data-related documentation
+│   ├── README.md
+│   ├── customization/      # Guides for custom extensions
+│   ├── data/               # Data configs and dataset docs
 │   ├── general/            # General framework documentation
-│   ├── models/             # Model-related documentation
 │   ├── media/              # Visual guides
-│   └── README.md           # Documentation overview
+│   └── models/             # Model documentation
 ├── examples/               # Example scripts and configurations
-│   ├── multimodal_translation/
-│   │   ├── image2text_translation/
-│   │   ├── pose2text_translation/
-│   │   └── signwriting2text_translation/
+│   └── multimodal_translation/
+│       ├── image2text_translation/
+│       ├── pose2text_translation/
+│       └── signwriting2text_translation/
 ├── multimodalhugs/         # Core framework
+│   ├── custom_datasets/    # Custom datasets
 │   ├── data/               # Data handling utilities
 │   ├── models/             # Model implementations
 │   ├── modules/            # Custom components (adapters, embeddings, etc.)
@@ -123,9 +128,9 @@ multimodalhugs/
 │   ├── training_setup/     # Training pipeline setup
 │   ├── multimodalhugs_cli/ # Command-line interface for training/inference
 │   └── utils/              # Helper functions
-├── scripts/                # Utility scripts (e.g., documentation generation)
-├── tests/                  # Unit tests
-└── .github/                # GitHub actions and workflows
+├── scripts/                # Utility scripts (e.g., docs generation, metrics)
+└── tests/                  # Unit and integration tests
+
 ```
 
 For a detailed breakdown of each directory, see [docs/README.md](docs/README.md).
@@ -143,11 +148,11 @@ This project is licensed under the terms of the MIT License.
 If you use MultimodalHugs in your research or applications, please cite:
 
 ```bibtex
-@misc{multimodalhugs2024,
-    title={MultimodalHugs: A Reproducibility-Driven Framework for Multimodal Machine Translation},
-    author={Sant, Gerard and Moryossef, Amit and Jiang, Zifan and Escolano, Carlos},
-    howpublished={\url{https://github.com/GerrySant/multimodalhugs}},
-    year={2024}
+@misc{sant2025multimodalhugs,
+  title        = {MultimodalHugs: Enabling Sign Language Processing in Hugging Face},
+  author       = {Sant, Gerard and Jiang, Zifan and Escolano, Carlos and Moryossef, Amit and Müller, Mathias and Sennrich, Rico and Ebling, Sarah},
+  year         = {2024},
+  note         = {Manuscript submitted for publication},
+  howpublished = {https://github.com/GerrySant/multimodalhugs},
 }
 ```
-

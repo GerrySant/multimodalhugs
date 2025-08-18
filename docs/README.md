@@ -55,12 +55,12 @@ The `metadata.tsv` files for each partition must include the following fields:
 
 ## 2. Setup Datasets, Model and Processors:
    ```bash
-   multimodalhugs-setup --modality {pose2text,signwriting2text,image2text} --config_path CONFIG_PATH
+   multimodalhugs-setup --modality {pose2text,signwriting2text,image2text,text2text,features2text,video2text} --config_path $CONFIG_PATH [additional arguments...]
    ```
 
 ## 3. Train a model:
    ```bash
-   multimodalhugs-train --task <task_name> --config_path CONFIG_PATH
+   multimodalhugs-train --task <task_name> --output_dir $OUTPUT_DIR [--config_path $CONFIG_PATH] [--setup_path $SETUP_PATH] [additional arguments...]
    ```
 
 ## 4. Generate outputs with a trained model:
@@ -75,6 +75,8 @@ The `metadata.tsv` files for each partition must include the following fields:
    ```
 
 > **Note:** For more detailed information on each command, refer to the <a href="general/CLI.md">CLI documentation</a>.
+
+> **Note:** If the configuration file specified via `--config_path` contains any of the following arguments: `model_name_or_path`, `processor_name_or_path`, or `dataset_dir`, the respective command-line argument can be omitted.
 
 ## 📁 Examples
 
