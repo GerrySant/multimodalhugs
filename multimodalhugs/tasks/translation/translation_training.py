@@ -363,9 +363,21 @@ def main():
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
         logger.info(f"Resuming training from: {checkpoint}")
+        
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
-        trainer.save_model()  # Saves the tokenizer too for easy upload
 
+        # Save the "last" model checkpoint
+        last_model_path = os.path.join(training_args.output_dir, "checkpoint-last")
+        trainer.save_model(last_model_path)  # saves model + tokenizer
+        logger.info(f"Saved last model checkpoint to {last_model_path}")
+
+        # If load_best_model_at_end=True, also save the best model
+        if training_args.load_best_model_at_end:
+            best_model_path = os.path.join(training_args.output_dir, "checkpoint-best")
+            trainer.save_model(best_model_path)
+            logger.info(f"Saved best model checkpoint to {best_model_path}")
+
+        # Save training metrics and state
         metrics = train_result.metrics
         max_train_samples = (
             data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
@@ -373,8 +385,9 @@ def main():
         metrics["train_samples"] = min(max_train_samples, len(train_dataset))
 
         trainer.log_metrics("train", metrics)
-        trainer.save_metrics("train", metrics)
+        #trainer.save_metrics("train", metrics)
         trainer.save_state()
+
 
     # Evaluation
     metrics_result = {}

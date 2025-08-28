@@ -104,7 +104,12 @@ def test_generation_score_is_perfect():
     ]
 
     assert checkpoints, "No checkpoint found"
-    ckpt_path = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[-1]
+    if any("checkpoint-best" in c for c in checkpoints):
+        ckpt_path = [c for c in checkpoints if "checkpoint-best" in c][0]
+    elif any("checkpoint-last" in c for c in checkpoints):
+        ckpt_path = [c for c in checkpoints if "checkpoint-last" in c][0]
+    else:
+        ckpt_path = sorted(checkpoints, key=lambda x: int(x.split("-")[-1]))[-1]
 
     # Run generation
     _ = run_python_script(
@@ -125,13 +130,13 @@ def test_generation_score_is_perfect():
     )
 
     # Check predict_score in output file
-    result_path = os.path.join(GENERATE_PATH, "predict_results.json")
-    assert os.path.exists(result_path), "predict_results.json not found"
+    result_path = os.path.join(GENERATE_PATH, "all_results.json")
+    assert os.path.exists(result_path), "all_results.json not found"
 
     with open(result_path, "r") as f:
         results = json.load(f)
 
     score = results.get("predict_score", None)
     assert score is not None, "predict_score not found in result file"
-    print(f"✅ predict_score from predict_results.json: {score}")
+    print(f"✅ predict_score from all_results.json: {score}")
     assert score == 100.0, f"Expected predict_score of 100.0, got {score}"
