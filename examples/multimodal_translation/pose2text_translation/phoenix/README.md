@@ -71,7 +71,7 @@ check if the output paths are correct.
 
 See `scripts/phoenix_dataset_preprocessing.sh` for an actual call to this Python script.
 
-The folder `data` in this repository has some example dummy data to show the expected structure of the TSV files.
+The [folder `data` in this repository](https://github.com/GerrySant/multimodalhugs/tree/phoenix_example/examples/multimodal_translation/pose2text_translation/phoenix/data) has some example dummy data to show the expected structure of the TSV files.
 
 ### 2) Creating a config
 
@@ -107,7 +107,7 @@ Optional arguments:
 
 `dry-run`: will result in a training config that trains a model for very few steps only
 
-The folder `configs` in this repository has an example config file for reference (even though the real one is generated
+The [folder `configs` in this repository](https://github.com/GerrySant/multimodalhugs/tree/phoenix_example/examples/multimodal_translation/pose2text_translation/phoenix/configs) has an example config file for reference (even though the real one is generated
 dynamically).
 
 ### 3) Setup

@@ -1,0 +1,4 @@
+signal	signal_start	signal_end	encoder_prompt	decoder_prompt	output
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/03February_2011_Thursday_heute-600.pose	0	0	__dgs__	__de__	guten abend liebe zuschauer
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/20November_2010_Saturday_tagesschau-1833.pose	0	0	__dgs__	__de__	im bergland fällt zunehmend schnee
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/26April_2010_Monday_heute-3400.pose	0	0	__dgs__	__de__	und der wind weht auch noch kräftig aus west bis nordwest

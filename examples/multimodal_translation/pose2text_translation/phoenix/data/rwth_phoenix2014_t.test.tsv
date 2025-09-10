@@ -1,0 +1,4 @@
+signal	signal_start	signal_end	encoder_prompt	decoder_prompt	output
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/25August_2010_Wednesday_heute-6005.pose	0	0	__dgs__	__de__	denn im süden haben wir die schwül warme gewitterluft dabei ist es aber noch im süden sonnig
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/04December_2009_Friday_tagesschau-844.pose	0	0	__dgs__	__de__	ab sonntag wird es wieder milder dabei gibt es viele wolken zeitweise fällt regen im nordwesten windig
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/08June_2010_Tuesday_tagesschau-5529.pose	0	0	__dgs__	__de__	donnerstag und freitag ändert sich wenig an diesem wetter
