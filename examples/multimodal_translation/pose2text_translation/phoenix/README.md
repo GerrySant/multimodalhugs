@@ -15,8 +15,6 @@ section of this script:
 
 `base`: a folder where the data, model, etc. of this experiment will appear
 
-`scripts`: path to the `scripts` folder of this example on your local machine
-
 `dry_run`: prepare and train on only a handful of examples, as a sanity check. Also, training will run on CPU instead of GPU. Set to `true` or `false`.
 
 Then:

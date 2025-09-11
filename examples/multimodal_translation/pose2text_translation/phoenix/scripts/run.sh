@@ -4,11 +4,11 @@
 
 base="/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples"
 
-scripts="/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs/examples/multimodal_translation/pose2text_translation/phoenix/scripts"
-
 dry_run="false"
 
 ##########################################################
+
+scripts=$(dirname "$0")
 
 # preprocess data
 
@@ -23,5 +23,5 @@ dry_run="false"
 
 # HF translate + evaluate
 
-.$scripts/translate_phoenix.sh \
+. $scripts/translate_phoenix.sh \
     $base
