@@ -1,0 +1,4 @@
+signal	signal_start	signal_end	encoder_prompt	decoder_prompt	output
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/23August_2010_Monday_heute-5321.pose	0	0	__dgs__	__de__	das ist jetzt langsam im osten nach aber im süden haben sie weiter in der ganzen nacht noch schauer und gewitter an der nordsee
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/22November_2010_Monday_heute-279.pose	0	0	__dgs__	__de__	und es kann auch örtlich zum teil auch gefährlich glatt werden denn vor allen dingen in der mitte und auch im süden wird es frostig
+/shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/poses/26September_2009_Saturday_tagesschau-2333.pose	0	0	__dgs__	__de__	und nun die wettervorhersage für morgen sonntag den siebenundzwanzigsten september
