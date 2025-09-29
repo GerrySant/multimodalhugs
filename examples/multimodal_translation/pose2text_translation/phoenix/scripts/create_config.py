@@ -38,6 +38,7 @@ training:
   dataloader_prefetch_factor: 2                    # Number of batches loaded in advance by each worker; total prefetched batches = num_workers * prefetch_factor.
   metric_name: sacrebleu, chrf                     # Name of the metric to use (any metric supported by evaluate.load()). If you want to use multiple metrics, structure the variable like: metric_name: '<metric_name_1>,<metric_name_2>,...'
   metric_for_best_model: 'sacrebleu'               # Metric used to determine the best model.
+  greater_is_better: true
   weight_decay: 0                                  # Weight decay factor (L2 regularization).
   adam_beta1: 0.9                                  # Beta1 parameter for the Adam optimizer.
   adam_beta2: 0.998                                # Beta2 parameter for the Adam optimizer.

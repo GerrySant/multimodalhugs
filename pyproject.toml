@@ -32,6 +32,7 @@ dependencies = [
     "pose-format>=0.10.1",
     "ruamel.yaml",
     "av>=10.0.0",
+    "tf-keras",
 ]
 
 [project.optional-dependencies]
