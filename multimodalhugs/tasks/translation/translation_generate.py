@@ -268,6 +268,8 @@ def main():
     metric = evaluate.load(training_args.metric_name, cache_dir=model_args.cache_dir)
     training_args.generation_config = generation_config if generation_config is not None else None
 
+    if generate_args.generate_output_dir is not None: # HOTFIX to ensure the trainer stores all_results.json at generate_output_dir directory
+        training_args.output_dir = generate_args.generate_output_dir
     # --- Initialize the Trainer ---
     trainer = MultiLingualSeq2SeqTrainer(
         model=model,
@@ -293,7 +295,7 @@ def main():
     metrics_result = predict_results.metrics
     max_predict_samples = data_args.max_predict_samples if data_args.max_predict_samples is not None else len(test_dataset)
     metrics_result["predict_samples"] = min(max_predict_samples, len(test_dataset))
-    #trainer.log_metrics("predict", metrics_result)
+    trainer.log_metrics("predict", metrics_result)
     trainer.save_metrics("predict", metrics_result)
 
     if trainer.is_world_process_zero():
