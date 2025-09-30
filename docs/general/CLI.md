@@ -132,7 +132,7 @@ multimodalhugs-generate --task <task_name> [additional arguments...]
 - **--processor_name_or_path** (*Required*):\* Path to the processor instance.
 - **--dataset_dir** (*Required*):\* Path to the dataset.
 - **--config_path** (*Optional*): Path to the YAML configuration file.
-- **--output_dir** (*Required*):\* Directory to save generated outputs.
+- **--generate_output_dir** (*Optional*):\* Directory to save generated outputs.
   
   > **\*** This field can be either specified in the config or as argument
 
@@ -166,8 +166,9 @@ options:
                         Path to the configuration file.
   --setup_path SETUP_PATH
                         Path to the setup directory containing actors_paths.yaml, used only if model_name_or_path, processor_name_or_path, or dataset_dir are not provided via commandline or config file. If not provided, pipeline tries to infer the path from <training_args.output_dir>/setup (default: None).
-  --output_dir OUTPUT_DIR
-                        Directory to save generated outputs.
+  --generate_output_dir OUTPUT_DIR
+                        Path to store the outputs from the generate.
+                        If not specified, it defaults to the directory where you run the code.
 ```
 
 ---

@@ -148,7 +148,7 @@ Below is a general bash script outline that you can adapt for evaluation. Replac
 multimodalhugs-generate \
     --task "translation" \                       # Identifier of the task to be evaluated.
     --metric_name "sacrebleu" \                  # Evaluation metric identifier (e.g., 'sacrebleu').
-    --output_dir $OUTPUT_PATH \                  # Directory to store generation outputs and metrics.
+    --generate_output_dir $OUTPUT_PATH \                  # Directory to store generation outputs and metrics.
     --model_name_or_path $CKPT_PATH \            # Trained model checkpoint directory.
     --processor_name_or_path $PROCESSOR_PATH \   # Directory to the processor created via multimodalhugs-setup.
     --dataset_dir $DATA_PATH \                   # Directory of the dataset created by multimodalhugs-setup.
@@ -158,7 +158,7 @@ multimodalhugs-generate \
 **Key arguments explained:**
 - `--task "translation"`: Specifies the evaluation task.
 - `--metric_name "sacrebleu"`: Sets the evaluation metric to sacreBLEU (you may choose another metric as needed).
-- `--output_dir`: Directory where evaluation outputs (generated translations and metrics) will be saved.
+- `--generate_output_dir`: Directory where evaluation outputs (generated translations and metrics) will be saved.
 - `--model_name_or_path`: Path to your trained model checkpoint.
 - `--processor_name_or_path`: Path to the processor created during the setup phase.
 - `--dataset_dir`: Directory of your preprocessed dataset.
