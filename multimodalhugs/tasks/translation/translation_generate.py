@@ -296,7 +296,7 @@ def main():
     max_predict_samples = data_args.max_predict_samples if data_args.max_predict_samples is not None else len(test_dataset)
     metrics_result["predict_samples"] = min(max_predict_samples, len(test_dataset))
     trainer.log_metrics("predict", metrics_result)
-    trainer.save_metrics("predict", metrics_result)
+    trainer.save_metrics("predict", metrics_result, combined=False)
 
     if trainer.is_world_process_zero():
         if training_args.predict_with_generate:
