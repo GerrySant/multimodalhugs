@@ -120,7 +120,7 @@ def test_generation_score_is_perfect():
             "--model_name_or_path", ckpt_path,
             "--metric_name", "chrf",
             "--setup_path", f"{OUTPUT_PATH}/setup",
-            "--output_dir", GENERATE_PATH,
+            "--generate_output_dir", GENERATE_PATH,
             "--do_predict", "true",
             "--use_cpu",
             "--generation_max_length", "7",

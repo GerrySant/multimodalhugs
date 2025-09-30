@@ -12,6 +12,16 @@ Usage example:
 
 import sys
 import argparse
+import logging
+
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+)
 
 def print_global_help():
     help_text = """usage: multimodalhugs-generate [-h] --task {translation}

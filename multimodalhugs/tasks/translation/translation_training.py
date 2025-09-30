@@ -372,10 +372,9 @@ def main():
         logger.info(f"Saved last model checkpoint to {last_model_path}")
 
         # If load_best_model_at_end=True, also save the best model
-        if training_args.load_best_model_at_end:
-            best_model_path = os.path.join(training_args.output_dir, "checkpoint-best")
-            trainer.save_model(best_model_path)
-            logger.info(f"Saved best model checkpoint to {best_model_path}")
+        best_model_path = os.path.join(training_args.output_dir, "checkpoint-best")
+        trainer.save_model(best_model_path)
+        logger.info(f"Saved best model checkpoint to {best_model_path}")
 
         # Save training metrics and state
         metrics = train_result.metrics

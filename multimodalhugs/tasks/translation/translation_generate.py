@@ -68,7 +68,7 @@ from transformers.utils import send_example_telemetry
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
 
-from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments, ExtendedSeq2SeqTrainingArguments
+from multimodalhugs.tasks.translation.config_classes import ModelArguments, ProcessorArguments, DataTrainingArguments, ExtraArguments, ExtendedSeq2SeqTrainingArguments, GenerateArguments
 
 from multimodalhugs.tasks.translation.utils import (
     merge_arguments,
@@ -77,6 +77,7 @@ from multimodalhugs.tasks.translation.utils import (
     merge_config_and_command_args,
     ensure_train_output_dir,
     resolve_missing_arg,
+    resolve_checkpoint_path_from_general_setup_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,11 +123,11 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
     
-    parser = HfArgumentParser((ExtraArguments, ModelArguments, ProcessorArguments, DataTrainingArguments, ExtendedSeq2SeqTrainingArguments))
-    extra_args, model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    parser = HfArgumentParser((GenerateArguments, ExtraArguments, ModelArguments, ProcessorArguments, DataTrainingArguments, ExtendedSeq2SeqTrainingArguments))
+    generate_args, extra_args, model_args, processor_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     if extra_args.config_path:
-        for section in ("training", "generation"):
+        for section in ("training",):
             try:
                 training_args = merge_config_and_command_args(
                     extra_args.config_path,
@@ -138,6 +139,7 @@ def main():
                 break
             except KeyError:
                 continue
+        generate_args = merge_config_and_command_args(extra_args.config_path, GenerateArguments, "generation", generate_args, sys.argv[1:])
         model_args = merge_config_and_command_args(extra_args.config_path, ModelArguments, "model", model_args, sys.argv[1:])
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, sys.argv[1:])
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, sys.argv[1:])
@@ -148,7 +150,18 @@ def main():
     setattr(training_args, "report_to", [])
     setattr(training_args, "visualize_prediction_prob", 0)
 
-    resolve_missing_arg(model_args, 'model_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+    # Apply default manually if user did not provide it
+    if generate_args.generate_output_dir is None:
+        generate_args.generate_output_dir = os.getcwd()
+        logger.warning(f"WARNING: No --generate_output_dir provided. "
+            f"Using current directory: {generate_args.generate_output_dir}")
+    else:
+        logger.info(f"Outputs will be stored in: {generate_args.generate_output_dir}")
+
+    if model_args.model_name_or_path is None:
+        resolve_missing_arg(model_args, 'model_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
+        model_args.model_name_or_path = resolve_checkpoint_path_from_general_setup_path(model_args.model_name_or_path)
+
     resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
 
@@ -300,13 +313,13 @@ def main():
             labels_decoded = [lab.strip() for lab in labels_decoded]
 
             # File to store only the predictions.
-            output_prediction_file = os.path.join(training_args.output_dir, "generated_predictions.txt")
+            output_prediction_file = os.path.join(generate_args.generate_output_dir, "generated_predictions.txt")
             with open(output_prediction_file, "w", encoding="utf-8") as writer:
                 writer.write("\n".join(predictions_decoded))
             logger.info(f"Predictions saved in: {output_prediction_file}")
 
             # File to store both labels and predictions in the desired format.
-            output_full_file = os.path.join(training_args.output_dir, "predictions_labels.txt")
+            output_full_file = os.path.join(generate_args.generate_output_dir, "predictions_labels.txt")
             with open(output_full_file, "w", encoding="utf-8") as writer:
                 for idx, (lab, pred) in enumerate(zip(labels_decoded, predictions_decoded)):
                     writer.write(f"L [{idx}] \t{lab}\n")

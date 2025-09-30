@@ -114,6 +114,21 @@ class ExtraArguments:
     )
 
 @dataclass
+class GenerateArguments:
+    """
+    Needed for specifing the generate output_dir.
+    """
+    generate_output_dir: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Path to store the outputs from the generate. "
+                "If not specified, it defaults to the directory where you run the code."
+            )
+        }
+    )
+
+@dataclass
 class ExtendedSeq2SeqTrainingArguments(Seq2SeqTrainingArguments):
     metric_name: Optional[str] = field(
         default=None,
@@ -144,5 +159,11 @@ class ExtendedSeq2SeqTrainingArguments(Seq2SeqTrainingArguments):
         default=False,
         metadata={
             "help": "If True, also prints a version of prediction and ground truth that contain special tokens."
+        },
+    )
+    output_dir: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "The output directory where the model predictions and checkpoints will be written. Defaults to 'trainer_output' if not provided."
         },
     )

@@ -1,4 +1,5 @@
 import os
+import re
 import yaml
 import logging
 import dataclasses
@@ -223,3 +224,40 @@ def resolve_missing_arg(whatever_args, arg_name, output_dir, setup_path=None):
 
     setattr(whatever_args, arg_name, data[arg_name])
     logger.info(f"Successfully inferred {arg_name} as {data[arg_name]} from {yaml_path}")
+
+def resolve_checkpoint_path_from_general_setup_path(input_path: str) -> str:
+    """
+    Given an input path like /path/to/something/setup/model_name_or_just_model,
+    check if /path/to/something/train exists and is not empty.
+    If so, return the path to the most appropriate checkpoint:
+      1. checkpoint-best if it exists
+      2. checkpoint-last if it exists (and best does not)
+      3. checkpoint-X with the highest X (if neither best nor last exist)
+    Otherwise, return input_path unchanged.
+    """
+    base_dir = os.path.dirname(os.path.dirname(input_path))  # /path/to/something
+    train_dir = os.path.join(base_dir, "train")
+
+    if not os.path.isdir(train_dir) or not os.listdir(train_dir):
+        return input_path  # no train dir or empty
+
+    checkpoint_best = os.path.join(train_dir, "checkpoint-best")
+    checkpoint_last = os.path.join(train_dir, "checkpoint-last")
+
+    if os.path.isdir(checkpoint_best):
+        return checkpoint_best
+    elif os.path.isdir(checkpoint_last):
+        return checkpoint_last
+    else:
+        # Find all checkpoint-X directories
+        checkpoints = []
+        for d in os.listdir(train_dir):
+            match = re.match(r"checkpoint-(\d+)$", d)
+            if match and os.path.isdir(os.path.join(train_dir, d)):
+                checkpoints.append((int(match.group(1)), d))
+
+        if checkpoints:
+            checkpoints.sort(key=lambda x: x[0], reverse=True)
+            return os.path.join(train_dir, checkpoints[0][1])
+
+    return input_path

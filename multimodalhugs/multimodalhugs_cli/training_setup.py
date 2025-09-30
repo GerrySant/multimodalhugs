@@ -6,6 +6,7 @@ Usage example:
 """
 
 import sys
+import logging
 import argparse
 import textwrap
 import inspect
@@ -15,6 +16,15 @@ from transformers.hf_argparser import HfArgumentParser
 
 from multimodalhugs.tasks.translation.utils import merge_config_and_command_args
 from multimodalhugs.training_setup.setup_configuration_classes import SetupArguments
+
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+)
 
 BANNER = textwrap.dedent("""
 --------------------------

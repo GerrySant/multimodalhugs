@@ -8,6 +8,16 @@ Usage example:
 import sys
 import argparse
 import textwrap
+import logging
+
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+)
 
 BANNER = textwrap.dedent("""
 --------------------------
