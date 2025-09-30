@@ -36,3 +36,10 @@ wheels/
 .installed.cfg
 *.egg
 *.out
+
+# pytest temporary outputs
+tests/e2e_overfitting/generate_outputs/
+tests/e2e_overfitting/output_dir/
+tests/test_model_only/new_languages.json
+tests/test_model_only/new_languages_tokenizer.json
+tests/test_model_only/new_languages_tokenizer/
