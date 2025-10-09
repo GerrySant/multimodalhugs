@@ -137,8 +137,12 @@ class MultimodalSequence2SequenceProcessor(ProcessorMixin):
     ) -> BatchFeature:
 
         for obtain_method in self.get_obtainables():
-            obgained_dict, kwargs = obtain_method(batch, **kwargs)
-            batch_dict.update(obgained_dict)
+            obtained_dict, kwargs = obtain_method(batch, **kwargs)
+            for k, v in obtained_dict.items():
+                # It does not overwirite decoder_input_ids if already in batch_dict. Case the model has a method called "prepare_decoder_input_ids_from_labels()"
+                if k == "decoder_input_ids" and k in batch_dict:
+                    continue
+                batch_dict[k] = v
             
         return BatchFeature(batch_dict)     
 

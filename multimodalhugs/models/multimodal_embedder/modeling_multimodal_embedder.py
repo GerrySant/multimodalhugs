@@ -457,10 +457,9 @@ class MultiModalEmbedderModel(PreTrainedModel):
         """
 
         if encoder_outputs is None:
-            if labels is not None: 
-                # During training, use backbone method to create decoder_input_ids from labels
+            if labels is not None:
+                # Normal training: Use backbone method to create decoder_input_ids from labels (If model has a method called "prepare_decoder_input_ids_from_labels()", this step is done by the collator)
                 decoder_input_ids = None
-                decoder_attention_mask = None
 
             if inputs_embeds is None and input_frames is not None:
                 if self.feature_extractor is None:
@@ -488,7 +487,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             if self.multimodal_mapper is not None:
                 attention_mask = self.multimodal_mapper.mask_correction(attention_mask)
 
-            # When encoder_outputs is not None, we still have to correct the mask with the proper
+            # When encoder_outputs is not None, we still have to correct the mask
             attention_mask = merge_modalities_mask_correction(
                 padding_mask=attention_mask, 
                 prompt=encoder_prompt, 
@@ -497,7 +496,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
                 pad_idx=self.pad_token_id, 
                 eos_idx=self.eos_token_id, 
             )
-            
         outputs = self.backbone(
             input_ids = input_ids,
             attention_mask = attention_mask,
@@ -743,3 +741,61 @@ class MultiModalEmbedderModel(PreTrainedModel):
         - `Tuple[Tuple[torch.FloatTensor]]`: The reordered past key-value states.
         """
         return self.backbone._reorder_cache(past_key_values, beam_idx)
+
+    def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor) -> torch.Tensor:
+        """
+        Unified interface for preparing decoder_input_ids from labels.
+        Tries to detect the right method on the backbone or in its module.
+        """
+        # 1. Direct standard method (Bart, MBart, Marian…)
+        if hasattr(self.backbone, "prepare_decoder_input_ids_from_labels"):
+            return self.backbone.prepare_decoder_input_ids_from_labels(labels)
+
+        # 2. Private method (_shift_right) (T5, ByT5…)
+        if hasattr(self.backbone, "_shift_right"):
+            return self.backbone._shift_right(labels)
+
+        # 3. Public method (shift_tokens_right) on the class
+        if hasattr(self.backbone, "shift_tokens_right"):
+            return self.backbone.shift_tokens_right(labels)
+
+        # 4. Fallback: scan all methods to find one with "shift" + "right" in the name
+        for attr_name in dir(self.backbone):
+            if "shift" in attr_name and "right" in attr_name:
+                candidate = getattr(self.backbone, attr_name)
+                if callable(candidate):
+                    return candidate(labels)
+
+        # 5. Dynamic import of the backbone's module
+        module_name = self.backbone.__class__.__module__
+        try:
+            modeling_module = importlib.import_module(module_name)
+
+            # Priority order in the module
+            if hasattr(modeling_module, "prepare_decoder_input_ids_from_labels"):
+                return modeling_module.prepare_decoder_input_ids_from_labels(labels)
+
+            if hasattr(modeling_module, "_shift_right"):
+                return modeling_module._shift_right(labels)
+
+            if hasattr(modeling_module, "shift_tokens_right"):
+                return modeling_module.shift_tokens_right(
+                    labels, self.config.pad_token_id, self.config.decoder_start_token_id
+                )
+
+            # Last resort: search for any function with "shift" and "right" in its name
+            for name in dir(modeling_module):
+                if "shift" in name and "right" in name:
+                    candidate = getattr(modeling_module, name)
+                    if callable(candidate):
+                        return candidate(labels)
+
+        except Exception as e:
+            print(f"[WARNING] Could not import {module_name}: {e}")
+
+        # 6. Nothing found
+        raise NotImplementedError(
+            f"{self.__class__.__name__} could not infer how to prepare_decoder_input_ids_from_labels "
+            f"for backbone {self.backbone.__class__.__name__}. "
+            "Please implement manually."
+        )
