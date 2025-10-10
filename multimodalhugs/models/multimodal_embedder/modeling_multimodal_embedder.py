@@ -460,6 +460,7 @@ class MultiModalEmbedderModel(PreTrainedModel):
             if labels is not None:
                 # Normal training: Use backbone method to create decoder_input_ids from labels (If model has a method called "prepare_decoder_input_ids_from_labels()", this step is done by the collator)
                 decoder_input_ids = None
+                decoder_attention_mask = None
 
             if inputs_embeds is None and input_frames is not None:
                 if self.feature_extractor is None:
