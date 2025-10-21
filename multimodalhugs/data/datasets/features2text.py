@@ -91,7 +91,6 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
         config, kwargs = resolve_and_update_config(Features2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Features2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
-
         self.name = "feature2text"
         self.config = config
         self.max_frames = config.max_frames
@@ -200,6 +199,7 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
             """
             features = np.load(sample['signal'])
             sample['DURATION'] = int(features.shape[0])
+
             if self.preload_features:
                 sample['signal'] = np.array(features, dtype=np.float32)  # Ensure it remains a NumPy array
             else:

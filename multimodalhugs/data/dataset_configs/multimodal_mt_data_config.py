@@ -38,6 +38,7 @@ class MultimodalDataConfig(BuilderConfig):
         _, extra_args, _ = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
         super().__init__(**extra_args)
         
+        self.name = getattr(data_cfg, 'name', self.name)
         self.train_metadata_file = getattr(data_cfg, 'train_metadata_file', self.train_metadata_file)
         self.validation_metadata_file = getattr(data_cfg, 'validation_metadata_file', self.validation_metadata_file)
         self.test_metadata_file = getattr(data_cfg, 'test_metadata_file', self.test_metadata_file)

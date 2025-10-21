@@ -9,8 +9,7 @@ from .setup_utils import (
     resolve_setup_paths, resolve_update_choice, print_artifact_summary
 )
 
-from multimodalhugs.data.datasets.bilingual_text2text import BilingualText2TextDataset
-from multimodalhugs.data.dataset_configs.multimodal_mt_data_config import MultimodalDataConfig
+from multimodalhugs.data.datasets.bilingual_text2text import BilingualText2TextDataset, BilingualText2textMTDataConfig
 from multimodalhugs.processors import Text2TextTranslationProcessor
 
 def main(
@@ -51,7 +50,7 @@ def main(
     if do_dataset:
         print("\nSetting Up Dataset:\n")
         # Instantiate and prepare dataset, then save to disk
-        data_cfg = MultimodalDataConfig(cfg)
+        data_cfg = BilingualText2textMTDataConfig(cfg)
         data_path = prepare_dataset(
             BilingualText2TextDataset,
             data_cfg,

@@ -61,6 +61,7 @@ class Features2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
         tokenizer: Optional[Any] = None,
         use_cache: bool = True,
         skip_frames_stride: Optional[int] = None,
+        temporal_dimention_position: int = 0,
         **kwargs,
     ):
         """
@@ -76,11 +77,13 @@ class Features2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
                 Enabling this can speed up repeated processing of the same input files.
             skip_frames_stride (Optional[int]): If set, skips input frames at the given stride.
                 Useful for downsampling frame sequences during preprocessing.
+            temporal_dimention_position (int): Indicates the temporal dimention position of the input features.
             **kwargs: Additional keyword arguments passed to the base class.
         """
         super().__init__(tokenizer=tokenizer, **kwargs)
         self.use_cache = use_cache
         self.skip_frames_stride = skip_frames_stride
+        self.temporal_dimention_position = temporal_dimention_position
         if self.use_cache:
             # Dynamically determine cache size
             self._cache_size = get_dynamic_cache_size()
@@ -98,13 +101,14 @@ class Features2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):
             features = torch.from_numpy(features_file)
         elif isinstance(features_file, (str, Path)):
             features = torch.from_numpy(np.load(features_file))
+            if self.temporal_dimention_position != 0:
+                features = torch.movedim(features, self.temporal_dimention_position, 0)
         elif isinstance(features_file, list) and all(isinstance(sublist, list) for sublist in features_file):
             features = torch.tensor(features_file, dtype=torch.float32)
         else:
             raise ValueError(f"Unsupported type for features_file: {type(features_file)}")
         features = frame_skipping(x=features, t_dim=0, stride=self.skip_frames_stride) if self.skip_frames_stride is not None else features
         return features
-
 
     def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
         tensor_sequences = [self._features_file_to_tensor(sample["signal"]) for sample in batch]

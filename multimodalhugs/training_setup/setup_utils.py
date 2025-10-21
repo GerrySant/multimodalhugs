@@ -19,31 +19,21 @@ def load_config(config_path: str):
     """Load OmegaConf configuration."""
     return OmegaConf.load(config_path)
 
-def prepare_dataset(dataset_cls, data_config, output_dir: str):
-    dataset = dataset_cls(config=data_config)
 
-    # If user points to an already-built dir, use it
-    if getattr(data_config, "dataset_dir", None) and os.path.exists(data_config.dataset_dir):
+def prepare_dataset(dataset_cls, data_config, output_dir: str):
+    """
+    Instantiate dataset, download/prepare if needed, save to disk.
+    Returns path to dataset.
+    """
+    dataset = dataset_cls(config=data_config)
+    if getattr(data_config, 'dataset_dir', None) and os.path.exists(data_config.dataset_dir):
         return data_config.dataset_dir
 
-    data_path = Path(output_dir) / "datasets" / dataset.name
-    if data_path.exists():
-        return str(data_path)
-
-    with tempfile.TemporaryDirectory(prefix=f"{dataset.name}_build_") as tmp_cache:
-        old = os.environ.get("HF_DATASETS_CACHE")
-        os.environ["HF_DATASETS_CACHE"] = tmp_cache
-        try:
-            dataset.download_and_prepare()   # no extra kwargs
-            ds = dataset.as_dataset()
-        finally:
-            if old is None:
-                del os.environ["HF_DATASETS_CACHE"]
-            else:
-                os.environ["HF_DATASETS_CACHE"] = old
-
-        ds.save_to_disk(str(data_path))
-
+    dataset_name = dataset.name if data_config.name is None else data_config.name
+    data_path = Path(output_dir) / "datasets" / dataset_name
+    if not data_path.exists():
+        dataset.download_and_prepare(str(data_path))
+        dataset.as_dataset().save_to_disk(str(data_path))
     return str(data_path)
 
 
