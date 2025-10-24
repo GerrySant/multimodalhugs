@@ -1,10 +1,12 @@
 # Standard libraries
 import logging
 import importlib
+import inspect
 
 # Third-party libraries
 import torch
 import torch.nn as nn
+
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
 from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES
 
@@ -15,36 +17,81 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class EncoderWrapper(nn.Module):
-    def __init__(self, model):
-        super().__init__()
-        self.model = model
+def build_encoder_wrapper(model):
+    """
+    Automatically creates an encoder wrapper that delegates calls to
+    `model.input_to_encoder_outputs(...)`, preserving the same signature.
 
-    def forward(
-        self,
-        input_frames: Optional[torch.LongTensor] = None,
-        encoder_prompt: Optional[torch.LongTensor] = None,
-        encoder_prompt_length_padding_mask: Optional[torch.LongTensor] = None,
-        input_ids: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        head_mask: Optional[torch.Tensor] = None,
-        inputs_embeds: Optional[torch.Tensor] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None, 
-    ):
-        return self.model.input_to_encoder_outputs(
-            input_frames = input_frames,
-            encoder_prompt = encoder_prompt,
-            encoder_prompt_length_padding_mask = encoder_prompt_length_padding_mask,
-            input_ids = input_ids,
-            attention_mask = attention_mask,
-            head_mask = head_mask,
-            inputs_embeds = inputs_embeds,
-            output_attentions = output_attentions,
-            output_hidden_states = output_hidden_states,
-            return_dict = return_dict,
+    This ensures compatibility with Hugging Face's generation code, which
+    expects the following pattern:
+
+        encoder = model.get_encoder()
+        encoder_outputs = encoder(**inputs)
+
+    ⚙️ **Purpose:**
+    This utility is designed for multimodal models that **do not define an encoder
+    explicitly**, unlike standard Hugging Face models (e.g., BART, T5, M2M100) that 
+    already expose an `encoder` submodule. 
+
+    Instead, these models define a method called `input_to_encoder_outputs()`, which
+    is responsible for processing multimodal inputs (such as images, poses, or other
+    non-text modalities) and returning encoder representations compatible with
+    text generation pipelines.
+
+    The dynamically generated wrapper class created here allows Hugging Face’s 
+    generation utilities to work seamlessly with such models by mimicking the 
+    expected encoder interface.
+
+    Example:
+        >>> model = MultiModalEmbedderModel(config)
+        >>> encoder = model.get_encoder()
+        >>> encoder_outputs = encoder(input_frames=frames, encoder_prompt=prompt)
+
+    Parameters
+    ----------
+    model : nn.Module
+        The multimodal model defining an `input_to_encoder_outputs()` method.
+
+    Returns
+    -------
+    nn.Module
+        A dynamically generated encoder wrapper compatible with the Hugging Face
+        generation API.
+    """
+    # --- Safety check ---
+    if not hasattr(model, "input_to_encoder_outputs") or not callable(model.input_to_encoder_outputs):
+        raise AttributeError(
+            f"[MultimodalHugs Error] The model '{model.__class__.__name__}' does not define a method "
+            f"'input_to_encoder_outputs()'.\n\n"
+            "Encoder-decoder models must provide a way to obtain encoder representations. "
+            "This can be achieved in one of two ways:\n"
+            "  1. Define an explicit encoder module as `self.encoder`, similar to Hugging Face models like BART or T5.\n"
+            "  2. Implement a method named `input_to_encoder_outputs(self, **kwargs)` that returns the encoder outputs "
+            "given multimodal inputs.\n\n"
+            "The `input_to_encoder_outputs()` method is required for models that integrate non-text modalities "
+            "and do not have a predefined `self.encoder`.\n\n"
+            "Example implementation:\n"
+            "    def input_to_encoder_outputs(self, **kwargs):\n"
+            "        # Process multimodal inputs and return encoder outputs compatible with Seq2Seq models\n"
+            "        return self.backbone.encoder(**kwargs)\n"
         )
+        
+    sig = inspect.signature(model.input_to_encoder_outputs)
+
+    class AutoEncoderWrapper(nn.Module):
+        def __init__(self, model_ref):
+            super().__init__()
+            self.model = model_ref
+
+        def forward(self, *args, **kwargs):
+            # Match only valid parameters from the model.input_to_encoder_outputs signature
+            filtered_kwargs = {
+                k: v for k, v in kwargs.items() if k in sig.parameters
+            }
+            return self.model.input_to_encoder_outputs(*args, **filtered_kwargs)
+
+    AutoEncoderWrapper.__name__ = f"{model.__class__.__name__}EncoderWrapper"
+    return AutoEncoderWrapper(model)
 
 def get_backbone_config_class(model_type: str):
     """

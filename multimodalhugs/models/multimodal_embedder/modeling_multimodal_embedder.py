@@ -20,7 +20,7 @@ from accelerate.utils import find_tied_parameters
 from ruamel.yaml import YAML
 
 # Local Application Imports
-from multimodalhugs.models import EncoderWrapper, get_backbone_config_class, get_backbone_model_class
+from multimodalhugs.models.utils import build_encoder_wrapper, get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.utils.registry import register_model
 from multimodalhugs.modules import MultimodalMapper, FeatureExtractor, get_feature_extractor_class
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, merge_modalities_mask_correction
@@ -719,10 +719,13 @@ class MultiModalEmbedderModel(PreTrainedModel):
         This method returns an `EncoderWrapper`, which encapsulates the model’s encoder 
         for use in downstream tasks like sequence-to-sequence generation.
 
-        ### **Returns:**
-        - `EncoderWrapper`: The encoder module of the model.
+        Returns the encoder wrapper. Created only once and then cached.
+
         """
-        return EncoderWrapper(self)
+        if not hasattr(self, "_encoder_wrapper") or self._encoder_wrapper is None:
+            from multimodalhugs.models.utils import build_encoder_wrapper
+            self._encoder_wrapper = build_encoder_wrapper(self)
+        return self._encoder_wrapper
     
     def _reorder_cache(self, past_key_values, beam_idx):
         """
