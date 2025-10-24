@@ -20,7 +20,7 @@ from accelerate.utils import find_tied_parameters
 from ruamel.yaml import YAML
 
 # Local Application Imports
-from multimodalhugs.models.utils import build_encoder_wrapper, get_backbone_config_class, get_backbone_model_class
+from multimodalhugs.models.utils import get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.utils.registry import register_model
 from multimodalhugs.modules import MultimodalMapper, FeatureExtractor, get_feature_extractor_class
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, merge_modalities_mask_correction
@@ -724,9 +724,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         """
         if not hasattr(self, "_encoder_wrapper") or self._encoder_wrapper is None:
             from multimodalhugs.models.utils import build_encoder_wrapper
-            self._encoder_wrapper = build_encoder_wrapper(self)
+            wrapper = build_encoder_wrapper(self)
+            object.__setattr__(self, "_encoder_wrapper", wrapper)  # <- avoids registering as a submodule
         return self._encoder_wrapper
-    
+        
     def _reorder_cache(self, past_key_values, beam_idx):
         """
         **Reorders the past key-value cache for beam search decoding.**
