@@ -8,9 +8,9 @@ model:
   multimodal_mapper_type: "linear"                # Type of Multimodal Mapper (e.g., "linear" or "adapter").
   multimodal_mapper_layer_norm_before: true       # Whether to apply Layer Normalization before the Multimodal Mapper.
   multimodal_mapper_dropout: 0.1                  # Dropout probability for the Multimodal Mapper to prevent overfitting.
-  backbone_type: m2m_100                  # Identifier for the pretrained backbone (e.g., "m2m100").
+  backbone_type: m2m_100                  # Identifier for the pretrained backbone (e.g., "m2m_100").
   pretrained_backbone: facebook/m2m100_418M      # Weights or checkpoint identifier for the pretrained backbone.
-  feat_dim: 534                                   # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
+  feat_dim: 534                                   # Dimension of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
 
 training:
   run_name: phoenix                             # The name or identifier of the model configuration.
@@ -25,25 +25,20 @@ training:
   save_steps: 128                                  # Interval (in steps) at which model checkpoints are saved.
   per_device_train_batch_size: 8                   # Batch size per device during training.
   per_device_eval_batch_size: 8                    # Batch size per device for evaluation.
+  label_smoothing_factor: 0.1
   gradient_accumulation_steps: 3                   # Number of steps to accumulate gradients before weight updates.
-  learning_rate: 5e-05                             # Initial learning rate for the optimizer.
+  learning_rate: 1e-05                   # Initial learning rate for the optimizer.
   load_best_model_at_end: True                     # Load the best model found during training at the end.
-  dataloader_num_workers: 4                        # Number of subprocesses to use for data loading; higher values speed up data loading but increase memory usage.
+  dataloader_num_workers: 2                        # Number of subprocesses to use for data loading; higher values speed up data loading but increase memory usage.
   dataloader_prefetch_factor: 2                    # Number of batches loaded in advance by each worker; total prefetched batches = num_workers * prefetch_factor.
   metric_name: sacrebleu, chrf                     # Name of the metric to use (any metric supported by evaluate.load()). If you want to use multiple metrics, structure the variable like: metric_name: '<metric_name_1>,<metric_name_2>,...'
   metric_for_best_model: 'sacrebleu'               # Metric used to determine the best model.
   greater_is_better: true
-  weight_decay: 0                                  # Weight decay factor (L2 regularization).
-  adam_beta1: 0.9                                  # Beta1 parameter for the Adam optimizer.
-  adam_beta2: 0.998                                # Beta2 parameter for the Adam optimizer.
-  max_grad_norm: 0.0                               # Maximum gradient norm for clipping (0 means no clipping).
   num_train_epochs: 1                              # Number of full passes through the training dataset.
   max_steps: 500000                           # Maximum number of training steps, e.g. 500000 (overrides num_train_epochs if set).
-  lr_scheduler_type: "inverse_sqrt"                # Type of learning rate scheduler.
-  warmup_steps: 8000                               # Number of warmup steps to gradually increase the learning rate.
+  warmup_steps: 500                     # Number of warmup steps to gradually increase the learning rate.
   save_total_limit: 10                             # Maximum number of checkpoints to retain (older ones are deleted).
   seed: 3435                                       # Random seed for reproducibility.
-  dataloader_drop_last: false                      # Drop the last incomplete batch in the dataloader.
   fp16: True                                       # Enable mixed-precision (FP16) training for faster computation.
   # See the list of allowed arguments in https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.Seq2SeqTrainingArguments
 
