@@ -26,6 +26,7 @@ from multimodalhugs.modules import MultimodalMapper, FeatureExtractor, get_featu
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, merge_modalities_mask_correction
 from multimodalhugs.utils import serialize_config
 from multimodalhugs.models.multimodal_embedder.configuration_multimodal_embedder import MultiModalEmbedderConfig
+from multimodalhugs.models.utils import EncoderWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -719,14 +720,10 @@ class MultiModalEmbedderModel(PreTrainedModel):
         This method returns an `EncoderWrapper`, which encapsulates the model’s encoder 
         for use in downstream tasks like sequence-to-sequence generation.
 
-        Returns the encoder wrapper. Created only once and then cached.
-
+        ### **Returns:**
+        - `EncoderWrapper`: The encoder module of the model.
         """
-        if not hasattr(self, "_encoder_wrapper") or self._encoder_wrapper is None:
-            from multimodalhugs.models.utils import build_encoder_wrapper
-            wrapper = build_encoder_wrapper(self)
-            object.__setattr__(self, "_encoder_wrapper", wrapper)  # <- avoids registering as a submodule
-        return self._encoder_wrapper
+        return EncoderWrapper(self)
         
     def _reorder_cache(self, past_key_values, beam_idx):
         """
