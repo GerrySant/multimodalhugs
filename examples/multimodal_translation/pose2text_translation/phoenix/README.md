@@ -105,6 +105,16 @@ Optional arguments:
 
 `dry-run`: will result in a training config that trains a model for very few steps only
 
+`--learning-rate`: The initial learning rate for AdamW optimizer (default: 5e-05).
+
+`--gradient-accumulation-steps`: Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
+
+`--warmup-steps`: Number of steps used for a linear warmup from 0 to learning_rate.
+
+`--batch-size`: The batch size per GPU/XPU/TPU/MPS/NPU core/CPU for training / evaluation.
+
+`--label-smoothing-factor`: The label smoothing factor to use. Zero means no label smoothing.
+
 The [folder `configs` in this repository](https://github.com/GerrySant/multimodalhugs/tree/phoenix_example/examples/multimodal_translation/pose2text_translation/phoenix/configs) has an example config file for reference (even though the real one is generated
 dynamically).
 
@@ -143,7 +153,7 @@ multimodalhugs-generate \
     --task "translation" \
     --config_path $configs/config_phoenix.yaml \
     --metric_name "sacrebleu" \
-    --output_dir $translations \
+    --generate_output_dir $translations \
     --setup_path $models/setup
 ```
 

@@ -4,10 +4,20 @@
 # $base
 # $dry_run
 # $scripts
+# $learning_rate
+# $gradient_accumulation_steps
+# $warmup_steps
+# $batch_size
+# $label_smoothing_factor
 
 base=$1
 dry_run=$2
 scripts=$3
+learning_rate=$4
+gradient_accumulation_steps=$5
+warmup_steps=$6
+batch_size=$7
+label_smoothing_factor=$8
 
 data=$base/data
 preprocessed=$data/preprocessed
@@ -57,6 +67,11 @@ python $scripts/create_config.py \
     --validation-metadata-file $preprocessed/rwth_phoenix2014_t.validation.tsv \
     --test-metadata-file $preprocessed/rwth_phoenix2014_t.test.tsv \
     --new-vocabulary "__dgs__" \
+    --learning-rate $learning_rate \
+    --gradient-accumulation-steps $gradient_accumulation_steps \
+    --warmup-steps $warmup_steps \
+    --batch-size $batch_size \
+    --label-smoothing-factor $label_smoothing_factor \
     --reduce-holistic-poses $dry_run_arg
 
 # https://github.com/GerrySant/multimodalhugs/issues/50

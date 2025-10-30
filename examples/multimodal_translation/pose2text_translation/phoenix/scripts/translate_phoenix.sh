@@ -36,7 +36,7 @@ multimodalhugs-generate \
     --task "translation" \
     --config_path $configs_sub/config_phoenix.yaml \
     --metric_name "sacrebleu" \
-    --output_dir $translations_sub \
+    --generate_output_dir $translations_sub \
     --setup_path $models_sub/setup \
     --model_name_or_path $models_sub/train/checkpoint-best \
     --num_beams 5
