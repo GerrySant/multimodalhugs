@@ -21,6 +21,9 @@ class SetupArguments:
     output_dir: Optional[str] = field(
         default=None, metadata={"help": "Base output directory."}
         )
+    seed: Optional[int] = field(
+        default=42, metadata={"help": "Random seed that will be set at the beginning of training."}
+    )
     update_config: Optional[bool] = field(
         default=None,
         metadata={"help": "Write created artifact paths back into the config file."}
