@@ -4,7 +4,7 @@ description = "MultimodalHugs is an extension of Hugging Face that offers a gene
 version = "0.3.0"
 authors = [
     { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" },
-    { name = "Mathias Müller" }
+    { name = "Mathias Müller" },
     { name = "Amit Moryossef" }
 ]
 readme = "README.md"
