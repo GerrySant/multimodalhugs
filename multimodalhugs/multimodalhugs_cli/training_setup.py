@@ -13,6 +13,7 @@ import inspect
 
 from dataclasses import asdict
 from transformers.hf_argparser import HfArgumentParser
+from transformers import set_seed
 
 from multimodalhugs.tasks.translation.utils import merge_config_and_command_args
 from multimodalhugs.training_setup.setup_configuration_classes import SetupArguments
@@ -63,6 +64,10 @@ def main():
     
     if setup_args.modality not in MODALITY_MAP:
         sys.exit(f"Unknown modality: {setup_args.modality}")
+
+    if hasattr(setup_args, "seed") and setup_args.seed is not None:
+        # Set seed before initializing model.
+        set_seed(setup_args.seed)
 
     from importlib import import_module
     modality_module = import_module(MODALITY_MAP[setup_args.modality])
