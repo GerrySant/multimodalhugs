@@ -19,6 +19,7 @@ def main(
     do_model: bool,
     output_dir: Optional[str] = None,
     update_config: Optional[bool] = None,
+    rebuild_dataset_from_scratch: bool = False,
 ):
     """
     Run setup steps for dataset preparation, processor instantiation, and model building.
@@ -32,6 +33,8 @@ def main(
         update_config (bool|None): Optional --update_config from CLI. If True, write created
             artifact paths back into the config; otherwise print a summary. If not provided,
             falls back to cfg.setup.update_config; default is False.
+        rebuild_dataset_from_scratch (bool): If True, ignore HF cache and rebuild the dataset
+            from zero (i.e. force re-download / re-processing).
 
     Behavior:
         - If none of do_dataset, do_processor, do_model are True, all three steps are performed.
@@ -54,7 +57,8 @@ def main(
         data_path = prepare_dataset(
             Video2TextDataset,
             data_cfg,
-            final_output_dir
+            final_output_dir,
+            rebuild_from_scratch=rebuild_dataset_from_scratch, 
         )
 
     # 2) Processor setup

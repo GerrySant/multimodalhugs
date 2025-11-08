@@ -5,6 +5,7 @@ Common utilities to initialize dataset, processor, and model for all modalities.
 '''
 import os, tempfile
 import yaml
+import logging
 from pathlib import Path
 from omegaconf import OmegaConf
 from transformers import AutoTokenizer
@@ -14,28 +15,107 @@ from multimodalhugs.utils.registry import get_model_class
 from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml_file
 from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 
+logger = logging.getLogger(__name__)
+
 
 def load_config(config_path: str):
     """Load OmegaConf configuration."""
     return OmegaConf.load(config_path)
 
 
-def prepare_dataset(dataset_cls, data_config, output_dir: str):
+def _is_hf_dataset(path: Path) -> bool:
     """
-    Instantiate dataset, download/prepare if needed, save to disk.
-    Returns path to dataset.
+    Heuristic to check whether a directory looks like
+    a Hugging Face dataset stored on disk.
+    Supports both `save_to_disk` style (with `data/`)
+    and split-based layouts (train/validation/test + .arrow files).
     """
+    if not (path.exists() and path.is_dir()):
+        logger.debug(f"{path} does not exist or is not a directory.")
+        return False
+
+    dataset_info = (path / "dataset_info.json").exists()
+    dataset_dict = (path / "dataset_dict.json").exists()
+    has_data_dir = (path / "data").exists()
+    has_split_dir = any((path / split).exists() for split in ["train", "validation", "test"])
+    has_arrow = any(p.suffix == ".arrow" for p in path.iterdir() if p.is_file())
+
+    is_dataset = dataset_info and (
+        has_data_dir
+        or dataset_dict
+        or has_split_dir
+        or has_arrow
+    )
+
+    logger.debug(
+        f"Checking HF dataset at {path}: "
+        f"dataset_info={dataset_info}, data_dir={has_data_dir}, "
+        f"dataset_dict={dataset_dict}, split_dir={has_split_dir}, has_arrow={has_arrow} "
+        f"-> {is_dataset}"
+    )
+    return is_dataset
+
+def prepare_dataset(dataset_cls, data_config, output_dir: str, rebuild_from_scratch: bool = False):
+    """
+    Instantiate the dataset, download/prepare it if needed, and save it to disk.
+    If `rebuild_from_scratch` is True, the HF cache will be ignored and the dataset
+    will be rebuilt from zero (forced re-download / re-processing).
+    Returns the path to the dataset.
+    """
+    logger.info("Initializing dataset class...")
     dataset = dataset_cls(config=data_config)
-    if getattr(data_config, 'dataset_dir', None) and os.path.exists(data_config.dataset_dir):
-        return data_config.dataset_dir
+
+    # If the user provided an explicit dataset directory, make sure it's actually a dataset
+    if getattr(data_config, "dataset_dir", None):
+        dataset_dir = Path(data_config.dataset_dir)
+        logger.info(f"User provided dataset_dir: {dataset_dir}")
+        if _is_hf_dataset(dataset_dir):
+            logger.info(f"Using existing dataset at {dataset_dir}")
+            return str(dataset_dir)
+        else:
+            logger.warning(
+                f"Provided dataset_dir {dataset_dir} does not look like a valid HF dataset. "
+                "Will attempt to (re)create it."
+            )
 
     dataset_name = dataset.name if data_config.name is None else data_config.name
     data_path = Path(output_dir) / "datasets" / dataset_name
-    if not data_path.exists():
-        dataset.download_and_prepare(str(data_path))
-        dataset.as_dataset().save_to_disk(str(data_path))
-    return str(data_path)
+    logger.info(f"Target dataset path: {data_path}")
 
+    # Only consider it "already prepared" if it really looks like a HF dataset
+    if _is_hf_dataset(data_path):
+        logger.info(f"Dataset already prepared at {data_path}, reusing it.")
+        return str(data_path)
+
+    # If we get here, either it doesn't exist, or it's empty, or it's not a HF dataset → prepare it
+    if not data_path.exists():
+        logger.info(f"{data_path} does not exist. Creating directories...")
+        data_path.mkdir(parents=True, exist_ok=True)
+    else:
+        logger.info(f"{data_path} exists but is not a valid HF dataset. Preparing dataset...")
+
+    download_kwargs = {}
+    if rebuild_from_scratch:
+        try:
+            from datasets.utils.download_manager import DownloadMode
+        except ModuleNotFoundError:
+            from datasets.download.download_manager import DownloadMode
+        download_kwargs["download_mode"] = DownloadMode.FORCE_REDOWNLOAD
+        logger.info("Rebuilding dataset from scratch (forced re-download).")
+    else:
+        logger.warning(
+            "Preparing dataset with cache enabled. If a cached version exists in the Hugging Face cache, "
+            "it will be reused. Set `rebuild_from_scratch=True` (or, if you're using the "
+            "`multimodalhugs-setup` CLI, pass `--rebuild-dataset-from-scratch`) to rebuild it from zero."
+        )
+        
+    logger.info("Downloading and preparing dataset...")
+    dataset.download_and_prepare(str(data_path), **download_kwargs)
+    logger.info("Saving dataset to disk...")
+    dataset.as_dataset().save_to_disk(str(data_path))
+    logger.info(f"Dataset saved to {data_path}")
+
+    return str(data_path)
 
 def load_tokenizers(tokenizer_path, new_vocabulary, output_dir: Optional[str] = None, run_name: Optional[str] = None):
     """
@@ -110,7 +190,6 @@ def resolve_setup_paths(cfg, cli_output_dir=None):
     base_norm = os.path.normpath(base_output_dir)
     final_output_dir = base_norm if os.path.basename(base_norm) == "setup" else os.path.join(base_norm, "setup")
     return final_output_dir
-
 
 def resolve_update_choice(cfg, cli_update_config: Optional[bool]) -> bool:
     """

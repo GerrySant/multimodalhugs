@@ -28,3 +28,7 @@ class SetupArguments:
         default=None,
         metadata={"help": "Write created artifact paths back into the config file."}
     )
+    rebuild_dataset_from_scratch: bool = field(
+        default=False,
+        metadata={"help": "If set, ignore HF cache and rebuild the dataset from scratch."}
+    )

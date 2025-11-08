@@ -4,8 +4,12 @@ description = "MultimodalHugs is an extension of Hugging Face that offers a gene
 version = "0.3.0"
 authors = [
     { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" },
+    { name = "Zifan Jiang" },
+    { name = "Carlos Escolano" },
+    { name = "Amit Moryossef" },
     { name = "Mathias Müller" },
-    { name = "Amit Moryossef" }
+    { name = "Rico Sennrich" },
+    { name = "Sarah Ebling" }
 ]
 readme = "README.md"
 dependencies = [
@@ -82,3 +86,8 @@ testpaths = ["tests"]  # This specifies the directory to look for tests
 multimodalhugs-train = "multimodalhugs.multimodalhugs_cli.train:main"
 multimodalhugs-setup = "multimodalhugs.multimodalhugs_cli.training_setup:main"
 multimodalhugs-generate = "multimodalhugs.multimodalhugs_cli.generate:main"
+
+# short aliases
+mmhugs-train = "multimodalhugs.multimodalhugs_cli.train:main"
+mmhugs-setup = "multimodalhugs.multimodalhugs_cli.training_setup:main"
+mmhugs-generate = "multimodalhugs.multimodalhugs_cli.generate:main"
