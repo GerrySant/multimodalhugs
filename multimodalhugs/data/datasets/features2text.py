@@ -36,6 +36,10 @@ class Features2TextDataConfig(MultimodalDataConfig):
         default=None, 
         metadata={"help": "Feature related samples larger than this value will be filtered"}
     )
+    min_frames: Optional[int] = field(
+        default=None, 
+        metadata={"help": "Feature related samples shorter than this value will be filtered"}
+    )
     preload_features: bool = field(
         default=False, 
         metadata={"help": "If True, the feature files are read at the dataset level instead of at the processor level."}
@@ -55,6 +59,7 @@ class Features2TextDataConfig(MultimodalDataConfig):
 
         # Set current class fields (in case parent didn’t)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
+        self.min_frames = valid_config.get("min_frames", self.min_frames)
         self.preload_features = valid_config.get("preload_features", self.preload_features)
 
         # Store any remaining kwargs (not expected by dataclass)
@@ -94,6 +99,7 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
         self.name = "feature2text"
         self.config = config
         self.max_frames = config.max_frames
+        self.min_frames = config.min_frames
         self.preload_features = config.preload_features
 
     def _info(self):
@@ -212,8 +218,15 @@ class Features2TextDataset(datasets.GeneratorBasedBuilder):
         # Apply the update to the VIDEO_NAME column
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
 
-        if self.max_frames is not None:
-            dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
+        if self.max_frames is not None or self.min_frames:
+            dataset = dataset.filter(
+                lambda ex: duration_filter(
+                    ex,
+                    min_frames=self.min_frames,
+                    max_frames=self.max_frames,
+                ),
+                num_proc=get_num_proc(),
+            )
 
         # Yield examples
         for idx, item in enumerate(dataset):

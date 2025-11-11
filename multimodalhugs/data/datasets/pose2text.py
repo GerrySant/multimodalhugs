@@ -45,6 +45,10 @@ class Pose2TextDataConfig(MultimodalDataConfig):
         default=None, 
         metadata={"help": "Pose related samples larger than this value will be filtered"}
     )
+    min_frames: Optional[int] = field(
+        default=None, 
+        metadata={"help": "Pose related samples shorter than this value will be filtered"}
+    )
     def __init__(self, cfg=None, **kwargs):
         """
         **Initialize the Pose2TextDataConfig.**
@@ -59,6 +63,7 @@ class Pose2TextDataConfig(MultimodalDataConfig):
 
         # Assign new arguments from config if available
         self.max_frames = valid_config.get("max_frames", self.max_frames)
+        self.min_frames = valid_config.get("min_frames", self.min_frames)
 
         # Store any remaining kwargs (not expected by dataclass)
         self._extra_args = extra_args
@@ -103,6 +108,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         self.name = "pose2text"
         self.config = config
         self.max_frames = config.max_frames
+        self.min_frames = config.min_frames
 
     def _info(self):
         """
@@ -218,10 +224,17 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         dataset = dataset.filter(lambda sample: file_exists_filter('signal', sample), num_proc=get_num_proc())
 
         # Filter out long samples, except for the test set
-        if split != "test" and self.max_frames is not None:
-            # Apply to create the DURATION column 
-            dataset = dataset.map(mapping_function, num_proc=get_num_proc())
-            dataset = dataset.filter(lambda sample: duration_filter(self.max_frames, sample), num_proc=get_num_proc())
+        if self.max_frames is not None or self.min_frames:
+            if split != "test":
+                dataset = dataset.map(mapping_function, num_proc=get_num_proc())
+                dataset = dataset.filter(
+                    lambda ex: duration_filter(
+                        ex,
+                        min_frames=self.min_frames,
+                        max_frames=self.max_frames,
+                    ),
+                    num_proc=get_num_proc(),
+                )
 
         # Yield examples
         for idx, item in enumerate(dataset):

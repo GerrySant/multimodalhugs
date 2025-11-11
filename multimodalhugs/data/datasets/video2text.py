@@ -38,12 +38,17 @@ class Video2TextDataConfig(MultimodalDataConfig):
         default=None,
         metadata={"help": "Filter out videos longer than this (in frames)."}
     )
+    min_frames: Optional[int] = field(
+        default=None, 
+        metadata={"help": "Filter out videos shorter than this value (in frames)"}
+    )
     def __init__(self, cfg=None, **kwargs):
         data_cfg = gather_appropriate_data_cfg(cfg)
         valid_config, extra_args, cfg_for_super = build_merged_omegaconf_config(type(self), data_cfg, **kwargs)
         super().__init__(cfg=cfg_for_super, **extra_args)
         # pull from OmegaConf yaml (or leave defaults)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
+        self.min_frames = valid_config.get("min_frames", self.min_frames)
 
 @register_dataset("video2text")
 class Video2TextDataset(datasets.GeneratorBasedBuilder):
@@ -72,6 +77,7 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
         self.name = "video2text"
         self.config = config
         self.max_frames = config.max_frames
+        self.min_frames = config.min_frames
 
     def _info(self):
         features = {
@@ -186,8 +192,15 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
         dataset = dataset.filter(lambda ex: not ex.get("_invalid", False), num_proc=get_num_proc())
 
         # Filter by max_frames if set
-        if self.max_frames is not None:
-            dataset = dataset.filter(lambda ex: duration_filter(self.max_frames, ex), num_proc=get_num_proc())
+        if self.max_frames is not None or self.min_frames:
+            dataset = dataset.filter(
+                lambda ex: duration_filter(
+                    ex,
+                    min_frames=self.min_frames,
+                    max_frames=self.max_frames,
+                ),
+                num_proc=get_num_proc(),
+            )
 
         # Yield examples
         for idx, item in enumerate(dataset):
