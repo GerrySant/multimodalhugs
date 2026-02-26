@@ -1,7 +1,5 @@
 """Tests for BilingualText2TextDataset."""
 
-import pytest
-
 from multimodalhugs.data.datasets.bilingual_text2text import (
     BilingualText2TextDataset,
     BilingualText2textMTDataConfig,
@@ -95,20 +93,24 @@ class TestBilingualText2TextGenerateExamples:
         assert example["decoder_prompt"] == ""
 
 
-class TestBilingualText2TextMaxSourceTokensBug:
-    """Document the bug in bilingual_text2text.py:190.
-
-    duration_filter(self.max_source_tokens, sample) passes args in wrong order.
-    The function signature is: duration_filter(sample, min_frames, max_frames).
-    So self.max_source_tokens is passed as 'sample', and actual sample as 'min_frames'.
-    This means the filter will fail with an error when max_source_tokens is set.
-    """
-
-    def test_max_source_tokens_filter_is_buggy(self, text2text_tsv):
-        """When max_source_tokens is set, the filter call passes args in wrong order."""
-        config = BilingualText2textMTDataConfig(max_source_tokens=100)
+class TestBilingualText2TextMaxSourceTokensFilter:
+    def test_max_source_tokens_filters_long_samples(self, text2text_tsv):
+        """Samples with more words than max_source_tokens are filtered out."""
+        # "Hello world" has 2 words, "Good morning" has 2, "Thank you" has 2
+        # Setting max_source_tokens=1 should filter all of them out
+        config = BilingualText2textMTDataConfig(max_source_tokens=1)
         ds = BilingualText2TextDataset(config=config)
-        # The bug causes duration_filter to be called as:
-        # duration_filter(100, sample) → sample["DURATION"] tries int(100)["DURATION"] → TypeError
-        with pytest.raises((TypeError, AttributeError)):
-            list(ds._generate_examples(metafile_path=text2text_tsv, split="train"))
+        examples = list(
+            ds._generate_examples(metafile_path=text2text_tsv, split="train")
+        )
+        assert len(examples) == 0
+
+    def test_max_source_tokens_keeps_short_samples(self, text2text_tsv):
+        """Samples within max_source_tokens limit are kept."""
+        # All samples have 2 words, so max_source_tokens=5 keeps all
+        config = BilingualText2textMTDataConfig(max_source_tokens=5)
+        ds = BilingualText2TextDataset(config=config)
+        examples = list(
+            ds._generate_examples(metafile_path=text2text_tsv, split="train")
+        )
+        assert len(examples) == 3

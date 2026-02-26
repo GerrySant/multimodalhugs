@@ -187,7 +187,7 @@ class BilingualText2TextDataset(datasets.GeneratorBasedBuilder):
         # Filter samples where the signal length is greater than self.max_source_tokens
         dataset = dataset.map(mapping_function, num_proc=get_num_proc())
         if self.max_source_tokens is not None:
-            dataset = dataset.filter(lambda sample: duration_filter(self.max_source_tokens, sample), num_proc=get_num_proc())
+            dataset = dataset.filter(lambda sample: duration_filter(sample, max_frames=self.max_source_tokens), num_proc=get_num_proc())
 
         for idx, item in enumerate(dataset):
             yield idx, {
