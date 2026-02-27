@@ -66,32 +66,32 @@ def create_seq2seq_labels_from_samples(
     no_padding = padding is False or padding == PaddingStrategy.DO_NOT_PAD
 
     if no_padding:
-        final_labels = labels
+        return {'labels': labels}
+
+    # Determine target max length
+    if padding == PaddingStrategy.MAX_LENGTH and max_length:
+        max_len = max_length
     else:
-        # Determine target max length
-        if padding == PaddingStrategy.MAX_LENGTH and max_length:
-            max_len = max_length
+        max_len = max(len(seq) for seq in labels)
+
+    # Adjust to pad_to_multiple_of
+    if pad_to_multiple_of:
+        multiple = pad_to_multiple_of
+        max_len = ((max_len + multiple - 1) // multiple) * multiple
+
+    # Pad sequences on correct side
+    padded = []
+    side = tokenizer.padding_side
+    for seq in labels:
+        pad_len = max_len - len(seq)
+        if side == 'right':
+            padded_seq = seq + [label_pad_token_id] * pad_len
         else:
-            max_len = max(len(seq) for seq in labels)
+            padded_seq = [label_pad_token_id] * pad_len + seq
+        padded.append(padded_seq)
+    final_labels = padded
 
-        # Adjust to pad_to_multiple_of
-        if pad_to_multiple_of:
-            multiple = pad_to_multiple_of
-            max_len = ((max_len + multiple - 1) // multiple) * multiple
-
-        # Pad sequences on correct side
-        padded = []
-        side = tokenizer.padding_side
-        for seq in labels:
-            pad_len = max_len - len(seq)
-            if side == 'right':
-                padded_seq = seq + [label_pad_token_id] * pad_len
-            else:
-                padded_seq = [label_pad_token_id] * pad_len + seq
-            padded.append(padded_seq)
-        final_labels = padded
-
-    # # Convert lists to tensors based on return format
+    # Convert lists to tensors based on return format
     if return_tensors == 'pt':
         return {'labels': torch.tensor(final_labels, dtype=torch.int64)}
     elif return_tensors == 'tf':

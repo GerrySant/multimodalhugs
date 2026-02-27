@@ -51,19 +51,19 @@ class TestCreateSeq2SeqLabels:
         # Shorter sequence should have -100 padding
         assert (result["labels"][0] == -100).any()
 
-    def test_no_padding_same_length(self, tokenizer):
-        """With padding=False but same-length outputs, raw labels are returned as tensor."""
-        # Use identical outputs to ensure same token count after tokenization
+    def test_no_padding_returns_raw_lists(self, tokenizer):
+        """With padding=False, raw lists are returned (not tensors)."""
         samples = [
-            {"decoder_prompt": "", "output": "Hello"},
-            {"decoder_prompt": "", "output": "Hello"},
+            {"decoder_prompt": "", "output": "Hi"},
+            {"decoder_prompt": "", "output": "Hello world how are you"},
         ]
         result = create_seq2seq_labels_from_samples(samples, tokenizer, padding=False)
         assert result is not None
         assert "labels" in result
-        # With same lengths, torch.tensor() succeeds
-        assert isinstance(result["labels"], torch.Tensor)
-        assert result["labels"].shape[0] == 2
+        assert isinstance(result["labels"], list)
+        assert isinstance(result["labels"][0], list)
+        # Different lengths since no padding
+        assert len(result["labels"][0]) != len(result["labels"][1])
 
     def test_max_length_padding(self, tokenizer):
         from transformers.utils import PaddingStrategy
