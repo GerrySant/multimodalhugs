@@ -47,7 +47,8 @@ dev = [
     "black",
     "isort",
     "pre-commit",
-    "jupyter"
+    "jupyter",
+    "mediapipe<0.10.30"
 ]
 keras = [
     "keras-nlp",

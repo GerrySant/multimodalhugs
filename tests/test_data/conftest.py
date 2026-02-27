@@ -60,112 +60,11 @@ def tokenizer():
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def dummy_pose_file(tmp_path):
-    """Create a minimal .pose file with 10 frames and realistic holistic components."""
-    from pose_format import Pose
-    from pose_format.pose_header import (
-        PoseHeader,
-        PoseHeaderComponent,
-        PoseHeaderDimensions,
-    )
-    from pose_format.numpy import NumPyPoseBody
+    """Create a minimal .pose file with 10 frames and standard holistic components."""
+    from pose_format.utils.generic import fake_pose, get_standard_components_for_known_format
 
-    # Real MediaPipe holistic landmark names
-    pose_landmarks_33 = [
-        "NOSE",
-        "LEFT_EYE_INNER",
-        "LEFT_EYE",
-        "LEFT_EYE_OUTER",
-        "RIGHT_EYE_INNER",
-        "RIGHT_EYE",
-        "RIGHT_EYE_OUTER",
-        "LEFT_EAR",
-        "RIGHT_EAR",
-        "MOUTH_LEFT",
-        "MOUTH_RIGHT",
-        "LEFT_SHOULDER",
-        "RIGHT_SHOULDER",
-        "LEFT_ELBOW",
-        "RIGHT_ELBOW",
-        "LEFT_WRIST",
-        "RIGHT_WRIST",
-        "LEFT_PINKY",
-        "RIGHT_PINKY",
-        "LEFT_INDEX",
-        "RIGHT_INDEX",
-        "LEFT_THUMB",
-        "RIGHT_THUMB",
-        "LEFT_HIP",
-        "RIGHT_HIP",
-        "LEFT_KNEE",
-        "RIGHT_KNEE",
-        "LEFT_ANKLE",
-        "RIGHT_ANKLE",
-        "LEFT_HEEL",
-        "RIGHT_HEEL",
-        "LEFT_FOOT_INDEX",
-        "RIGHT_FOOT_INDEX",
-    ]
-    hand_landmarks_21 = [
-        "WRIST",
-        "THUMB_CMC",
-        "THUMB_MCP",
-        "THUMB_IP",
-        "THUMB_TIP",
-        "INDEX_FINGER_MCP",
-        "INDEX_FINGER_PIP",
-        "INDEX_FINGER_DIP",
-        "INDEX_FINGER_TIP",
-        "MIDDLE_FINGER_MCP",
-        "MIDDLE_FINGER_PIP",
-        "MIDDLE_FINGER_DIP",
-        "MIDDLE_FINGER_TIP",
-        "RING_FINGER_MCP",
-        "RING_FINGER_PIP",
-        "RING_FINGER_DIP",
-        "RING_FINGER_TIP",
-        "PINKY_MCP",
-        "PINKY_PIP",
-        "PINKY_DIP",
-        "PINKY_TIP",
-    ]
-
-    dims = PoseHeaderDimensions(width=1, height=1, depth=1)
-    components = [
-        PoseHeaderComponent(
-            name="POSE_LANDMARKS",
-            points=pose_landmarks_33,
-            limbs=[],
-            colors=[],
-            point_format="float",
-        ),
-        PoseHeaderComponent(
-            name="LEFT_HAND_LANDMARKS",
-            points=hand_landmarks_21,
-            limbs=[],
-            colors=[],
-            point_format="float",
-        ),
-        PoseHeaderComponent(
-            name="RIGHT_HAND_LANDMARKS",
-            points=hand_landmarks_21,
-            limbs=[],
-            colors=[],
-            point_format="float",
-        ),
-    ]
-    header = PoseHeader(version=0.1, dimensions=dims, components=components)
-    total_points = 33 + 21 + 21  # 75
-    n_frames = 10
-    n_people = 1
-    # Last dimension must be 4 to match header dimensions (width=1, height=1, depth=1 → 4D)
-    data = np.random.rand(n_frames, n_people, total_points, 4).astype(np.float32)
-    confidence = np.ones((n_frames, n_people, total_points), dtype=np.float32)
-    body = NumPyPoseBody(
-        fps=25,
-        data=data,
-        confidence=confidence,
-    )
-    pose = Pose(header=header, body=body)
+    components = get_standard_components_for_known_format("holistic")
+    pose = fake_pose(num_frames=10, fps=25.0, components=components)
     path = tmp_path / "dummy.pose"
     with open(path, "wb") as f:
         pose.write(f)
