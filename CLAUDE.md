@@ -104,13 +104,27 @@ multimodalhugs/
 - Follow existing HF conventions for model/config/processor classes
 - YAML configs in `examples/` directories serve as templates
 
-## Development Environment (macOS ARM)
+## Development Environment
 
-**Recommended venv:** `~/PyCharmProjects/venvs/multimodalhugs-3.11` (Python 3.11 via pyenv)
+**Python:** 3.11+ recommended, 3.8+ supported.
 
 ```bash
-# Run tests (skip e2e — they download models from HuggingFace)
-~/PyCharmProjects/venvs/multimodalhugs-3.11/bin/pytest tests/ --ignore=tests/e2e_overfitting -v
+# if necessary, install Python 3.11
+pyenv install 3.11
+
+# Create a venv and install with dev dependencies
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# install the correct version of an optional dependency of the `pose-format` package (for testing)
+pip install --upgrade --no-deps mediapipe<0.10.30
+
+# Run tests
+pytest tests/ -v
+
+# Skip e2e tests if the full suite takes too long (they download models from HuggingFace)
+pytest tests/ --ignore=tests/e2e_overfitting -v
 ```
 
 **Known issue — TensorFlow mutex crash on macOS ARM:**
