@@ -117,9 +117,6 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# install the correct version of an optional dependency of the `pose-format` package (for testing)
-pip install --upgrade --no-deps mediapipe<0.10.30
-
 # Run tests
 pytest tests/ -v
 
