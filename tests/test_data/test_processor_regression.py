@@ -43,14 +43,17 @@ def load_golden(name: str) -> dict:
         return json.load(f)
 
 
-def assert_matches_golden(tensor: torch.Tensor, golden: dict, key: str):
+def assert_matches_golden(tensor: torch.Tensor, golden: dict, key: str,
+                          abs_tol: float = FLOAT_ABS_TOL):
     """
     Compare a tensor against its golden summary.
 
     Checks exact shape and dtype.  For float tensors also checks mean, std,
-    min, max, sum (within FLOAT_ABS_TOL) and a per-element prefix/suffix
-    fingerprint to catch permutations.  For integer tensors checks exact sum
-    and full values list.
+    min, max, sum (within abs_tol) and a per-element prefix/suffix fingerprint
+    to catch permutations.  For integer tensors checks exact sum and full
+    values list.  abs_tol defaults to FLOAT_ABS_TOL but can be overridden per
+    golden file via the top-level "abs_tol" key (used for platform-sensitive
+    processors such as video where PyAV decoding varies slightly across OSes).
     """
     assert list(tensor.shape) == golden["shape"], \
         f"[{key}] shape mismatch: got {list(tensor.shape)}, expected {golden['shape']}"
@@ -60,21 +63,21 @@ def assert_matches_golden(tensor: torch.Tensor, golden: dict, key: str):
     if tensor.is_floating_point():
         f = tensor.float()
         flat = f.flatten()
-        assert f.mean().item() == pytest.approx(golden["mean"], abs=FLOAT_ABS_TOL), \
+        assert f.mean().item() == pytest.approx(golden["mean"], abs=abs_tol), \
             f"[{key}] mean mismatch"
-        assert f.std().item()  == pytest.approx(golden["std"],  abs=FLOAT_ABS_TOL), \
+        assert f.std().item()  == pytest.approx(golden["std"],  abs=abs_tol), \
             f"[{key}] std mismatch"
-        assert f.min().item()  == pytest.approx(golden["min"],  abs=FLOAT_ABS_TOL), \
+        assert f.min().item()  == pytest.approx(golden["min"],  abs=abs_tol), \
             f"[{key}] min mismatch"
-        assert f.max().item()  == pytest.approx(golden["max"],  abs=FLOAT_ABS_TOL), \
+        assert f.max().item()  == pytest.approx(golden["max"],  abs=abs_tol), \
             f"[{key}] max mismatch"
-        assert f.sum().item()  == pytest.approx(golden["sum"],  abs=FLOAT_ABS_TOL * tensor.numel()), \
+        assert f.sum().item()  == pytest.approx(golden["sum"],  abs=abs_tol * tensor.numel()), \
             f"[{key}] sum mismatch"
         if "first_values" in golden:
-            assert flat[:8].tolist() == pytest.approx(golden["first_values"], abs=FLOAT_ABS_TOL), \
+            assert flat[:8].tolist() == pytest.approx(golden["first_values"], abs=abs_tol), \
                 f"[{key}] first_values mismatch"
         if "last_values" in golden:
-            assert flat[-8:].tolist() == pytest.approx(golden["last_values"], abs=FLOAT_ABS_TOL), \
+            assert flat[-8:].tolist() == pytest.approx(golden["last_values"], abs=abs_tol), \
                 f"[{key}] last_values mismatch"
     else:
         assert int(tensor.sum().item()) == golden["sum"], \
@@ -85,9 +88,12 @@ def assert_matches_golden(tensor: torch.Tensor, golden: dict, key: str):
 
 def check_all_keys(result, golden):
     """Assert every key in the golden file is present and matches in result."""
+    abs_tol = golden.get("abs_tol", FLOAT_ABS_TOL)
     for key, gval in golden.items():
+        if key == "abs_tol":
+            continue
         assert key in result, f"Missing key '{key}' in processor output"
-        assert_matches_golden(result[key], gval, key)
+        assert_matches_golden(result[key], gval, key, abs_tol=abs_tol)
 
 
 # ---------------------------------------------------------------------------

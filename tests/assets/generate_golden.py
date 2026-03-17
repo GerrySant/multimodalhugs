@@ -138,7 +138,11 @@ def generate_video():
         tokenizer=load_tokenizer(),
         custom_preprocessor_path=clip_processor_path,
     )
-    save("video2text", capture(processor(batch=batch), fingerprint=False))
+    data = capture(processor(batch=batch), fingerprint=False)
+    # PyAV decodes pixel values slightly differently across OS/codec versions.
+    # Store a relaxed per-golden tolerance so the test tolerates platform drift.
+    data["abs_tol"] = 0.01
+    save("video2text", data)
 
 
 def generate_features():
