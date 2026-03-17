@@ -43,12 +43,17 @@ def load_tokenizer():
     return tok
 
 
-def tensor_summary(t: torch.Tensor) -> dict:
+def tensor_summary(t: torch.Tensor, fingerprint: bool = True) -> dict:
     """
     Capture enough information about a tensor to detect any change in future runs.
 
     For floating-point tensors (input_frames, masks stored as float):
         shape, dtype, mean, std, min, max, sum
+        If fingerprint=True, also stores first_values and last_values (8 elements
+        each from the flattened tensor) to catch permutations or transpositions.
+        Set fingerprint=False for processors that rely on platform-specific
+        libraries (e.g. mediapipe) where exact element values may differ across
+        hardware architectures.
     For integer tensors (token ids, integer masks):
         shape, dtype, sum, and the full values list (they are small).
     """
@@ -58,16 +63,19 @@ def tensor_summary(t: torch.Tensor) -> dict:
     }
     if t.is_floating_point():
         f = t.float()
-        flat = f.flatten()
         summary.update({
             "mean": round(f.mean().item(), 8),
             "std":  round(f.std().item(),  8) if f.numel() > 1 else 0.0,
             "min":  round(f.min().item(),  8),
             "max":  round(f.max().item(),  8),
             "sum":  round(f.sum().item(),  6),
-            "first_values": [round(v, 6) for v in flat[:8].tolist()],
-            "last_values":  [round(v, 6) for v in flat[-8:].tolist()],
         })
+        if fingerprint:
+            flat = f.flatten()
+            summary.update({
+                "first_values": [round(v, 6) for v in flat[:8].tolist()],
+                "last_values":  [round(v, 6) for v in flat[-8:].tolist()],
+            })
     else:
         summary.update({
             "sum":    int(t.sum().item()),
@@ -76,9 +84,10 @@ def tensor_summary(t: torch.Tensor) -> dict:
     return summary
 
 
-def capture(result) -> dict:
+def capture(result, fingerprint: bool = True) -> dict:
+    """Summarise all tensor values in result into a JSON-serialisable dict."""
     return {
-        key: tensor_summary(val)
+        key: tensor_summary(val, fingerprint=fingerprint)
         for key, val in result.items()
         if isinstance(val, torch.Tensor)
     }
@@ -106,7 +115,7 @@ def generate_pose():
          "encoder_prompt": "__asl__", "decoder_prompt": "__en__", "output": "Good."},
     ]
     processor = Pose2TextTranslationProcessor(tokenizer=load_tokenizer(), reduce_holistic_poses=True)
-    save("pose2text", capture(processor(batch=batch)))
+    save("pose2text", capture(processor(batch=batch), fingerprint=False))
 
 
 def generate_video():
@@ -129,7 +138,7 @@ def generate_video():
         tokenizer=load_tokenizer(),
         custom_preprocessor_path=clip_processor_path,
     )
-    save("video2text", capture(processor(batch=batch)))
+    save("video2text", capture(processor(batch=batch), fingerprint=False))
 
 
 def generate_features():
