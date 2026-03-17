@@ -272,6 +272,13 @@
       "normalized": false,
       "rstrip": false,
       "single_word": false
+    },
+    {
+      "content": "__asl__",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false
     }
   ],
   "bos_token": {

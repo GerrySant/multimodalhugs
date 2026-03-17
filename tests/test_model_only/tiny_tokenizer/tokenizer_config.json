@@ -343,6 +343,14 @@
       "rstrip": false,
       "single_word": false,
       "special": true
+    },
+    "8039": {
+      "content": "__asl__",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
     }
   },
   "additional_special_tokens": [
@@ -384,7 +392,8 @@
     "__da__",
     "__sw__",
     "__ur__",
-    "__ps__"
+    "__ps__",
+    "__asl__"
   ],
   "bos_token": "<s>",
   "clean_up_tokenization_spaces": true,

@@ -34,51 +34,31 @@
   "encoder_prompt": {
     "shape": [
       2,
-      6
+      1
     ],
     "dtype": "torch.int64",
-    "sum": 3820,
+    "sum": 16078,
     "values": [
       [
-        66,
-        66,
-        1567,
-        79,
-        66,
-        66
+        8039
       ],
       [
-        66,
-        66,
-        1567,
-        79,
-        66,
-        66
+        8039
       ]
     ]
   },
   "encoder_prompt_length_padding_mask": {
     "shape": [
       2,
-      6
+      1
     ],
     "dtype": "torch.int64",
-    "sum": 12,
+    "sum": 2,
     "values": [
       [
-        1,
-        1,
-        1,
-        1,
-        1,
         1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
         1
       ]
     ]
