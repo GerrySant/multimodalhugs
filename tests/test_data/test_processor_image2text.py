@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import torch
+from transformers.feature_extraction_utils import BatchFeature
 
 from multimodalhugs.processors.image2text_preprocessor import (
     Image2TextTranslationProcessor,
@@ -137,3 +138,58 @@ class TestImageTransformGetItemsOutput:
         }
         result = processor._transform_get_items_output(batch)
         assert isinstance(result["signal"][0], torch.Tensor)
+
+
+class TestImageProcessorCall:
+    """Full __call__() tests — the path exercised by DataCollatorMultimodalSeq2Seq."""
+
+    EXPECTED_KEYS = {
+        "input_frames",
+        "attention_mask",
+        "encoder_prompt",
+        "encoder_prompt_length_padding_mask",
+        "decoder_input_ids",
+        "decoder_attention_mask",
+    }
+
+    def test_returns_batch_feature(self, tokenizer, image_batch_samples):
+        """__call__ should return a BatchFeature (HF-compatible mapping)."""
+        processor = Image2TextTranslationProcessor(
+            tokenizer=tokenizer,
+            font_path=FONT_PATH,
+            width=64,
+            height=64,
+            normalize_image=False,
+        )
+        result = processor(batch=image_batch_samples)
+        assert isinstance(result, BatchFeature)
+
+    def test_has_all_expected_keys(self, tokenizer, image_batch_samples):
+        """Output must contain all keys consumed by the model forward()."""
+        processor = Image2TextTranslationProcessor(
+            tokenizer=tokenizer,
+            font_path=FONT_PATH,
+            width=64,
+            height=64,
+            normalize_image=False,
+        )
+        result = processor(batch=image_batch_samples)
+        for key in self.EXPECTED_KEYS:
+            assert key in result, f"Missing key: '{key}'"
+
+    def test_batch_dimensions_consistent(self, tokenizer, image_batch_samples):
+        """Every output tensor must have the same leading batch dimension."""
+        processor = Image2TextTranslationProcessor(
+            tokenizer=tokenizer,
+            font_path=FONT_PATH,
+            width=64,
+            height=64,
+            normalize_image=False,
+        )
+        result = processor(batch=image_batch_samples)
+        batch_size = len(image_batch_samples)
+        for key, val in result.items():
+            if isinstance(val, torch.Tensor):
+                assert val.shape[0] == batch_size, (
+                    f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
+                )

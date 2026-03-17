@@ -2,6 +2,7 @@
 
 import torch
 from unittest.mock import patch, MagicMock
+from transformers.feature_extraction_utils import BatchFeature
 
 from multimodalhugs.processors.signwriting_preprocessor import SignwritingProcessor
 from tests.test_data.conftest import SIGNWRITING_STRINGS
@@ -146,3 +147,70 @@ class TestSignwritingTransformGetItemsOutput:
         }
         result = processor._transform_get_items_output(batch)
         assert isinstance(result["signal"][0], torch.Tensor)
+
+
+class TestSignwritingProcessorCall:
+    """Full __call__() tests — the path exercised by DataCollatorMultimodalSeq2Seq."""
+
+    EXPECTED_KEYS = {
+        "input_frames",
+        "attention_mask",
+        "encoder_prompt",
+        "encoder_prompt_length_padding_mask",
+        "decoder_input_ids",
+        "decoder_attention_mask",
+    }
+
+    @patch(
+        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
+    )
+    def test_returns_batch_feature(self, mock_from_pretrained, tokenizer, signwriting_batch_samples):
+        """__call__ should return a BatchFeature (HF-compatible mapping)."""
+        mock_from_pretrained.return_value = _make_mock_preprocessor()
+        processor = SignwritingProcessor(
+            tokenizer=tokenizer,
+            custom_preprocessor_path="mock/path",
+            width=224,
+            height=224,
+            channels=3,
+        )
+        result = processor(batch=signwriting_batch_samples)
+        assert isinstance(result, BatchFeature)
+
+    @patch(
+        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
+    )
+    def test_has_all_expected_keys(self, mock_from_pretrained, tokenizer, signwriting_batch_samples):
+        """Output must contain all keys consumed by the model forward()."""
+        mock_from_pretrained.return_value = _make_mock_preprocessor()
+        processor = SignwritingProcessor(
+            tokenizer=tokenizer,
+            custom_preprocessor_path="mock/path",
+            width=224,
+            height=224,
+            channels=3,
+        )
+        result = processor(batch=signwriting_batch_samples)
+        for key in self.EXPECTED_KEYS:
+            assert key in result, f"Missing key: '{key}'"
+
+    @patch(
+        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
+    )
+    def test_batch_dimensions_consistent(self, mock_from_pretrained, tokenizer, signwriting_batch_samples):
+        """Every output tensor must have the same leading batch dimension."""
+        mock_from_pretrained.return_value = _make_mock_preprocessor()
+        processor = SignwritingProcessor(
+            tokenizer=tokenizer,
+            custom_preprocessor_path="mock/path",
+            width=224,
+            height=224,
+            channels=3,
+        )
+        result = processor(batch=signwriting_batch_samples)
+        batch_size = len(signwriting_batch_samples)
+        for key, val in result.items():
+            if isinstance(val, torch.Tensor):
+                assert val.shape[0] == batch_size, (
+                    f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
+                )

@@ -2,6 +2,7 @@
 
 import numpy as np
 import torch
+from transformers.feature_extraction_utils import BatchFeature
 
 from multimodalhugs.processors.features2text_preprocessor import (
     Features2TextTranslationProcessor,
@@ -136,3 +137,46 @@ class TestFeaturesCacheBehavior:
         # Should still work to load files
         tensor = processor._features_file_to_tensor(dummy_npy_file)
         assert isinstance(tensor, torch.Tensor)
+
+
+class TestFeaturesProcessorCall:
+    """Full __call__() tests — the path exercised by DataCollatorMultimodalSeq2Seq."""
+
+    EXPECTED_KEYS = {
+        "input_frames",
+        "attention_mask",
+        "encoder_prompt",
+        "encoder_prompt_length_padding_mask",
+        "decoder_input_ids",
+        "decoder_attention_mask",
+    }
+
+    def test_returns_batch_feature(self, tokenizer, features_batch_samples):
+        """__call__ should return a BatchFeature (HF-compatible mapping)."""
+        processor = Features2TextTranslationProcessor(
+            tokenizer=tokenizer, use_cache=False
+        )
+        result = processor(batch=features_batch_samples)
+        assert isinstance(result, BatchFeature)
+
+    def test_has_all_expected_keys(self, tokenizer, features_batch_samples):
+        """Output must contain all keys consumed by the model forward()."""
+        processor = Features2TextTranslationProcessor(
+            tokenizer=tokenizer, use_cache=False
+        )
+        result = processor(batch=features_batch_samples)
+        for key in self.EXPECTED_KEYS:
+            assert key in result, f"Missing key: '{key}'"
+
+    def test_batch_dimensions_consistent(self, tokenizer, features_batch_samples):
+        """Every output tensor must have the same leading batch dimension."""
+        processor = Features2TextTranslationProcessor(
+            tokenizer=tokenizer, use_cache=False
+        )
+        result = processor(batch=features_batch_samples)
+        batch_size = len(features_batch_samples)
+        for key, val in result.items():
+            if isinstance(val, torch.Tensor):
+                assert val.shape[0] == batch_size, (
+                    f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
+                )

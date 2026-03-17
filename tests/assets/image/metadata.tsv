@@ -1,0 +1,3 @@
+signal	encoder_prompt	decoder_prompt	output
+Let's open Access.	lowercase: 	__en__	let's open access.
+Good.	lowercase: 	__en__	good.

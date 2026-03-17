@@ -1,0 +1,193 @@
+"""
+Regression tests for processor outputs.
+
+Each test runs a processor with the real committed asset files and compares the
+output against the golden values captured by tests/assets/generate_golden.py.
+
+If a test fails after an intentional preprocessing change, regenerate the
+golden files:
+    python tests/assets/generate_golden.py
+
+If a test fails unexpectedly, that signals an unintended change in behaviour.
+
+Golden values capture per tensor:
+  - shape   (must match exactly)
+  - dtype   (must match exactly)
+  - For float tensors: mean, std, min, max, sum  (within a tight tolerance)
+  - For integer tensors: sum and full values      (must match exactly)
+"""
+
+import json
+import os
+
+import pytest
+import torch
+
+from tests.test_data.conftest import ASSETS_DIR, CLIP_PROCESSOR_PATH, FONT_PATH, TINY_TOKENIZER_PATH
+
+GOLDEN_DIR = os.path.join(ASSETS_DIR, "golden")
+
+FLOAT_ABS_TOL = 1e-4   # tolerance for floating-point statistics
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def load_golden(name: str) -> dict:
+    """Load a golden JSON file by modality name; skip the test if absent."""
+    path = os.path.join(GOLDEN_DIR, f"{name}.json")
+    if not os.path.exists(path):
+        pytest.skip(f"Golden file not found: {path}  Run tests/assets/generate_golden.py first.")
+    with open(path) as f:
+        return json.load(f)
+
+
+def assert_matches_golden(tensor: torch.Tensor, golden: dict, key: str):
+    """
+    Compare a tensor against its golden summary.
+
+    Checks exact shape and dtype.  For float tensors also checks mean, std,
+    min, max, sum (within FLOAT_ABS_TOL) and a per-element prefix/suffix
+    fingerprint to catch permutations.  For integer tensors checks exact sum
+    and full values list.
+    """
+    assert list(tensor.shape) == golden["shape"], \
+        f"[{key}] shape mismatch: got {list(tensor.shape)}, expected {golden['shape']}"
+    assert str(tensor.dtype) == golden["dtype"], \
+        f"[{key}] dtype mismatch: got {tensor.dtype}, expected {golden['dtype']}"
+
+    if tensor.is_floating_point():
+        f = tensor.float()
+        flat = f.flatten()
+        assert f.mean().item() == pytest.approx(golden["mean"], abs=FLOAT_ABS_TOL), \
+            f"[{key}] mean mismatch"
+        assert f.std().item()  == pytest.approx(golden["std"],  abs=FLOAT_ABS_TOL), \
+            f"[{key}] std mismatch"
+        assert f.min().item()  == pytest.approx(golden["min"],  abs=FLOAT_ABS_TOL), \
+            f"[{key}] min mismatch"
+        assert f.max().item()  == pytest.approx(golden["max"],  abs=FLOAT_ABS_TOL), \
+            f"[{key}] max mismatch"
+        assert f.sum().item()  == pytest.approx(golden["sum"],  abs=FLOAT_ABS_TOL * tensor.numel()), \
+            f"[{key}] sum mismatch"
+        if "first_values" in golden:
+            assert flat[:8].tolist() == pytest.approx(golden["first_values"], abs=FLOAT_ABS_TOL), \
+                f"[{key}] first_values mismatch"
+        if "last_values" in golden:
+            assert flat[-8:].tolist() == pytest.approx(golden["last_values"], abs=FLOAT_ABS_TOL), \
+                f"[{key}] last_values mismatch"
+    else:
+        assert int(tensor.sum().item()) == golden["sum"], \
+            f"[{key}] sum mismatch"
+        assert tensor.tolist() == golden["values"], \
+            f"[{key}] values mismatch"
+
+
+def check_all_keys(result, golden):
+    """Assert every key in the golden file is present and matches in result."""
+    for key, gval in golden.items():
+        assert key in result, f"Missing key '{key}' in processor output"
+        assert_matches_golden(result[key], gval, key)
+
+
+# ---------------------------------------------------------------------------
+# pose2text
+# ---------------------------------------------------------------------------
+
+class TestPose2TextRegression:
+    """Regression tests for Pose2TextTranslationProcessor using committed pose assets."""
+
+    def test_output_matches_golden(self, tokenizer, pose_asset_samples):
+        from multimodalhugs.processors.pose2text_preprocessor import Pose2TextTranslationProcessor
+        processor = Pose2TextTranslationProcessor(tokenizer=tokenizer, reduce_holistic_poses=True)
+        result = processor(batch=pose_asset_samples)
+        check_all_keys(result, load_golden("pose2text"))
+
+
+# ---------------------------------------------------------------------------
+# video2text
+# ---------------------------------------------------------------------------
+
+class TestVideo2TextRegression:
+    """Regression tests for Video2TextTranslationProcessor using committed video assets."""
+
+    def test_output_matches_golden(self, tokenizer, video_asset_samples):
+        from multimodalhugs.processors.video2text_preprocessor import Video2TextTranslationProcessor
+        processor = Video2TextTranslationProcessor(
+            tokenizer=tokenizer,
+            custom_preprocessor_path=CLIP_PROCESSOR_PATH,
+        )
+        result = processor(batch=video_asset_samples)
+        check_all_keys(result, load_golden("video2text"))
+
+
+# ---------------------------------------------------------------------------
+# features2text
+# ---------------------------------------------------------------------------
+
+class TestFeatures2TextRegression:
+    """Regression tests for Features2TextTranslationProcessor using committed .npy assets."""
+
+    def test_output_matches_golden(self, tokenizer, features_asset_samples):
+        from multimodalhugs.processors.features2text_preprocessor import Features2TextTranslationProcessor
+        processor = Features2TextTranslationProcessor(tokenizer=tokenizer, use_cache=False)
+        result = processor(batch=features_asset_samples)
+        check_all_keys(result, load_golden("features2text"))
+
+
+# ---------------------------------------------------------------------------
+# text2text
+# ---------------------------------------------------------------------------
+
+class TestText2TextRegression:
+    """Regression tests for Text2TextTranslationProcessor using inline text samples."""
+
+    def test_output_matches_golden(self, tokenizer, text_asset_samples):
+        from multimodalhugs.processors.text2text_preprocessor import Text2TextTranslationProcessor
+        processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
+        result = processor(batch=text_asset_samples)
+        check_all_keys(result, load_golden("text2text"))
+
+
+# ---------------------------------------------------------------------------
+# labels  (create_seq2seq_labels_from_samples — will move to TextModalityProcessor)
+# ---------------------------------------------------------------------------
+
+class TestLabelsRegression:
+    """
+    Regression tests for create_seq2seq_labels_from_samples.
+
+    This function currently lives in DataCollatorMultimodalSeq2Seq but will move
+    into TextModalityProcessor(role='label') during the processor refactoring.
+    The golden file defines the exact contract that the new implementation must satisfy.
+    """
+
+    def test_output_matches_golden(self, tokenizer, text_asset_samples):
+        from multimodalhugs.data.datacollators.multimodal_datacollator import (
+            create_seq2seq_labels_from_samples,
+        )
+        result = create_seq2seq_labels_from_samples(
+            samples=text_asset_samples,
+            tokenizer=tokenizer,
+            label_pad_token_id=-100,
+            padding=True,
+            return_tensors="pt",
+        )
+        check_all_keys(result, load_golden("labels"))
+
+
+# ---------------------------------------------------------------------------
+# image2text
+# ---------------------------------------------------------------------------
+
+class TestImage2TextRegression:
+    """Regression tests for Image2TextTranslationProcessor using inline text rendered to images."""
+
+    def test_output_matches_golden(self, tokenizer, image_asset_samples):
+        from multimodalhugs.processors.image2text_preprocessor import Image2TextTranslationProcessor
+        processor = Image2TextTranslationProcessor(
+            tokenizer=tokenizer, font_path=FONT_PATH,
+            width=224, height=224, normalize_image=False,
+        )
+        result = processor(batch=image_asset_samples)
+        check_all_keys(result, load_golden("image2text"))
