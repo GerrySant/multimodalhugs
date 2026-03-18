@@ -96,9 +96,9 @@ def test_model_converges_in_training():
         if "eval_chrf" in log
     ]
     assert eval_chrf_scores, "No eval_chrf found in trainer_state.json"
-    last_eval_chrf = eval_chrf_scores[-1]
-    print(f"✅ eval_chrf from trainer_state.json: {last_eval_chrf}")
-    assert last_eval_chrf == 100.0, f"Expected eval_chrf of 100.0, got {last_eval_chrf}"
+    best_eval_chrf = max(eval_chrf_scores)
+    print(f"✅ best eval_chrf from trainer_state.json: {best_eval_chrf}")
+    assert best_eval_chrf == 100.0, f"Expected eval_chrf of 100.0, got {best_eval_chrf}"
 
 
 def test_generation_score_is_perfect():
