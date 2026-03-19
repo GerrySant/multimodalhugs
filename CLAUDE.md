@@ -131,3 +131,15 @@ TF 2.20+ uses protobuf 6.x, which conflicts with PyArrow (built against protobuf
 
 **Fix:** Use Python 3.11 with `mediapipe<0.10.30`. This combination avoids the crash.
 See: https://github.com/tensorflow/tensorflow/issues/98563
+
+## Test Assets
+
+Some tests rely on committed binary assets in `tests/assets/` (pose files, videos, `.npy` files).
+The TSV metadata files for path-dependent modalities (video, pose, features) are **not committed**
+because they contain absolute paths. After cloning, regenerate them once:
+
+```bash
+python tests/assets/generate_assets.py
+```
+
+Text and image TSVs are committed directly and do not need regeneration.
