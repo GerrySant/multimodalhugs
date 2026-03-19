@@ -1,0 +1,92 @@
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import torch
+from PIL import ImageOps
+from transformers import AutoProcessor
+
+from signwriting.tokenizer import normalize_signwriting
+from signwriting.visualizer.visualize import signwriting_to_image
+
+from multimodalhugs.data import pad_and_create_mask, center_image_on_white_background
+from multimodalhugs.processors.modality_processor import ModalityProcessor
+
+logger = logging.getLogger(__name__)
+
+
+class SignwritingModalityProcessor(ModalityProcessor):
+    """
+    Converts SignWriting ASCII strings into sequences of image tensors.
+
+    process_sample — normalises an ASCII SignWriting string, renders each
+                     symbol as an image via ``signwriting_to_image``, resizes
+                     and optionally inverts, then applies ``custom_preprocessor``
+                     to produce a [N_signs, C, H, W] float tensor.
+    process_batch  — pads a list of [N_i, C, H, W] tensors to
+                     [B, N_max, C, H, W] and returns a [B, N_max] mask.
+    """
+
+    def __init__(
+        self,
+        custom_preprocessor_path: Optional[str] = None,
+        width: int = 224,
+        height: int = 224,
+        channels: int = 3,
+        invert_frame: bool = True,
+    ):
+        self.custom_preprocessor_path = custom_preprocessor_path
+        self.width = width
+        self.height = height
+        self.channels = channels
+        self.invert_frame = invert_frame
+        self.custom_preprocessor = (
+            AutoProcessor.from_pretrained(custom_preprocessor_path)
+            if custom_preprocessor_path is not None
+            else None
+        )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _ascii_to_tensor(self, sign: str) -> torch.Tensor:
+        sign_arrays = []
+        for ascii_sign in normalize_signwriting(sign).split():
+            if ascii_sign == "M511x510S27034490x490":
+                ascii_sign = "M511x510S2c734490x490"
+            if ascii_sign == "M510x518S21005490x483":
+                ascii_sign = "M510x518S2c105490x483"
+            _sign = signwriting_to_image(ascii_sign, trust_box=False)
+            _sign = center_image_on_white_background(
+                _sign, target_width=self.width, target_height=self.height
+            )
+            if self.invert_frame:
+                _sign = ImageOps.invert(_sign)
+            _sign = self.custom_preprocessor(images=_sign, return_tensors="pt")[
+                "pixel_values"
+            ].squeeze(0)
+            sign_arrays.append(_sign)
+        return torch.stack(sign_arrays, dim=0)
+
+    # ------------------------------------------------------------------
+    # ModalityProcessor interface
+    # ------------------------------------------------------------------
+
+    def process_sample(
+        self,
+        values: Union[Any, Dict[str, Any]],
+        **kwargs,
+    ) -> torch.Tensor:
+        """values — ASCII SignWriting string or a pre-loaded tensor."""
+        if isinstance(values, torch.Tensor):
+            return values
+        return self._ascii_to_tensor(values)
+
+    def process_batch(
+        self,
+        samples: List[torch.Tensor],
+        **kwargs,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Pad [N_i, C, H, W] tensors to [B, N_max, C, H, W] and return a [B, N_max] mask."""
+        padded, mask = pad_and_create_mask(samples)
+        return padded, mask

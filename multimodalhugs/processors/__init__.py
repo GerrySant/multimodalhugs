@@ -5,4 +5,12 @@ from .features2text_preprocessor import Features2TextTranslationProcessor
 from .image2text_preprocessor import Image2TextTranslationProcessor
 from .text2text_preprocessor import Text2TextTranslationProcessor
 from .video2text_preprocessor import Video2TextTranslationProcessor
+from .modality_processor import ModalityProcessor
+from .pose_modality_processor import PoseModalityProcessor
+from .video_modality_processor import VideoModalityProcessor
+from .text_modality_processor import TextModalityProcessor
+from .features_modality_processor import FeaturesModalityProcessor
+from .image_modality_processor import ImageModalityProcessor
+from .signwriting_modality_processor import SignwritingModalityProcessor
+from .meta_processor import ProcessorSlot, MultimodalMetaProcessor
 from .utils import *
