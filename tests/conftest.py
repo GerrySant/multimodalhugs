@@ -7,17 +7,14 @@ These TSVs are not committed to git because they contain absolute paths.
 """
 
 import os
-import sys
 import pytest
 
-_TESTS_DIR  = os.path.dirname(os.path.abspath(__file__))
-_ASSETS_DIR = os.path.join(_TESTS_DIR, "assets")
+_ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def generate_asset_tsvs():
     """Generate path-dependent TSV metadata files once per session."""
-    sys.path.insert(0, _TESTS_DIR)
     from assets.generate_assets import (
         generate_video_tsv,
         generate_pose_tsv,

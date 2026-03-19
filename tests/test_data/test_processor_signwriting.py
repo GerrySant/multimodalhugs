@@ -108,8 +108,7 @@ class TestSignwritingObtainMultimodalInputAndMasks:
             height=224,
             channels=3,
         )
-        # First FSW has 2 symbols, second has 2, third has 2
-        # (simple strings with 2 space-separated tokens after normalize)
+        # Two FSW strings; after normalisation both produce the same number of tokens
         batch = [
             {
                 "signal": SIGNWRITING_STRINGS[0],

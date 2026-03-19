@@ -10,6 +10,17 @@ Usage:
 
 Output:
     tests/assets/golden/<modality>.json  — one file per modality
+
+IMPORTANT — keep batch definitions in sync with conftest fixtures
+-----------------------------------------------------------------
+The sample dicts defined in each generate_*() function below must stay
+in sync with the corresponding asset-based fixtures in
+tests/test_data/conftest.py (pose_asset_samples, video_asset_samples, etc.).
+
+If you change the signal paths, encoder_prompt, decoder_prompt, or output
+values here, update the matching fixture in conftest.py as well, and
+regenerate the golden files.  A mismatch between the two will cause
+regression tests to fail with unexpected key/value errors.
 """
 
 import json

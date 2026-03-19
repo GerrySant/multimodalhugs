@@ -83,7 +83,7 @@ def dummy_video_file(tmp_path):
     stream.height = 64
     stream.pix_fmt = "yuv420p"
     for i in range(10):
-        arr = np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8)
+        arr = np.random.randint(0, 256, (64, 64, 3), dtype=np.uint8)
         frame = av.VideoFrame.from_ndarray(arr, format="rgb24")
         for packet in stream.encode(frame):
             container.mux(packet)

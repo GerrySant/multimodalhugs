@@ -71,6 +71,8 @@ def assert_matches_golden(tensor: torch.Tensor, golden: dict, key: str,
             f"[{key}] min mismatch"
         assert f.max().item()  == pytest.approx(golden["max"],  abs=abs_tol), \
             f"[{key}] max mismatch"
+        # Scale sum tolerance by number of elements so per-element precision
+        # stays consistent with mean/std/min/max checks.
         assert f.sum().item()  == pytest.approx(golden["sum"],  abs=abs_tol * tensor.numel()), \
             f"[{key}] sum mismatch"
         if "first_values" in golden:
