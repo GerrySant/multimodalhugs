@@ -132,9 +132,12 @@ class MultimodalSequence2SequenceProcessor(ProcessorMixin):
     def __call__(
         self,
         batch: List[Dict[str, Any]],
-        batch_dict: Optional[Dict[str, Any]] = {},
+        batch_dict: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> BatchFeature:
+
+        if batch_dict is None:
+            batch_dict = {}
 
         for obtain_method in self.get_obtainables():
             obtained_dict, kwargs = obtain_method(batch, **kwargs)

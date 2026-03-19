@@ -16,6 +16,8 @@ from transformers import PreTrainedTokenizerFast
 _TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TINY_TOKENIZER_PATH = os.path.join(_TESTS_DIR, "test_model_only", "tiny_tokenizer")
 FONT_PATH = os.path.join(_TESTS_DIR, "e2e_overfitting", "other_files", "Arial.ttf")
+ASSETS_DIR = os.path.join(_TESTS_DIR, "assets")
+CLIP_PROCESSOR_PATH = os.path.join(ASSETS_DIR, "processors", "clip_image_processor")
 
 # ---------------------------------------------------------------------------
 # SignWriting constants
@@ -81,7 +83,7 @@ def dummy_video_file(tmp_path):
     stream.height = 64
     stream.pix_fmt = "yuv420p"
     for i in range(10):
-        arr = np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8)
+        arr = np.random.randint(0, 256, (64, 64, 3), dtype=np.uint8)
         frame = av.VideoFrame.from_ndarray(arr, format="rgb24")
         for packet in stream.encode(frame):
             container.mux(packet)
@@ -243,5 +245,183 @@ def features_batch_samples(dummy_npy_file):
             "encoder_prompt": "translate:",
             "decoder_prompt": "de:",
             "output": "World",
+        },
+    ]
+
+
+@pytest.fixture
+def pose_batch_samples(dummy_pose_file):
+    """Batch of samples suitable for Pose2TextTranslationProcessor."""
+    return [
+        {
+            "signal": dummy_pose_file,
+            "signal_start": 0,
+            "signal_end": 0,
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "Hello",
+        },
+        {
+            "signal": dummy_pose_file,
+            "signal_start": 0,
+            "signal_end": 0,
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "World",
+        },
+    ]
+
+
+@pytest.fixture
+def video_batch_samples(dummy_video_file):
+    """Batch of samples suitable for Video2TextTranslationProcessor."""
+    return [
+        {
+            "signal": dummy_video_file,
+            "signal_start": 0,
+            "signal_end": 0,
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "Hello",
+        },
+        {
+            "signal": dummy_video_file,
+            "signal_start": 0,
+            "signal_end": 0,
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "World",
+        },
+    ]
+
+
+@pytest.fixture
+def image_batch_samples(dummy_image_file):
+    """Batch of samples suitable for Image2TextTranslationProcessor."""
+    return [
+        {
+            "signal": dummy_image_file,
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "Hello",
+        },
+        {
+            "signal": dummy_image_file,
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "World",
+        },
+    ]
+
+
+@pytest.fixture
+def signwriting_batch_samples():
+    """Batch of samples suitable for SignwritingProcessor."""
+    return [
+        {
+            "signal": SIGNWRITING_STRINGS[0],
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "Hello",
+        },
+        {
+            "signal": SIGNWRITING_STRINGS[1],
+            "encoder_prompt": "translate:",
+            "decoder_prompt": "de:",
+            "output": "World",
+        },
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Asset-based batch samples (use real committed files — for regression tests)
+# scope="session" because the asset files never change between tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def pose_asset_samples():
+    pose_dir = os.path.join(ASSETS_DIR, "pose")
+    return [
+        {
+            "signal": os.path.join(pose_dir, "sample_01.pose"),
+            "signal_start": 0, "signal_end": 0,
+            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
+            "output": "Let's open Access.",
+        },
+        {
+            "signal": os.path.join(pose_dir, "sample_02.pose"),
+            "signal_start": 0, "signal_end": 0,
+            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
+            "output": "Good.",
+        },
+    ]
+
+
+@pytest.fixture(scope="session")
+def video_asset_samples():
+    video_dir = os.path.join(ASSETS_DIR, "video")
+    return [
+        {
+            "signal": os.path.join(video_dir, "sample_01.mp4"),
+            "signal_start": 0, "signal_end": 0,
+            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
+            "output": "Let's open Access.",
+        },
+        {
+            "signal": os.path.join(video_dir, "sample_02.mp4"),
+            "signal_start": 0, "signal_end": 0,
+            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
+            "output": "Good.",
+        },
+    ]
+
+
+@pytest.fixture(scope="session")
+def features_asset_samples():
+    features_dir = os.path.join(ASSETS_DIR, "features")
+    return [
+        {
+            "signal": os.path.join(features_dir, "sample_01.npy"),
+            "signal_start": 0, "signal_end": 0,
+            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
+            "output": "Let's open Access.",
+        },
+        {
+            "signal": os.path.join(features_dir, "sample_02.npy"),
+            "signal_start": 0, "signal_end": 0,
+            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
+            "output": "Good.",
+        },
+    ]
+
+
+@pytest.fixture(scope="session")
+def text_asset_samples():
+    return [
+        {
+            "signal": "Let's open Access.",
+            "encoder_prompt": "__en__", "decoder_prompt": "__fr__",
+            "output": "Ouvrons Access.",
+        },
+        {
+            "signal": "Good.",
+            "encoder_prompt": "__en__", "decoder_prompt": "__fr__",
+            "output": "Bien.",
+        },
+    ]
+
+
+@pytest.fixture(scope="session")
+def image_asset_samples():
+    return [
+        {
+            "signal": "Let's open Access.",
+            "encoder_prompt": "lowercase: ", "decoder_prompt": "__en__",
+            "output": "let's open access.",
+        },
+        {
+            "signal": "Good.",
+            "encoder_prompt": "lowercase: ", "decoder_prompt": "__en__",
+            "output": "good.",
         },
     ]

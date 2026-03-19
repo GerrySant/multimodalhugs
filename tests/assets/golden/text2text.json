@@ -1,0 +1,122 @@
+{
+  "decoder_input_ids": {
+    "shape": [
+      2,
+      1
+    ],
+    "dtype": "torch.int64",
+    "sum": 16006,
+    "values": [
+      [
+        8003
+      ],
+      [
+        8003
+      ]
+    ]
+  },
+  "decoder_attention_mask": {
+    "shape": [
+      2,
+      1
+    ],
+    "dtype": "torch.int64",
+    "sum": 2,
+    "values": [
+      [
+        1
+      ],
+      [
+        1
+      ]
+    ]
+  },
+  "encoder_prompt": {
+    "shape": [
+      2,
+      1
+    ],
+    "dtype": "torch.int64",
+    "sum": 16018,
+    "values": [
+      [
+        8009
+      ],
+      [
+        8009
+      ]
+    ]
+  },
+  "encoder_prompt_length_padding_mask": {
+    "shape": [
+      2,
+      1
+    ],
+    "dtype": "torch.int64",
+    "sum": 2,
+    "values": [
+      [
+        1
+      ],
+      [
+        1
+      ]
+    ]
+  },
+  "input_ids": {
+    "shape": [
+      2,
+      7
+    ],
+    "dtype": "torch.int64",
+    "sum": 21881,
+    "values": [
+      [
+        2497,
+        10,
+        86,
+        2553,
+        5515,
+        3184,
+        17
+      ],
+      [
+        7997,
+        17,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    ]
+  },
+  "attention_mask": {
+    "shape": [
+      2,
+      7
+    ],
+    "dtype": "torch.int64",
+    "sum": 9,
+    "values": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 [project]
 name = "multimodalhugs"
 description = "MultimodalHugs is an extension of Hugging Face that offers a generalized framework for training, evaluating, and using multimodal AI models with minimal code differences, ensuring seamless compatibility with Hugging Face pipelines."
-version = "0.4.0"
+version = "0.4.1"
 authors = [
     { name = "Gerard Sant", email = "gerard.santmuniesa@uzh.ch" },
     { name = "Zifan Jiang" },
@@ -82,6 +82,7 @@ where = ["."]
 [tool.pytest.ini_options]
 addopts = "-v"
 testpaths = ["tests"]  # This specifies the directory to look for tests
+pythonpath = ["tests"]  # makes `import assets.generate_assets` work without sys.path hacks
 
 [project.scripts]
 multimodalhugs-train = "multimodalhugs.multimodalhugs_cli.train:main"

@@ -1,0 +1,3 @@
+signal	encoder_prompt	decoder_prompt	output
+Let's open Access.	__en__	__fr__	Ouvrons Access.
+Good.	__en__	__fr__	Bien.
