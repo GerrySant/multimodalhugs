@@ -1,3 +1,4 @@
+import logging
 import torch
 
 from dataclasses import dataclass
@@ -6,6 +7,8 @@ from transformers.utils import PaddingStrategy
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor
+
+logger = logging.getLogger(__name__)
 
 def create_seq2seq_labels_from_samples(
     samples: List[Dict[str, Union[str, List[int]]]],
@@ -164,6 +167,12 @@ class DataCollatorMultimodalSeq2Seq:
             label_pad_token_id (int, optional): Token ID used to pad label sequences.
             return_tensors (str, optional): Format of output tensors: 'pt', 'tf', or 'np'. Defaults to 'pt'.
         """
+        if return_tensors != "pt":
+            logger.warning(
+                f"return_tensors='{return_tensors}' was requested, but only 'pt' (PyTorch) "
+                "is currently supported. All modality processors produce torch.Tensor outputs "
+                "directly and do not honour this setting. The argument will be ignored."
+            )
         self.processor = processor
         self.tokenizer = tokenizer if tokenizer is not None else processor.tokenizer
         self.model = model
