@@ -72,7 +72,7 @@ multimodalhugs/
 - **Auto-registration:** `models/__init__.py` registers with HF's `AutoConfig`/`AutoModelForSeq2SeqLM`
 - **Composition:** Model composes feature extractor, mapper, and backbone
 - **HF-native:** Extends `PreTrainedModel`, `Seq2SeqTrainer`, `GeneratorBasedBuilder`
-- **Modality-specific processors:** Each modality (pose, video, image, signwriting, features, text) has its own processor subclass of `MultimodalSequence2SequenceProcessor`
+- **Slot-based processors:** `MultimodalMetaProcessor` composes `ModalityProcessor` instances via `ProcessorSlot` objects; legacy task-specific wrappers live in `processors/legacy/`
 
 ## Dataset Format
 
@@ -89,14 +89,14 @@ multimodalhugs/
 
 ## Supported Modalities
 
-| Modality     | Dataset Class              | Processor Class                      |
-|-------------|---------------------------|--------------------------------------|
-| Pose        | Pose2TextDataset          | Pose2TextTranslationProcessor        |
-| Video       | Video2TextDataset         | Video2TextTranslationProcessor       |
-| Image       | BilingualImage2TextDataset| Image2TextTranslationProcessor       |
-| SignWriting | SignWritingDataset        | SignwritingProcessor                 |
-| Features    | Features2TextDataset      | Features2TextTranslationProcessor    |
-| Text        | BilingualText2TextDataset | Text2TextTranslationProcessor        |
+| Modality     | Dataset Class              | ModalityProcessor                    | Legacy wrapper (processors/legacy/)      |
+|-------------|---------------------------|--------------------------------------|------------------------------------------|
+| Pose        | Pose2TextDataset          | PoseModalityProcessor                | Pose2TextTranslationProcessor            |
+| Video       | Video2TextDataset         | VideoModalityProcessor               | Video2TextTranslationProcessor           |
+| Image       | BilingualImage2TextDataset| ImageModalityProcessor               | Image2TextTranslationProcessor           |
+| SignWriting | SignWritingDataset        | SignwritingModalityProcessor         | SignwritingProcessor                     |
+| Features    | Features2TextDataset      | FeaturesModalityProcessor            | Features2TextTranslationProcessor        |
+| Text        | BilingualText2TextDataset | TextModalityProcessor                | Text2TextTranslationProcessor            |
 
 ## Style & Conventions
 

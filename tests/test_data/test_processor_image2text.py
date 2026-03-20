@@ -5,7 +5,7 @@ import pytest
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.image2text_preprocessor import (
+from multimodalhugs.processors.legacy.image2text_preprocessor import (
     Image2TextTranslationProcessor,
 )
 from tests.test_data.conftest import FONT_PATH

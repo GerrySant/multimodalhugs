@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.video2text_preprocessor import (
+from multimodalhugs.processors.legacy.video2text_preprocessor import (
     Video2TextTranslationProcessor,
 )
 

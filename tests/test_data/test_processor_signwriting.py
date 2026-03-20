@@ -4,7 +4,7 @@ import torch
 from unittest.mock import patch, MagicMock
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.signwriting_preprocessor import SignwritingProcessor
+from multimodalhugs.processors.legacy.signwriting_preprocessor import SignwritingProcessor
 from tests.test_data.conftest import SIGNWRITING_STRINGS
 
 _MODALITY_MOCK_PATH = (

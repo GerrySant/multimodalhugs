@@ -1,10 +1,11 @@
-from .multimodal_sequence2sequence_processor import MultimodalSequence2SequenceProcessor
-from .signwriting_preprocessor import SignwritingProcessor
-from .pose2text_preprocessor import Pose2TextTranslationProcessor
-from .features2text_preprocessor import Features2TextTranslationProcessor
-from .image2text_preprocessor import Image2TextTranslationProcessor
-from .text2text_preprocessor import Text2TextTranslationProcessor
-from .video2text_preprocessor import Video2TextTranslationProcessor
+from .legacy import (
+    Pose2TextTranslationProcessor,
+    Features2TextTranslationProcessor,
+    Video2TextTranslationProcessor,
+    Image2TextTranslationProcessor,
+    Text2TextTranslationProcessor,
+    SignwritingProcessor,
+)
 from .modality_processor import ModalityProcessor
 from .pose_modality_processor import PoseModalityProcessor
 from .video_modality_processor import VideoModalityProcessor

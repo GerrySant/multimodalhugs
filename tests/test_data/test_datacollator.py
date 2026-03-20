@@ -7,10 +7,10 @@ from multimodalhugs.data.datacollators.multimodal_datacollator import (
     DataCollatorMultimodalSeq2Seq,
     create_seq2seq_labels_from_samples,
 )
-from multimodalhugs.processors.text2text_preprocessor import (
+from multimodalhugs.processors.legacy.text2text_preprocessor import (
     Text2TextTranslationProcessor,
 )
-from multimodalhugs.processors.features2text_preprocessor import (
+from multimodalhugs.processors.legacy.features2text_preprocessor import (
     Features2TextTranslationProcessor,
 )
 from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot

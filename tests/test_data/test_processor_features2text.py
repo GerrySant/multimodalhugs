@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.features2text_preprocessor import (
+from multimodalhugs.processors.legacy.features2text_preprocessor import (
     Features2TextTranslationProcessor,
 )
 

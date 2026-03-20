@@ -3,7 +3,7 @@
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.text2text_preprocessor import (
+from multimodalhugs.processors.legacy.text2text_preprocessor import (
     Text2TextTranslationProcessor,
 )
 

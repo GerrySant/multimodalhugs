@@ -106,7 +106,7 @@ class TestPose2TextRegression:
     """Regression tests for Pose2TextTranslationProcessor using committed pose assets."""
 
     def test_output_matches_golden(self, tokenizer, pose_asset_samples):
-        from multimodalhugs.processors.pose2text_preprocessor import Pose2TextTranslationProcessor
+        from multimodalhugs.processors.legacy.pose2text_preprocessor import Pose2TextTranslationProcessor
         processor = Pose2TextTranslationProcessor(tokenizer=tokenizer, reduce_holistic_poses=True)
         result = processor(batch=pose_asset_samples)
         check_all_keys(result, load_golden("pose2text"))
@@ -120,7 +120,7 @@ class TestVideo2TextRegression:
     """Regression tests for Video2TextTranslationProcessor using committed video assets."""
 
     def test_output_matches_golden(self, tokenizer, video_asset_samples):
-        from multimodalhugs.processors.video2text_preprocessor import Video2TextTranslationProcessor
+        from multimodalhugs.processors.legacy.video2text_preprocessor import Video2TextTranslationProcessor
         processor = Video2TextTranslationProcessor(
             tokenizer=tokenizer,
             custom_preprocessor_path=CLIP_PROCESSOR_PATH,
@@ -137,7 +137,7 @@ class TestFeatures2TextRegression:
     """Regression tests for Features2TextTranslationProcessor using committed .npy assets."""
 
     def test_output_matches_golden(self, tokenizer, features_asset_samples):
-        from multimodalhugs.processors.features2text_preprocessor import Features2TextTranslationProcessor
+        from multimodalhugs.processors.legacy.features2text_preprocessor import Features2TextTranslationProcessor
         processor = Features2TextTranslationProcessor(tokenizer=tokenizer, use_cache=False)
         result = processor(batch=features_asset_samples)
         check_all_keys(result, load_golden("features2text"))
@@ -151,7 +151,7 @@ class TestText2TextRegression:
     """Regression tests for Text2TextTranslationProcessor using inline text samples."""
 
     def test_output_matches_golden(self, tokenizer, text_asset_samples):
-        from multimodalhugs.processors.text2text_preprocessor import Text2TextTranslationProcessor
+        from multimodalhugs.processors.legacy.text2text_preprocessor import Text2TextTranslationProcessor
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
         result = processor(batch=text_asset_samples)
         check_all_keys(result, load_golden("text2text"))
@@ -192,7 +192,7 @@ class TestImage2TextRegression:
     """Regression tests for Image2TextTranslationProcessor using inline text rendered to images."""
 
     def test_output_matches_golden(self, tokenizer, image_asset_samples):
-        from multimodalhugs.processors.image2text_preprocessor import Image2TextTranslationProcessor
+        from multimodalhugs.processors.legacy.image2text_preprocessor import Image2TextTranslationProcessor
         processor = Image2TextTranslationProcessor(
             tokenizer=tokenizer, font_path=FONT_PATH,
             width=224, height=224, normalize_image=False,
