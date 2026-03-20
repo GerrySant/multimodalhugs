@@ -242,7 +242,18 @@ class DataCollatorMultimodalSeq2Seq:
                 )
             return batch
 
-        # Legacy path: labels created in the collator, processor handles encoder inputs
+        return self._legacy_collate(samples)
+
+    def _legacy_collate(
+        self,
+        samples: List[Dict[str, Union[List[int], torch.Tensor]]],
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Legacy collation path for task-specific processors that predate the
+        MetaProcessor design.  Labels are created here via
+        create_seq2seq_labels_from_samples() and passed to the processor as
+        batch_dict so the processor can merge them with the encoder outputs.
+        """
         text_batch = self._obtain_labels_and_decoder_input_ids(samples)
         return self.processor(
             batch=samples,
