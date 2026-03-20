@@ -52,6 +52,7 @@ from multimodalhugs.processors.meta_processor import (
 from multimodalhugs.processors.pose_modality_processor import PoseModalityProcessor
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
 from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
+from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
 from multimodalhugs.data.datacollators.multimodal_datacollator import (
     DataCollatorMultimodalSeq2Seq,
 )
@@ -583,3 +584,167 @@ class TestDataCollatorWithMetaProcessor:
         result = collator(pose_batch_samples)
         assert "labels" in result
         assert isinstance(result["labels"], torch.Tensor)
+
+
+# ---------------------------------------------------------------------------
+# Round-trip save / load tests
+# ---------------------------------------------------------------------------
+
+class TestMultimodalMetaProcessorRoundTrip:
+    """
+    Verifies that a MultimodalMetaProcessor saved with save_pretrained() and
+    loaded with from_pretrained() is identical to the original — both in
+    structure (slot configuration, processor types and kwargs) and in
+    behaviour (identical output tensors for the same input batch).
+    """
+
+    # ------------------------------------------------------------------
+    # Structural equality helpers
+    # ------------------------------------------------------------------
+
+    def _assert_slots_equal(self, slot_a: ProcessorSlot, slot_b: ProcessorSlot):
+        assert type(slot_a.processor) is type(slot_b.processor)
+        assert slot_a.output_data_key == slot_b.output_data_key
+        assert slot_a.output_mask_key == slot_b.output_mask_key
+        assert slot_a.column_map == slot_b.column_map
+
+    def _assert_structure_equal(
+        self, original: MultimodalMetaProcessor, loaded: MultimodalMetaProcessor
+    ):
+        assert type(loaded) is type(original)
+        assert len(loaded.encoder_slots) == len(original.encoder_slots)
+        for s_orig, s_load in zip(original.encoder_slots, loaded.encoder_slots):
+            self._assert_slots_equal(s_orig, s_load)
+        self._assert_slots_equal(original.label_slot, loaded.label_slot)
+        if original.encoder_prompt_slot is None:
+            assert loaded.encoder_prompt_slot is None
+        else:
+            self._assert_slots_equal(original.encoder_prompt_slot, loaded.encoder_prompt_slot)
+        if original.decoder_prompt_slot is None:
+            assert loaded.decoder_prompt_slot is None
+        else:
+            self._assert_slots_equal(original.decoder_prompt_slot, loaded.decoder_prompt_slot)
+
+    # ------------------------------------------------------------------
+    # text→text (no external files needed — simplest round-trip)
+    # ------------------------------------------------------------------
+
+    def test_loaded_is_multimodal_meta_processor(self, tokenizer, tmp_path, text_batch_samples_no_signal):
+        meta = make_text2text_meta(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+        assert isinstance(loaded, MultimodalMetaProcessor)
+
+    def test_text2text_slot_structure_preserved(self, tokenizer, tmp_path):
+        meta = make_text2text_meta(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+        self._assert_structure_equal(meta, loaded)
+
+    def test_text2text_encoder_slot_processor_type(self, tokenizer, tmp_path):
+        meta = make_text2text_meta(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+        assert isinstance(loaded.encoder_slots[0].processor, TextModalityProcessor)
+
+    def test_text2text_output_identical(self, tokenizer, tmp_path, text_batch_samples_no_signal):
+        meta = make_text2text_meta(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+
+        result_orig = meta(text_batch_samples_no_signal)
+        result_load = loaded(text_batch_samples_no_signal)
+
+        for key in result_orig:
+            assert key in result_load, f"Key '{key}' missing from loaded output"
+            if isinstance(result_orig[key], torch.Tensor):
+                assert torch.equal(result_orig[key], result_load[key]), (
+                    f"Tensor mismatch for key '{key}'"
+                )
+
+    def test_text2text_transform_output_identical(self, tokenizer, tmp_path):
+        meta = make_text2text_meta(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+
+        batch = {
+            "signal": ["Hello world", "Good morning"],
+            "encoder_prompt": ["translate:", "translate:"],
+            "decoder_prompt": ["de:", "de:"],
+            "output": ["Hallo Welt", "Guten Morgen"],
+        }
+        result_orig = meta._transform_get_items_output(batch.copy())
+        result_load = loaded._transform_get_items_output(batch.copy())
+
+        for key in result_orig:
+            orig_vals = result_orig[key]
+            load_vals = result_load[key]
+            for v_orig, v_load in zip(orig_vals, load_vals):
+                if isinstance(v_orig, torch.Tensor):
+                    assert torch.equal(v_orig, v_load), f"Mismatch in _transform for key '{key}'"
+
+    # ------------------------------------------------------------------
+    # features→text (non-trivial ModalityProcessor kwargs)
+    # ------------------------------------------------------------------
+
+    def _make_features2text_meta(self, tokenizer, skip_frames_stride=2, temporal_dimention_position=1):
+        return MultimodalMetaProcessor(
+            encoder_slots=[
+                ProcessorSlot(
+                    processor=FeaturesModalityProcessor(
+                        skip_frames_stride=skip_frames_stride,
+                        temporal_dimention_position=temporal_dimention_position,
+                        use_cache=False,
+                    ),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                )
+            ],
+            label_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+                output_data_key="labels",
+                column_map={"output": "signal"},
+            ),
+            encoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+                output_data_key="encoder_prompt",
+                output_mask_key="encoder_prompt_length_padding_mask",
+                column_map={"encoder_prompt": "signal"},
+            ),
+            decoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+                output_data_key="decoder_input_ids",
+                output_mask_key="decoder_attention_mask",
+                column_map={"decoder_prompt": "signal"},
+            ),
+            tokenizer=tokenizer,
+        )
+
+    def test_features2text_processor_kwargs_preserved(self, tokenizer, tmp_path):
+        """Non-trivial ModalityProcessor kwargs must survive the save/load cycle."""
+        meta = self._make_features2text_meta(tokenizer, skip_frames_stride=3, temporal_dimention_position=1)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+
+        orig_proc = meta.encoder_slots[0].processor
+        load_proc = loaded.encoder_slots[0].processor
+
+        assert isinstance(load_proc, FeaturesModalityProcessor)
+        assert load_proc.skip_frames_stride == orig_proc.skip_frames_stride
+        assert load_proc.temporal_dimention_position == orig_proc.temporal_dimention_position
+        assert load_proc.use_cache == orig_proc.use_cache
+
+    def test_features2text_output_identical(self, tokenizer, tmp_path, features_batch_samples):
+        meta = self._make_features2text_meta(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+
+        result_orig = meta(features_batch_samples)
+        result_load = loaded(features_batch_samples)
+
+        for key in result_orig:
+            assert key in result_load, f"Key '{key}' missing from loaded output"
+            if isinstance(result_orig[key], torch.Tensor):
+                assert torch.equal(result_orig[key], result_load[key]), (
+                    f"Tensor mismatch for key '{key}'"
+                )
