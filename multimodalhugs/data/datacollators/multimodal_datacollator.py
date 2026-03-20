@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Union, Optional
 from transformers.utils import PaddingStrategy
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
+from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor
+
 def create_seq2seq_labels_from_samples(
     samples: List[Dict[str, Union[str, List[int]]]],
     tokenizer: PreTrainedTokenizerBase,
@@ -214,17 +216,36 @@ class DataCollatorMultimodalSeq2Seq:
         """
         Collate a batch of multimodal samples for model input.
 
+        When the processor is a MultimodalMetaProcessor, all processing
+        (including label creation) is delegated to the processor's slots.
+        The collator then only adds decoder_input_ids via the model if needed.
+
+        For legacy processors, labels are created here and passed as batch_dict
+        to the processor as before.
+
         Args:
             samples: Each item contains multimodal data and text fields.
 
         Returns:
             A dict ready for model.forward(), including inputs and labels.
         """
-        # Process text side: tokenization, padding, decoder inputs
+        if isinstance(self.processor, MultimodalMetaProcessor):
+            batch = self.processor(samples)
+            if (
+                "labels" in batch
+                and self.model is not None
+                and hasattr(self.model, "prepare_decoder_input_ids_from_labels")
+                and self.model.training
+            ):
+                batch["decoder_input_ids"] = self.model.prepare_decoder_input_ids_from_labels(
+                    labels=batch["labels"]
+                )
+            return batch
+
+        # Legacy path: labels created in the collator, processor handles encoder inputs
         text_batch = self._obtain_labels_and_decoder_input_ids(samples)
-        full_batch = self.processor(
+        return self.processor(
             batch=samples,
             batch_dict=text_batch,
             return_tensors=self.return_tensors,
         )
-        return full_batch

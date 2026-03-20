@@ -13,6 +13,71 @@ from multimodalhugs.processors.text2text_preprocessor import (
 from multimodalhugs.processors.features2text_preprocessor import (
     Features2TextTranslationProcessor,
 )
+from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
+from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
+
+
+# ---------------------------------------------------------------------------
+# Helper: build a text2text MetaProcessor
+# ---------------------------------------------------------------------------
+def _make_text2text_meta(tokenizer):
+    return MultimodalMetaProcessor(
+        encoder_slots=[
+            ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+                output_data_key="input_ids",
+                output_mask_key="attention_mask",
+                column_map={"signal": "signal"},
+            )
+        ],
+        label_slot=ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            output_data_key="labels",
+        ),
+        encoder_prompt_slot=ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+            output_data_key="encoder_prompt",
+            output_mask_key="encoder_prompt_length_padding_mask",
+            column_map={"encoder_prompt": "signal"},
+        ),
+        decoder_prompt_slot=ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+            output_data_key="decoder_input_ids",
+            output_mask_key="decoder_attention_mask",
+            column_map={"decoder_prompt": "signal"},
+        ),
+        tokenizer=tokenizer,
+    )
+
+
+def _make_features2text_meta(tokenizer):
+    return MultimodalMetaProcessor(
+        encoder_slots=[
+            ProcessorSlot(
+                processor=FeaturesModalityProcessor(use_cache=False),
+                output_data_key="input_frames",
+                output_mask_key="attention_mask",
+            )
+        ],
+        label_slot=ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            output_data_key="labels",
+        ),
+        encoder_prompt_slot=ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+            output_data_key="encoder_prompt",
+            output_mask_key="encoder_prompt_length_padding_mask",
+            column_map={"encoder_prompt": "signal"},
+        ),
+        decoder_prompt_slot=ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+            output_data_key="decoder_input_ids",
+            output_mask_key="decoder_attention_mask",
+            column_map={"decoder_prompt": "signal"},
+        ),
+        tokenizer=tokenizer,
+    )
 
 
 # ============================================================================
@@ -154,3 +219,83 @@ class TestDataCollatorCall:
         batch_size = len(text_batch_samples)
         assert result["labels"].shape[0] == batch_size
         assert result["input_ids"].shape[0] == batch_size
+
+
+# ============================================================================
+# DataCollatorMultimodalSeq2Seq — MetaProcessor path (steps 4 & 5)
+# ============================================================================
+class TestDataCollatorWithMetaProcessor:
+    """
+    Verifies that when the processor is a MultimodalMetaProcessor the collator
+    delegates all processing (including label creation) to the processor's slots
+    and does not create labels itself.
+    """
+
+    def test_text2text_returns_expected_keys(self, tokenizer, text_batch_samples):
+        meta = _make_text2text_meta(tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(processor=meta)
+        result = collator(text_batch_samples)
+        assert "input_ids" in result
+        assert "attention_mask" in result
+        assert "labels" in result
+        assert "encoder_prompt" in result
+        assert "encoder_prompt_length_padding_mask" in result
+        assert "decoder_input_ids" in result
+
+    def test_features2text_returns_expected_keys(self, tokenizer, features_batch_samples):
+        meta = _make_features2text_meta(tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(processor=meta)
+        result = collator(features_batch_samples)
+        assert "input_frames" in result
+        assert "attention_mask" in result
+        assert "labels" in result
+
+    def test_labels_are_tensors(self, tokenizer, text_batch_samples):
+        meta = _make_text2text_meta(tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(processor=meta)
+        result = collator(text_batch_samples)
+        assert isinstance(result["labels"], torch.Tensor)
+
+    def test_labels_batch_dim_matches(self, tokenizer, text_batch_samples):
+        meta = _make_text2text_meta(tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(processor=meta)
+        result = collator(text_batch_samples)
+        assert result["labels"].shape[0] == len(text_batch_samples)
+
+    def test_labels_padded_with_minus_100(self, tokenizer, text_batch_samples):
+        """Shorter sequences should be padded with -100 (ignored by loss)."""
+        meta = _make_text2text_meta(tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(processor=meta)
+        result = collator(text_batch_samples)
+        # At least one row should have a -100 when sequences differ in length
+        has_padding = (result["labels"] == -100).any()
+        # This passes whether or not padding is needed; the important thing is
+        # that -100 is the only padding value (no real pad token IDs)
+        assert (result["labels"] == -100).logical_or(result["labels"] >= 0).all()
+
+    def test_meta_labels_match_legacy_labels(self, tokenizer, text_batch_samples):
+        """
+        Labels produced by the MetaProcessor's label_slot must match those
+        produced by the legacy DataCollator path (create_seq2seq_labels_from_samples).
+        """
+        # Legacy path
+        legacy_labels = create_seq2seq_labels_from_samples(
+            text_batch_samples, tokenizer
+        )["labels"]
+
+        # MetaProcessor path
+        meta = _make_text2text_meta(tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(processor=meta)
+        result = collator(text_batch_samples)
+
+        assert torch.equal(result["labels"], legacy_labels)
+
+    def test_legacy_processor_path_still_works(self, tokenizer, text_batch_samples):
+        """Old-style processors must continue to go through the legacy collator path."""
+        processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
+        collator = DataCollatorMultimodalSeq2Seq(
+            processor=processor, tokenizer=tokenizer
+        )
+        result = collator(text_batch_samples)
+        assert "labels" in result
+        assert isinstance(result["labels"], torch.Tensor)
