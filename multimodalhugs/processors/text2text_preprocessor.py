@@ -1,33 +1,13 @@
-import os
-import cv2
-import torch
-import pyarrow
 import logging
-import numpy as np
+from typing import Any, Optional
 
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Callable, Union
-
-from signwriting.tokenizer import normalize_signwriting
-from signwriting.visualizer.visualize import signwriting_to_image
-
-from transformers.feature_extraction_utils import BatchFeature, FeatureExtractionMixin
-from transformers.image_utils import PILImageResampling  # If used in 'frame_preprocessor'
-from transformers.processing_utils import ProcessorMixin
-
-from multimodalhugs.data import (
-    pad_and_create_mask,
-    center_image_on_white_background,
-    get_images
-)
-from multimodalhugs.processors import MultimodalSequence2SequenceProcessor
-from pose_format import Pose
-from pose_format.utils.generic import reduce_holistic, pose_hide_legs
+from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
 
 logger = logging.getLogger(__name__)
 
 
-class Text2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # FeatureExtractionMixin
+class Text2TextTranslationProcessor(MultimodalMetaProcessor):
     name = "text2text_processor"
     attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
@@ -38,23 +18,33 @@ class Text2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # Fe
         tokenizer: Optional[Any] = None,
         **kwargs,
     ):
-        super().__init__(tokenizer=tokenizer, **kwargs)
-
-    def _obtain_multimodal_input_and_masks(self, batch, **kwargs):
-        # Tokenize the prompts with padding
-        tokenized_output = self.tokenizer(
-            [sample['signal'] for sample in batch],
-            add_special_tokens=False,
-            padding=True,  # Automatically add padding
-            truncation=False,  # Do not truncate sequences
-            return_tensors="pt",  # Return PyTorch tensors
+        # Pass-through for from_pretrained, which calls cls(encoder_slots=..., ...)
+        if "encoder_slots" in kwargs:
+            super().__init__(tokenizer=tokenizer, **kwargs)
+            return
+        super().__init__(
+            encoder_slots=[
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+                    output_data_key="input_ids",
+                    output_mask_key="attention_mask",
+                )
+            ],
+            label_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+                output_data_key="labels",
+            ),
+            encoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+                output_data_key="encoder_prompt",
+                output_mask_key="encoder_prompt_length_padding_mask",
+                column_map={"encoder_prompt": "signal"},
+            ),
+            decoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+                output_data_key="decoder_input_ids",
+                output_mask_key="decoder_attention_mask",
+                column_map={"decoder_prompt": "signal"},
+            ),
+            tokenizer=tokenizer,
         )
-
-        # Obtain prompt tensors and the mask
-        padded_signal = tokenized_output["input_ids"]
-        signal_length_padding_mask = tokenized_output["attention_mask"]
-
-        return {
-            "input_ids": padded_signal,                         # torch.Size([batch_size, n_frames)
-            "attention_mask": signal_length_padding_mask         # torch.Size([batch_size, n_frames]) 0 indicates padding elements
-        }, kwargs

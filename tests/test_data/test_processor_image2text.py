@@ -11,6 +11,11 @@ from multimodalhugs.processors.image2text_preprocessor import (
 from tests.test_data.conftest import FONT_PATH
 
 
+def _modality_proc(processor):
+    """Return the underlying ImageModalityProcessor from the wrapper."""
+    return processor.encoder_slots[0].processor
+
+
 class TestImageToTensor:
     def test_from_png_file(self, tokenizer, dummy_image_file):
         processor = Image2TextTranslationProcessor(
@@ -20,7 +25,7 @@ class TestImageToTensor:
             height=64,
             normalize_image=False,
         )
-        tensor = processor._image_to_tensor(dummy_image_file)
+        tensor = _modality_proc(processor).process_sample(dummy_image_file)
         assert isinstance(tensor, torch.Tensor)
 
     def test_from_npy_file(self, tokenizer, tmp_path):
@@ -34,7 +39,7 @@ class TestImageToTensor:
             height=64,
             normalize_image=False,
         )
-        tensor = processor._image_to_tensor(path)
+        tensor = _modality_proc(processor).process_sample(path)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.shape == (64, 64, 3)
 
@@ -47,7 +52,7 @@ class TestImageToTensor:
             normalize_image=False,
         )
         arr = np.random.rand(64, 64, 3).astype(np.float32)
-        tensor = processor._image_to_tensor(arr)
+        tensor = _modality_proc(processor).process_sample(arr)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.shape == (64, 64, 3)
 
@@ -60,7 +65,7 @@ class TestImageToTensor:
             normalize_image=False,
         )
         t = torch.randn(3, 64, 64)
-        result = processor._image_to_tensor(t)
+        result = _modality_proc(processor).process_sample(t)
         assert torch.equal(result, t)
 
     def test_from_text_string(self, tokenizer):
@@ -72,7 +77,7 @@ class TestImageToTensor:
             height=224,
             normalize_image=False,
         )
-        tensor = processor._image_to_tensor("Hello world")
+        tensor = _modality_proc(processor).process_sample("Hello world")
         assert isinstance(tensor, torch.Tensor)
         # get_images returns (N_words, C, H, W) as float32
         assert tensor.ndim == 4
@@ -88,7 +93,7 @@ class TestImageToTensor:
             mean=[0.5, 0.5, 0.5],
             std=[0.5, 0.5, 0.5],
         )
-        tensor = processor._image_to_tensor(dummy_image_file)
+        tensor = _modality_proc(processor).process_sample(dummy_image_file)
         assert isinstance(tensor, torch.Tensor)
 
     def test_normalization_requires_mean_std(self, tokenizer):
@@ -119,7 +124,7 @@ class TestImageObtainMultimodalInputAndMasks:
                 "output": "test",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert "input_frames" in result
         assert "attention_mask" in result
 

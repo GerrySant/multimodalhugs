@@ -7,6 +7,10 @@ from transformers.feature_extraction_utils import BatchFeature
 from multimodalhugs.processors.signwriting_preprocessor import SignwritingProcessor
 from tests.test_data.conftest import SIGNWRITING_STRINGS
 
+_MODALITY_MOCK_PATH = (
+    "multimodalhugs.processors.signwriting_modality_processor.AutoProcessor.from_pretrained"
+)
+
 
 def _make_mock_preprocessor():
     """Create a mock AutoProcessor that returns fake pixel_values."""
@@ -15,10 +19,13 @@ def _make_mock_preprocessor():
     return mock
 
 
+def _modality_proc(processor):
+    """Return the underlying SignwritingModalityProcessor from the wrapper."""
+    return processor.encoder_slots[0].processor
+
+
 class TestAsciiToTensor:
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_converts_fsw_to_tensor(self, mock_from_pretrained, tokenizer):
         mock_proc = _make_mock_preprocessor()
         mock_from_pretrained.return_value = mock_proc
@@ -29,7 +36,7 @@ class TestAsciiToTensor:
             height=224,
             channels=3,
         )
-        tensor = processor._ascii_to_tensor(SIGNWRITING_STRINGS[0])
+        tensor = _modality_proc(processor)._ascii_to_tensor(SIGNWRITING_STRINGS[0])
         assert isinstance(tensor, torch.Tensor)
         # Should have shape [N_symbols, C, W, H]
         assert tensor.ndim == 4
@@ -37,9 +44,7 @@ class TestAsciiToTensor:
         assert tensor.shape[2] == 224
         assert tensor.shape[3] == 224
 
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_tensor_passthrough(self, mock_from_pretrained, tokenizer):
         mock_from_pretrained.return_value = _make_mock_preprocessor()
         processor = SignwritingProcessor(
@@ -47,12 +52,10 @@ class TestAsciiToTensor:
             custom_preprocessor_path="mock/path",
         )
         t = torch.randn(5, 3, 224, 224)
-        result = processor._ascii_to_tensor(t)
+        result = _modality_proc(processor).process_sample(t)
         assert torch.equal(result, t)
 
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_different_fsw_strings_produce_tensors(
         self, mock_from_pretrained, tokenizer
     ):
@@ -65,15 +68,13 @@ class TestAsciiToTensor:
             channels=3,
         )
         for fsw in SIGNWRITING_STRINGS:
-            tensor = processor._ascii_to_tensor(fsw)
+            tensor = _modality_proc(processor)._ascii_to_tensor(fsw)
             assert isinstance(tensor, torch.Tensor)
             assert tensor.ndim == 4
 
 
 class TestSignwritingObtainMultimodalInputAndMasks:
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_returns_input_frames_and_mask(self, mock_from_pretrained, tokenizer):
         mock_from_pretrained.return_value = _make_mock_preprocessor()
         processor = SignwritingProcessor(
@@ -91,13 +92,11 @@ class TestSignwritingObtainMultimodalInputAndMasks:
                 "output": "test",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert "input_frames" in result
         assert "attention_mask" in result
 
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_padding_different_lengths(self, mock_from_pretrained, tokenizer):
         """Different-length FSW strings should be padded."""
         mock_from_pretrained.return_value = _make_mock_preprocessor()
@@ -123,15 +122,13 @@ class TestSignwritingObtainMultimodalInputAndMasks:
                 "output": "b",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert result["input_frames"].shape[0] == 2  # batch size
         assert result["attention_mask"].shape[0] == 2
 
 
 class TestSignwritingTransformGetItemsOutput:
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_converts_signals_to_tensors(self, mock_from_pretrained, tokenizer):
         mock_from_pretrained.return_value = _make_mock_preprocessor()
         processor = SignwritingProcessor(
@@ -160,9 +157,7 @@ class TestSignwritingProcessorCall:
         "decoder_attention_mask",
     }
 
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_returns_batch_feature(self, mock_from_pretrained, tokenizer, signwriting_batch_samples):
         """__call__ should return a BatchFeature (HF-compatible mapping)."""
         mock_from_pretrained.return_value = _make_mock_preprocessor()
@@ -176,9 +171,7 @@ class TestSignwritingProcessorCall:
         result = processor(batch=signwriting_batch_samples)
         assert isinstance(result, BatchFeature)
 
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_has_all_expected_keys(self, mock_from_pretrained, tokenizer, signwriting_batch_samples):
         """Output must contain all keys consumed by the model forward()."""
         mock_from_pretrained.return_value = _make_mock_preprocessor()
@@ -193,9 +186,7 @@ class TestSignwritingProcessorCall:
         for key in self.EXPECTED_KEYS:
             assert key in result, f"Missing key: '{key}'"
 
-    @patch(
-        "multimodalhugs.processors.signwriting_preprocessor.AutoProcessor.from_pretrained"
-    )
+    @patch(_MODALITY_MOCK_PATH)
     def test_batch_dimensions_consistent(self, mock_from_pretrained, tokenizer, signwriting_batch_samples):
         """Every output tensor must have the same leading batch dimension."""
         mock_from_pretrained.return_value = _make_mock_preprocessor()
