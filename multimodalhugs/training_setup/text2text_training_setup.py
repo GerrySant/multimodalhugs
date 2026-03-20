@@ -10,7 +10,11 @@ from .setup_utils import (
 )
 
 from multimodalhugs.data.datasets.bilingual_text2text import BilingualText2TextDataset, BilingualText2textMTDataConfig
-from multimodalhugs.processors import Text2TextTranslationProcessor
+from multimodalhugs.processors import (
+    MultimodalMetaProcessor,
+    ProcessorSlot,
+    TextModalityProcessor,
+)
 
 def main(
     config_path: str,
@@ -79,8 +83,31 @@ def main(
         )
 
         # Instantiate processor with modality-specific args
-        proc = Text2TextTranslationProcessor(
-            tokenizer=tok
+        proc = MultimodalMetaProcessor(
+            encoder_slots=[
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                    output_data_key="input_ids",
+                    output_mask_key="attention_mask",
+                )
+            ],
+            label_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="label"),
+                output_data_key="labels",
+            ),
+            encoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                output_data_key="encoder_prompt",
+                output_mask_key="encoder_prompt_length_padding_mask",
+                column_map={"encoder_prompt": "signal"},
+            ),
+            decoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
+                output_data_key="decoder_input_ids",
+                output_mask_key="decoder_attention_mask",
+                column_map={"decoder_prompt": "signal"},
+            ),
+            tokenizer=tok,
         )
         proc_path = save_processor(proc, processor_output_dir)
 

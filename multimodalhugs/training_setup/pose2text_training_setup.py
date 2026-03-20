@@ -10,7 +10,12 @@ from .setup_utils import (
 )
 
 from multimodalhugs.data.datasets.pose2text import Pose2TextDataset, Pose2TextDataConfig
-from multimodalhugs.processors import Pose2TextTranslationProcessor
+from multimodalhugs.processors import (
+    MultimodalMetaProcessor,
+    ProcessorSlot,
+    PoseModalityProcessor,
+    TextModalityProcessor,
+)
 
 def main(
     config_path: str,
@@ -80,9 +85,38 @@ def main(
 
         # Instantiate processor with modality-specific args
         processor_kwargs = OmegaConf.to_container(processor_cfg, resolve=True) if processor_cfg else {}
-        proc = Pose2TextTranslationProcessor(
+        _POSE_KWARGS = {"reduce_holistic_poses", "skip_frames_stride"}
+        pose_kwargs = {k: v for k, v in processor_kwargs.items() if k in _POSE_KWARGS}
+        proc = MultimodalMetaProcessor(
+            encoder_slots=[
+                ProcessorSlot(
+                    processor=PoseModalityProcessor(**pose_kwargs),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                    column_map={
+                        "signal": "signal",
+                        "signal_start": "signal_start",
+                        "signal_end": "signal_end",
+                    },
+                )
+            ],
+            label_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="label"),
+                output_data_key="labels",
+            ),
+            encoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                output_data_key="encoder_prompt",
+                output_mask_key="encoder_prompt_length_padding_mask",
+                column_map={"encoder_prompt": "signal"},
+            ),
+            decoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
+                output_data_key="decoder_input_ids",
+                output_mask_key="decoder_attention_mask",
+                column_map={"decoder_prompt": "signal"},
+            ),
             tokenizer=tok,
-            **processor_kwargs
         )
         proc_path = save_processor(proc, processor_output_dir)
 

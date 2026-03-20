@@ -10,7 +10,12 @@ from .setup_utils import (
 )
 
 from multimodalhugs.data import SignWritingDataset, MultimodalDataConfig
-from multimodalhugs.processors import SignwritingProcessor
+from multimodalhugs.processors import (
+    MultimodalMetaProcessor,
+    ProcessorSlot,
+    SignwritingModalityProcessor,
+    TextModalityProcessor,
+)
 
 def main(
     config_path: str,
@@ -80,9 +85,33 @@ def main(
 
         # Instantiate processor with modality-specific args
         processor_kwargs = OmegaConf.to_container(processor_cfg, resolve=True) if processor_cfg else {}
-        proc = SignwritingProcessor(
+        _SIGNWRITING_KWARGS = {"custom_preprocessor_path", "width", "height", "channels", "invert_frame"}
+        signwriting_kwargs = {k: v for k, v in processor_kwargs.items() if k in _SIGNWRITING_KWARGS}
+        proc = MultimodalMetaProcessor(
+            encoder_slots=[
+                ProcessorSlot(
+                    processor=SignwritingModalityProcessor(**signwriting_kwargs),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                )
+            ],
+            label_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="label"),
+                output_data_key="labels",
+            ),
+            encoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                output_data_key="encoder_prompt",
+                output_mask_key="encoder_prompt_length_padding_mask",
+                column_map={"encoder_prompt": "signal"},
+            ),
+            decoder_prompt_slot=ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
+                output_data_key="decoder_input_ids",
+                output_mask_key="decoder_attention_mask",
+                column_map={"decoder_prompt": "signal"},
+            ),
             tokenizer=tok,
-            **processor_kwargs
         )
         proc_path = save_processor(proc, processor_output_dir)
 
