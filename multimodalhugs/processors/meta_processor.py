@@ -1,9 +1,13 @@
+import inspect
+import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import torch
 
+from transformers import AutoTokenizer
 from transformers.feature_extraction_utils import BatchFeature
 from transformers.processing_utils import ProcessorMixin
 
@@ -79,6 +83,86 @@ class MultimodalMetaProcessor(ProcessorMixin):
         self.encoder_prompt_slot = encoder_prompt_slot
         self.decoder_prompt_slot = decoder_prompt_slot
         super().__init__(tokenizer=tokenizer)
+
+    # ------------------------------------------------------------------
+    # HF save / load compatibility
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _serialize_slot(slot: "ProcessorSlot") -> Dict[str, Any]:
+        """Return a JSON-serializable dict describing one ProcessorSlot."""
+        proc = slot.processor
+        proc_kwargs: Dict[str, Any] = {}
+        for k, v in proc.__dict__.items():
+            if k.startswith("_") or k == "tokenizer" or callable(v):
+                continue
+            try:
+                json.dumps(v)
+                proc_kwargs[k] = v
+            except (TypeError, ValueError):
+                pass
+        return {
+            "processor_class": proc.__class__.__name__,
+            "processor_kwargs": proc_kwargs,
+            "output_data_key": slot.output_data_key,
+            "output_mask_key": slot.output_mask_key,
+            "column_map": slot.column_map,
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-serializable representation of this processor."""
+        return {
+            "processor_class": self.__class__.__name__,
+            "encoder_slots": [self._serialize_slot(s) for s in self.encoder_slots],
+            "label_slot": self._serialize_slot(self.label_slot),
+            "encoder_prompt_slot": self._serialize_slot(self.encoder_prompt_slot) if self.encoder_prompt_slot else None,
+            "decoder_prompt_slot": self._serialize_slot(self.decoder_prompt_slot) if self.decoder_prompt_slot else None,
+        }
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path: str, **kwargs):
+        """
+        Reconstruct a MultimodalMetaProcessor saved with save_pretrained().
+
+        Reads processor_config.json written by to_dict() / to_json_file(),
+        loads the tokenizer from the 'tokenizer/' sub-directory, and
+        rebuilds each ProcessorSlot with its ModalityProcessor.
+        """
+        import multimodalhugs.processors as proc_module
+
+        # Delegate path resolution / hub downloading to ProcessorMixin so that
+        # both local paths and HF Hub IDs ("user/repo") are handled correctly.
+        config, _ = cls.get_processor_dict(pretrained_model_name_or_path, **kwargs)
+
+        # ProcessorMixin saves tokenizer files into the root save_directory;
+        # AutoTokenizer handles both local paths and hub IDs natively.
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
+        except Exception:
+            tokenizer = None
+
+        def _reconstruct_slot(slot_dict: Dict[str, Any]) -> ProcessorSlot:
+            proc_cls = getattr(proc_module, slot_dict["processor_class"])
+            proc_kwargs = slot_dict["processor_kwargs"]
+            sig = inspect.signature(proc_cls.__init__)
+            if "tokenizer" in sig.parameters:
+                proc = proc_cls(tokenizer=tokenizer, **proc_kwargs)
+            else:
+                proc = proc_cls(**proc_kwargs)
+            return ProcessorSlot(
+                processor=proc,
+                output_data_key=slot_dict["output_data_key"],
+                output_mask_key=slot_dict.get("output_mask_key"),
+                column_map=slot_dict["column_map"],
+            )
+
+        return cls(
+            encoder_slots=[_reconstruct_slot(s) for s in config["encoder_slots"]],
+            label_slot=_reconstruct_slot(config["label_slot"]),
+            encoder_prompt_slot=_reconstruct_slot(config["encoder_prompt_slot"]) if config.get("encoder_prompt_slot") else None,
+            decoder_prompt_slot=_reconstruct_slot(config["decoder_prompt_slot"]) if config.get("decoder_prompt_slot") else None,
+            tokenizer=tokenizer,
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers
