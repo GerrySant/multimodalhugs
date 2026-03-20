@@ -24,31 +24,9 @@ from transformers import (
     set_seed,
     GenerationConfig,
 )
-from multimodalhugs.processors import (
-    SignwritingProcessor,
-    Pose2TextTranslationProcessor,
-    Image2TextTranslationProcessor,
-    Text2TextTranslationProcessor,
-    Features2TextTranslationProcessor
-)
-
+import multimodalhugs.processors  # triggers AutoProcessor registration for all processor classes
 import multimodalhugs.models
 from multimodalhugs import MultiLingualSeq2SeqTrainer
-
-Pose2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("pose2text_translation_processor", Pose2TextTranslationProcessor)
-
-Features2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("features2text_translation_processor", Features2TextTranslationProcessor)
-
-SignwritingProcessor.register_for_auto_class()
-AutoProcessor.register("signwritting_processor", SignwritingProcessor)
-
-Image2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("image2text_translation_processor", Image2TextTranslationProcessor)
-
-Text2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("text2text_translation_processor", Text2TextTranslationProcessor)
 
 
 import logging
