@@ -64,6 +64,7 @@ class MultimodalMetaProcessor(ProcessorMixin):
 
     attributes = ["tokenizer"]
     tokenizer_class = "AutoTokenizer"
+    name = "multimodal_meta_processor"
 
     def __init__(
         self,
