@@ -25,7 +25,19 @@ Contains documentation for core configurations and CLI usage.
 - [`CLI.md`](general/CLI.md): Detailed guide for using the MultiModalHugs CLI.
 - [`configuration.md`](general/configuration.md): Explanation of configuration file parameters.
 
-### **3. Model Documentation (`docs/models/`):**
+### **3. Processor Documentation (`docs/processors/`):**
+Explains the three-layer processor architecture and built-in processors.
+
+- [`Processor Architecture Overview`](processors/processors_overview.md): `ModalityProcessor`, `ProcessorSlot`, `MultimodalMetaProcessor`, data flow, save/load.
+
+### **4. Customization (`docs/customization/`):**
+Guides for extending the framework with custom components.
+
+- [`Custom Processor Creation Guide`](customization/custom_processor_creation_guide.md): Compose existing processors, implement new modalities, create named task processors.
+- [`Custom Dataset Creation Guide`](customization/custom_dataset_creation_guide.md): Add new dataset formats.
+- [`Custom Model Creation Guide`](customization/custom_model_creation_guide.md): Add new model architectures.
+
+### **5. Model Documentation (`docs/models/`):**
 Includes specifications for model architectures used in MultiModalHugs.
 
 - **models/**
