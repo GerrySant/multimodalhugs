@@ -75,7 +75,7 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 `TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter controls how the batch is assembled:
 
 - `"encoder"` / `"prompt"` — receives a list of strings; returns `(token_ids [B, L], attention_mask [B, L])`.
-- `"label"` — receives a list of full sample dicts (needs both `decoder_prompt` and `output`); concatenates them, appends EOS, pads with `-100`; returns `(labels [B, L], None)`.
+- `"label"` — receives a list of dicts `{"decoder_prompt": ..., "output": ...}`; concatenates them, appends EOS, pads with `-100`; returns `(labels [B, L], None)`.
 
 ---
 
@@ -85,6 +85,7 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 
 1. **which dataset columns to read** — via `column_map`
 2. **what keys to write in the output batch** — via `output_data_key` and `output_mask_key`
+3. **whether it produces a loss target** — via `is_label`
 
 ```python
 @dataclass
@@ -95,123 +96,99 @@ class ProcessorSlot:
     column_map: Dict[str, str] = field(
         default_factory=lambda: {"signal": "signal"}
     )
+    is_label: bool = False                       # marks this slot as a loss target
 ```
 
 ### `column_map` in depth
 
 `column_map` maps **dataset item field names** (TSV column names) to **processor parameter names** (the keys inside the dict passed to `process_sample`).
 
-- The **first key** is the *primary field*. Its value is replaced with a preprocessed tensor by `_transform_get_items_output`. This is the main signal column.
+- The **first key** is the *primary field*. Its value is replaced with a preprocessed tensor by `_transform_get_items_output` when `process_sample` returns a tensor.
 - All **subsequent keys** are context-only: they are passed to `process_sample` but not written back into the dataset item. Typical use: temporal bounds (`signal_start`, `signal_end`).
 
-**Default:** `{"signal": "signal"}` — reads the `signal` TSV column and passes it as `signal` to `process_sample`. This covers the standard single-field case and requires no explicit configuration.
+**Default:** `{"signal": "signal"}` — reads the `signal` TSV column and passes it as `signal` to `process_sample`. This covers the standard single-field case.
 
 **Multi-column example (pose with temporal bounds):**
 ```python
 column_map={
-    "signal": "signal",          # primary field → written back as tensor
+    "signal": "signal",               # primary field → written back as tensor
     "signal_start": "signal_start",   # context only
     "signal_end":   "signal_end",     # context only
 }
 ```
 
-**Non-standard column name example (multi-input scenario):**
+**Label slot — two required columns:**
+```python
+# TextModalityProcessor(role="label") needs both decoder_prompt and output
+column_map={"decoder_prompt": "decoder_prompt", "output": "output"}
+```
+
+**Non-standard column name (multi-input scenario):**
 ```python
 # When two encoder streams both need temporal bounds, field names must differ
 column_map={
-    "pose_signal":       "signal",       # dataset column → processor param
+    "pose_signal":       "signal",
     "pose_signal_start": "signal_start",
     "pose_signal_end":   "signal_end",
 }
 ```
 
-**Prompt / label slots use a remapped primary field:**
-```python
-# Encoder prompt: reads the "encoder_prompt" TSV column
-column_map={"encoder_prompt": "signal"}
+### `is_label`
 
-# Decoder prompt: reads the "decoder_prompt" TSV column
-column_map={"decoder_prompt": "signal"}
-```
-For the label slot the `column_map` is ignored at collation time — the full sample dict is always passed to `process_batch` because label construction needs both `decoder_prompt` and `output`.
+Marks a slot as producing a loss target. Does not affect processing logic inside the `MultimodalMetaProcessor` — the processor iterates all slots identically. It is an annotation for callers (trainers, collators) to identify which output key carries the target sequence without hardcoding the key name.
 
 ---
 
 ## Layer 3: `MultimodalMetaProcessor`
 
-`MultimodalMetaProcessor` (`multimodalhugs/processors/meta_processor.py`) orchestrates all slots and produces a complete `BatchFeature` that is ready for `model.forward()`.
+`MultimodalMetaProcessor` (`multimodalhugs/processors/meta_processor.py`) takes a flat list of `ProcessorSlot` objects and produces a complete `BatchFeature`.
 
 ```python
 class MultimodalMetaProcessor(ProcessorMixin):
     def __init__(
         self,
-        encoder_slots: List[ProcessorSlot],        # one per encoder input stream
-        label_slot: ProcessorSlot,                 # target sequence
-        encoder_prompt_slot: Optional[ProcessorSlot] = None,
-        decoder_prompt_slot: Optional[ProcessorSlot] = None,
-        tokenizer = None,                          # kept for HF ProcessorMixin compatibility
+        slots: List[ProcessorSlot],   # all slots in processing order
+        tokenizer = None,             # kept for HF ProcessorMixin compatibility
     ): ...
 ```
 
+The meta processor has **no knowledge of task structure** — it does not distinguish encoder inputs from labels from prompts. All semantic meaning lives in the processors and their slot configuration.
+
 ### `_transform_get_items_output` — dataset-level hook
 
-Called via `dataset.with_transform(processor._transform_get_items_output)`. Iterates over all slots and calls `slot.processor.process_sample()` on each item's primary field, converting raw values (file paths, strings) to tensors in-place. Non-primary fields (temporal bounds, etc.) are passed to `process_sample` but not modified.
+Called via `dataset.with_transform(processor._transform_get_items_output)`. Iterates over all slots and calls `slot.processor.process_sample()` on each item's primary field. Only writes the result back when `process_sample` returns a tensor — text slots (which are no-ops) do not corrupt their columns.
 
 ```python
 dataset = dataset.with_transform(meta_processor._transform_get_items_output)
 ```
 
-This runs in the DataLoader worker processes, so file I/O is parallelised automatically.
-
 ### `__call__` — collator-level call
 
-Called by `DataCollatorMultimodalSeq2Seq` with a list of sample dicts (one dict per batch item). Each sample's primary field is already a tensor at this point (converted by `_transform_get_items_output`).
-
-Processing order:
-1. Encoder slots — `process_batch` on each slot; writes `output_data_key` and `output_mask_key`.
-2. Encoder prompt slot — same pattern.
-3. Decoder prompt slot — same pattern (skipped if key already populated by the collator).
-4. Label slot — `process_batch` receives the full list of sample dicts; writes `output_data_key`.
-
-Returns a `BatchFeature` (a dict-like HF object) ready for the model.
+Called by `DataCollatorMultimodalSeq2Seq` with a list of sample dicts. Iterates slots in declaration order. Skips a slot if its `output_data_key` is already present in the result — this allows callers to pre-populate keys (e.g. `decoder_input_ids` derived from labels by the model).
 
 ### Save and load
 
-`MultimodalMetaProcessor` overrides the HF `save_pretrained` / `from_pretrained` interface to handle the dynamic slot composition that `ProcessorMixin`'s static `attributes` list cannot express.
-
-**Saving** serialises each slot to JSON (`processor_config.json`) with:
-- `processor_class` — the class name string
-- `processor_kwargs` — JSON-serialisable `__dict__` values (private attrs and tokenizer excluded)
-- `output_data_key`, `output_mask_key`, `column_map`
-
-The tokenizer is saved alongside (standard HF behaviour).
-
-**Loading** reads `processor_config.json`, imports each processor class from `multimodalhugs.processors`, reconstructs it with the saved kwargs, and rebuilds the `ProcessorSlot` list.
+`MultimodalMetaProcessor` overrides the HF save/load interface. Each slot is serialised to `processor_config.json` with its processor class name, constructor kwargs, output keys, column map, and `is_label` flag.
 
 ```python
-# Save
 meta.save_pretrained("/path/to/save/")
-
-# Load
-meta = MultimodalMetaProcessor.from_pretrained("/path/to/save/")
-# or via AutoProcessor if registered:
-meta = AutoProcessor.from_pretrained("/path/to/save/")
+loaded = MultimodalMetaProcessor.from_pretrained("/path/to/save/")
 ```
 
 ---
 
 ## Built-in task processors (legacy wrappers)
 
-The six task-specific processors from previous versions are now direct subclasses of `MultimodalMetaProcessor` in `multimodalhugs/processors/legacy/`. They wire up the standard slot configuration for each modality and are fully backward-compatible.
+The six task-specific processors are direct subclasses of `MultimodalMetaProcessor` in `multimodalhugs/processors/legacy/`. They wire up the standard four-slot configuration for each modality and are fully backward-compatible.
 
-| Class | Location | Encoder modality | `output_data_key` |
-|---|---|---|---|
-| `Pose2TextTranslationProcessor` | `legacy/pose2text_preprocessor.py` | `PoseModalityProcessor` | `input_frames` |
-| `Video2TextTranslationProcessor` | `legacy/video2text_preprocessor.py` | `VideoModalityProcessor` | `input_frames` |
-| `Image2TextTranslationProcessor` | `legacy/image2text_preprocessor.py` | `ImageModalityProcessor` | `input_frames` |
-| `Features2TextTranslationProcessor` | `legacy/features2text_preprocessor.py` | `FeaturesModalityProcessor` | `input_frames` |
-| `SignwritingProcessor` | `legacy/signwriting_preprocessor.py` | `SignwritingModalityProcessor` | `input_frames` |
-| `Text2TextTranslationProcessor` | `legacy/text2text_preprocessor.py` | `TextModalityProcessor` | `input_ids` |
+| Class | Encoder modality | `output_data_key` |
+|---|---|---|
+| `Pose2TextTranslationProcessor` | `PoseModalityProcessor` | `input_frames` |
+| `Video2TextTranslationProcessor` | `VideoModalityProcessor` | `input_frames` |
+| `Image2TextTranslationProcessor` | `ImageModalityProcessor` | `input_frames` |
+| `Features2TextTranslationProcessor` | `FeaturesModalityProcessor` | `input_frames` |
+| `SignwritingProcessor` | `SignwritingModalityProcessor` | `input_frames` |
+| `Text2TextTranslationProcessor` | `TextModalityProcessor` | `input_ids` |
 
 All six are re-exported from `multimodalhugs.processors` so existing import paths are unchanged.
 
@@ -219,11 +196,11 @@ All six are re-exported from `multimodalhugs.processors` so existing import path
 
 ## Integration with `DataCollatorMultimodalSeq2Seq`
 
-When the processor is a `MultimodalMetaProcessor` (which includes all legacy subclasses), the collator delegates all work to the processor:
+When the processor is a `MultimodalMetaProcessor` (which includes all legacy subclasses), the collator delegates all work to it:
 
 ```python
 def __call__(self, samples):
-    batch = self.processor(samples)         # all processing happens here
+    batch = self.processor(samples)
     if (
         "labels" in batch
         and self.model is not None
@@ -236,7 +213,7 @@ def __call__(self, samples):
     return batch
 ```
 
-The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role="label")` in the `label_slot`.
+The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role="label")`.
 
 ---
 

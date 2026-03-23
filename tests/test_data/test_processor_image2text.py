@@ -13,7 +13,7 @@ from tests.test_data.conftest import FONT_PATH
 
 def _modality_proc(processor):
     """Return the underlying ImageModalityProcessor from the wrapper."""
-    return processor.encoder_slots[0].processor
+    return processor.slots[0].processor
 
 
 class TestImageToTensor:

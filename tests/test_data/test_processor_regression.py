@@ -24,6 +24,12 @@ import pytest
 import torch
 
 from tests.test_data.conftest import ASSETS_DIR, CLIP_PROCESSOR_PATH, FONT_PATH, TINY_TOKENIZER_PATH
+from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+from multimodalhugs.processors.pose_modality_processor import PoseModalityProcessor
+from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
+from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
+from multimodalhugs.processors.image_modality_processor import ImageModalityProcessor
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
 
 GOLDEN_DIR = os.path.join(ASSETS_DIR, "golden")
 
@@ -196,6 +202,148 @@ class TestImage2TextRegression:
         processor = Image2TextTranslationProcessor(
             tokenizer=tokenizer, font_path=FONT_PATH,
             width=224, height=224, normalize_image=False,
+        )
+        result = processor(batch=image_asset_samples)
+        check_all_keys(result, load_golden("image2text"))
+
+
+# ---------------------------------------------------------------------------
+# Flat-slots MultimodalMetaProcessor — golden parity with legacy wrappers
+# ---------------------------------------------------------------------------
+
+def _text_slots(tokenizer):
+    """The three text slots shared by all modalities (label, encoder prompt, decoder prompt)."""
+    return [
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            output_data_key="labels",
+            is_label=True,
+            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+        ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+            output_data_key="encoder_prompt",
+            output_mask_key="encoder_prompt_length_padding_mask",
+            column_map={"encoder_prompt": "signal"},
+        ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+            output_data_key="decoder_input_ids",
+            output_mask_key="decoder_attention_mask",
+            column_map={"decoder_prompt": "signal"},
+        ),
+    ]
+
+
+class TestMetaProcessorPose2TextGolden:
+    """MultimodalMetaProcessor(slots=[PoseModalityProcessor, ...]) must match the pose2text golden."""
+
+    def test_output_matches_golden(self, tokenizer, pose_asset_samples):
+        processor = MultimodalMetaProcessor(
+            slots=[
+                ProcessorSlot(
+                    processor=PoseModalityProcessor(reduce_holistic_poses=True),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                    column_map={
+                        "signal": "signal",
+                        "signal_start": "signal_start",
+                        "signal_end": "signal_end",
+                    },
+                ),
+                *_text_slots(tokenizer),
+            ],
+            tokenizer=tokenizer,
+        )
+        result = processor(batch=pose_asset_samples)
+        check_all_keys(result, load_golden("pose2text"))
+
+
+class TestMetaProcessorVideo2TextGolden:
+    """MultimodalMetaProcessor(slots=[VideoModalityProcessor, ...]) must match the video2text golden."""
+
+    def test_output_matches_golden(self, tokenizer, video_asset_samples):
+        processor = MultimodalMetaProcessor(
+            slots=[
+                ProcessorSlot(
+                    processor=VideoModalityProcessor(
+                        custom_preprocessor_path=CLIP_PROCESSOR_PATH,
+                        use_cache=True,
+                    ),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                    column_map={
+                        "signal": "signal",
+                        "signal_start": "signal_start",
+                        "signal_end": "signal_end",
+                    },
+                ),
+                *_text_slots(tokenizer),
+            ],
+            tokenizer=tokenizer,
+        )
+        result = processor(batch=video_asset_samples)
+        check_all_keys(result, load_golden("video2text"))
+
+
+class TestMetaProcessorFeatures2TextGolden:
+    """MultimodalMetaProcessor(slots=[FeaturesModalityProcessor, ...]) must match the features2text golden."""
+
+    def test_output_matches_golden(self, tokenizer, features_asset_samples):
+        processor = MultimodalMetaProcessor(
+            slots=[
+                ProcessorSlot(
+                    processor=FeaturesModalityProcessor(use_cache=False),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                ),
+                *_text_slots(tokenizer),
+            ],
+            tokenizer=tokenizer,
+        )
+        result = processor(batch=features_asset_samples)
+        check_all_keys(result, load_golden("features2text"))
+
+
+class TestMetaProcessorText2TextGolden:
+    """MultimodalMetaProcessor(slots=[TextModalityProcessor(encoder), ...]) must match the text2text golden."""
+
+    def test_output_matches_golden(self, tokenizer, text_asset_samples):
+        processor = MultimodalMetaProcessor(
+            slots=[
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+                    output_data_key="input_ids",
+                    output_mask_key="attention_mask",
+                    column_map={"signal": "signal"},
+                ),
+                *_text_slots(tokenizer),
+            ],
+            tokenizer=tokenizer,
+        )
+        result = processor(batch=text_asset_samples)
+        check_all_keys(result, load_golden("text2text"))
+
+
+class TestMetaProcessorImage2TextGolden:
+    """MultimodalMetaProcessor(slots=[ImageModalityProcessor, ...]) must match the image2text golden."""
+
+    def test_output_matches_golden(self, tokenizer, image_asset_samples):
+        processor = MultimodalMetaProcessor(
+            slots=[
+                ProcessorSlot(
+                    processor=ImageModalityProcessor(
+                        font_path=FONT_PATH,
+                        width=224,
+                        height=224,
+                        normalize_image=False,
+                    ),
+                    output_data_key="input_frames",
+                    output_mask_key="attention_mask",
+                ),
+                *_text_slots(tokenizer),
+            ],
+            tokenizer=tokenizer,
         )
         result = processor(batch=image_asset_samples)
         check_all_keys(result, load_golden("image2text"))

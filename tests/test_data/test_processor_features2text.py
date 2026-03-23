@@ -11,7 +11,7 @@ from multimodalhugs.processors.legacy.features2text_preprocessor import (
 
 def _modality_proc(processor):
     """Return the underlying FeaturesModalityProcessor from the wrapper."""
-    return processor.encoder_slots[0].processor
+    return processor.slots[0].processor
 
 
 class TestFeaturesFileToTensor:
@@ -134,14 +134,13 @@ class TestFeaturesTransformGetItemsOutput:
 
 class TestFeaturesCacheBehavior:
     def test_cache_enabled(self, tokenizer, dummy_npy_file):
-        """With use_cache=True, modality processor should initialize cache."""
+        """With use_cache=True, the underlying processor should initialize cache."""
         processor = Features2TextTranslationProcessor(
             tokenizer=tokenizer, use_cache=True
         )
-        modality_proc = _modality_proc(processor)
-        assert hasattr(modality_proc, "_cache_size")
+        assert hasattr(_modality_proc(processor), "_cache_size")
         # Should still work to load files
-        tensor = modality_proc.process_sample(dummy_npy_file)
+        tensor = _modality_proc(processor).process_sample(dummy_npy_file)
         assert isinstance(tensor, torch.Tensor)
 
 

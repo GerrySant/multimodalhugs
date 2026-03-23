@@ -63,7 +63,7 @@ def main(
             Features2TextDataset,
             data_cfg,
             final_output_dir,
-            rebuild_from_scratch=rebuild_dataset_from_scratch, 
+            rebuild_from_scratch=rebuild_dataset_from_scratch,
         )
 
     # 2) Processor setup
@@ -88,29 +88,31 @@ def main(
         _FEATURES_KWARGS = {"use_cache", "skip_frames_stride", "temporal_dimention_position"}
         features_kwargs = {k: v for k, v in processor_kwargs.items() if k in _FEATURES_KWARGS}
         proc = MultimodalMetaProcessor(
-            encoder_slots=[
+            slots=[
                 ProcessorSlot(
                     processor=FeaturesModalityProcessor(**features_kwargs),
                     output_data_key="input_frames",
                     output_mask_key="attention_mask",
-                )
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="label"),
+                    output_data_key="labels",
+                    is_label=True,
+                    column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                    output_data_key="encoder_prompt",
+                    output_mask_key="encoder_prompt_length_padding_mask",
+                    column_map={"encoder_prompt": "signal"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
+                    output_data_key="decoder_input_ids",
+                    output_mask_key="decoder_attention_mask",
+                    column_map={"decoder_prompt": "signal"},
+                ),
             ],
-            label_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tok, role="label"),
-                output_data_key="labels",
-            ),
-            encoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
-                output_data_key="encoder_prompt",
-                output_mask_key="encoder_prompt_length_padding_mask",
-                column_map={"encoder_prompt": "signal"},
-            ),
-            decoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
-                column_map={"decoder_prompt": "signal"},
-            ),
             tokenizer=tok,
         )
         proc_path = save_processor(proc, processor_output_dir)

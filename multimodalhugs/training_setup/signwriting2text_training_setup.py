@@ -63,7 +63,7 @@ def main(
             SignWritingDataset,
             data_cfg,
             final_output_dir,
-            rebuild_from_scratch=rebuild_dataset_from_scratch, 
+            rebuild_from_scratch=rebuild_dataset_from_scratch,
         )
 
     # 2) Processor setup
@@ -76,7 +76,7 @@ def main(
         new_vocabulary       = getattr(processor_cfg, "new_vocabulary", None) if processor_cfg else None
 
         processor_output_dir = final_output_dir
-        
+
         # Load tokenizers (needed for both processor and model)
         tok, pre_tok, new = load_tokenizers(
             text_tokenizer_path,
@@ -88,29 +88,31 @@ def main(
         _SIGNWRITING_KWARGS = {"custom_preprocessor_path", "width", "height", "channels", "invert_frame"}
         signwriting_kwargs = {k: v for k, v in processor_kwargs.items() if k in _SIGNWRITING_KWARGS}
         proc = MultimodalMetaProcessor(
-            encoder_slots=[
+            slots=[
                 ProcessorSlot(
                     processor=SignwritingModalityProcessor(**signwriting_kwargs),
                     output_data_key="input_frames",
                     output_mask_key="attention_mask",
-                )
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="label"),
+                    output_data_key="labels",
+                    is_label=True,
+                    column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                    output_data_key="encoder_prompt",
+                    output_mask_key="encoder_prompt_length_padding_mask",
+                    column_map={"encoder_prompt": "signal"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
+                    output_data_key="decoder_input_ids",
+                    output_mask_key="decoder_attention_mask",
+                    column_map={"decoder_prompt": "signal"},
+                ),
             ],
-            label_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tok, role="label"),
-                output_data_key="labels",
-            ),
-            encoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
-                output_data_key="encoder_prompt",
-                output_mask_key="encoder_prompt_length_padding_mask",
-                column_map={"encoder_prompt": "signal"},
-            ),
-            decoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
-                column_map={"decoder_prompt": "signal"},
-            ),
             tokenizer=tok,
         )
         proc_path = save_processor(proc, processor_output_dir)

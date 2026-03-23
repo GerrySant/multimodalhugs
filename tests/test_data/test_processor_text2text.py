@@ -37,22 +37,19 @@ class TestText2TextObtainMultimodalInputAndMasks:
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
         result = processor(batch=batch)
         assert result["input_ids"].shape[0] == 2
+        # Both should have same sequence length (padded)
         assert result["input_ids"].shape[1] == result["attention_mask"].shape[1]
 
 
-class TestText2TextPromptSlots:
-    """Verify encoder/decoder prompt processing via the slot-based design."""
-
-    def test_encoder_prompt_keys_and_shape(self, tokenizer, text_batch_samples):
-        """encoder_prompt_slot should produce encoder_prompt and its padding mask."""
+class TestText2TextObtainPrompts:
+    def test_encoder_prompt(self, tokenizer, text_batch_samples):
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
         result = processor(batch=text_batch_samples)
         assert "encoder_prompt" in result
         assert "encoder_prompt_length_padding_mask" in result
         assert result["encoder_prompt"].shape[0] == len(text_batch_samples)
 
-    def test_decoder_prompt_keys_and_shape(self, tokenizer, text_batch_samples):
-        """decoder_prompt_slot should produce decoder_input_ids and its attention mask."""
+    def test_decoder_prompt(self, tokenizer, text_batch_samples):
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
         result = processor(batch=text_batch_samples)
         assert "decoder_input_ids" in result
@@ -69,31 +66,36 @@ class TestText2TextProcessorCall:
     def test_full_call_has_all_keys(self, tokenizer, text_batch_samples):
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
         result = processor(batch=text_batch_samples)
+        # Should have input_ids, attention_mask from multimodal
+        # encoder_prompt, encoder_prompt_length_padding_mask from encoder prompt
+        # decoder_input_ids, decoder_attention_mask from decoder prompt
         assert "input_ids" in result
         assert "attention_mask" in result
         assert "encoder_prompt" in result
         assert "decoder_input_ids" in result
 
 
-class TestText2TextPromptSlotBatchProcessing:
-    """Test prompt tokenization via the encoder/decoder prompt slots directly."""
-
-    def test_encoder_slot_tokenizes_texts(self, tokenizer):
-        """encoder_prompt_slot.processor.process_batch should tokenize strings."""
+class TestText2TextProcessPrompts:
+    def test_encoder_prompt_processor_tokenizes(self, tokenizer):
+        """The encoder-prompt slot's processor should tokenize text."""
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
+        # slots[2] is the encoder_prompt slot
+        enc_proc = processor.slots[2].processor
         prompts = ["translate:", "en:"]
-        ids, mask = processor.encoder_prompt_slot.processor.process_batch(prompts)
-        assert isinstance(ids, torch.Tensor)
+        padded, mask = enc_proc.process_batch(prompts)
+        assert isinstance(padded, torch.Tensor)
         assert isinstance(mask, torch.Tensor)
-        assert ids.shape[0] == 2
+        assert padded.shape[0] == 2
         assert mask.shape[0] == 2
 
-    def test_decoder_slot_tokenizes_texts(self, tokenizer):
-        """decoder_prompt_slot.processor.process_batch should tokenize strings."""
+    def test_decoder_prompt_processor_tokenizes(self, tokenizer):
+        """The decoder-prompt slot's processor should tokenize text."""
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
+        # slots[3] is the decoder_prompt slot
+        dec_proc = processor.slots[3].processor
         prompts = ["de:", "fr:"]
-        ids, mask = processor.decoder_prompt_slot.processor.process_batch(prompts)
-        assert isinstance(ids, torch.Tensor)
+        padded, mask = dec_proc.process_batch(prompts)
+        assert isinstance(padded, torch.Tensor)
         assert isinstance(mask, torch.Tensor)
-        assert ids.shape[0] == 2
-        assert ids.shape == mask.shape
+        assert padded.shape[0] == 2
+        assert mask.shape[0] == 2

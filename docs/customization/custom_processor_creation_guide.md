@@ -12,7 +12,7 @@ Before reading this guide, familiarise yourself with the [processor architecture
 
 ## A. Compose existing processors
 
-If your task uses modalities that are already supported, you can build a fully functional processor by composing `ProcessorSlot` objects and passing them to `MultimodalMetaProcessor` directly — no subclassing required.
+If your task uses modalities that are already supported, you can build a fully functional processor by composing `ProcessorSlot` objects into a `MultimodalMetaProcessor` directly — no subclassing required.
 
 ```python
 from transformers import AutoTokenizer
@@ -26,7 +26,7 @@ from multimodalhugs.processors import (
 tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-cc25")
 
 meta = MultimodalMetaProcessor(
-    encoder_slots=[
+    slots=[
         ProcessorSlot(
             processor=PoseModalityProcessor(reduce_holistic_poses=True),
             output_data_key="input_frames",
@@ -36,24 +36,26 @@ meta = MultimodalMetaProcessor(
                 "signal_start": "signal_start",
                 "signal_end": "signal_end",
             },
-        )
+        ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            output_data_key="labels",
+            is_label=True,
+            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+        ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+            output_data_key="encoder_prompt",
+            output_mask_key="encoder_prompt_length_padding_mask",
+            column_map={"encoder_prompt": "signal"},
+        ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+            output_data_key="decoder_input_ids",
+            output_mask_key="decoder_attention_mask",
+            column_map={"decoder_prompt": "signal"},
+        ),
     ],
-    label_slot=ProcessorSlot(
-        processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
-        output_data_key="labels",
-    ),
-    encoder_prompt_slot=ProcessorSlot(
-        processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
-        output_data_key="encoder_prompt",
-        output_mask_key="encoder_prompt_length_padding_mask",
-        column_map={"encoder_prompt": "signal"},
-    ),
-    decoder_prompt_slot=ProcessorSlot(
-        processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
-        output_data_key="decoder_input_ids",
-        output_mask_key="decoder_attention_mask",
-        column_map={"decoder_prompt": "signal"},
-    ),
     tokenizer=tokenizer,
 )
 ```
@@ -67,13 +69,13 @@ loaded = MultimodalMetaProcessor.from_pretrained("/path/to/save/")
 
 ### Multi-input example (video + pose → text)
 
-Multiple encoder slots are supported out of the box. Each slot must use distinct TSV column names:
+Multiple encoder slots are supported — add them to the flat `slots` list. Each must use distinct TSV column names in its `column_map`:
 
 ```python
 from multimodalhugs.processors import VideoModalityProcessor
 
 meta = MultimodalMetaProcessor(
-    encoder_slots=[
+    slots=[
         ProcessorSlot(
             processor=VideoModalityProcessor(),
             output_data_key="video_frames",
@@ -94,11 +96,38 @@ meta = MultimodalMetaProcessor(
                 "pose_signal_end":   "signal_end",
             },
         ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            output_data_key="labels",
+            is_label=True,
+            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+        ),
     ],
-    label_slot=ProcessorSlot(
-        processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
-        output_data_key="labels",
-    ),
+    tokenizer=tokenizer,
+)
+```
+
+### Non-text output example (image → image)
+
+Any modality can be used as a label slot. Mark it with `is_label=True`:
+
+```python
+from multimodalhugs.processors import ImageModalityProcessor
+
+meta = MultimodalMetaProcessor(
+    slots=[
+        ProcessorSlot(
+            processor=ImageModalityProcessor(width=224, height=224),
+            output_data_key="input_frames",
+            output_mask_key="attention_mask",
+        ),
+        ProcessorSlot(
+            processor=ImageModalityProcessor(width=224, height=224),
+            output_data_key="label_frames",
+            is_label=True,
+            column_map={"label_image": "signal"},
+        ),
+    ],
     tokenizer=tokenizer,
 )
 ```
@@ -119,9 +148,7 @@ from multimodalhugs.data import pad_and_create_mask
 
 
 class MyModalityProcessor(ModalityProcessor):
-    """
-    Processes <your modality> into tensors.
-    """
+    """Processes <your modality> into tensors."""
 
     def __init__(self, my_param: float = 1.0):
         self.my_param = my_param
@@ -179,18 +206,20 @@ class MyModalityProcessor(ModalityProcessor):
 
 ```python
 meta = MultimodalMetaProcessor(
-    encoder_slots=[
+    slots=[
         ProcessorSlot(
             processor=MyModalityProcessor(my_param=2.0),
             output_data_key="my_features",
             output_mask_key="my_attention_mask",
             # column_map defaults to {"signal": "signal"}
-        )
+        ),
+        ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            output_data_key="labels",
+            is_label=True,
+            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+        ),
     ],
-    label_slot=ProcessorSlot(
-        processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
-        output_data_key="labels",
-    ),
     tokenizer=tokenizer,
 )
 ```
@@ -205,7 +234,7 @@ A named task processor is a `MultimodalMetaProcessor` subclass with a fixed slot
 
 - You want a stable name for `AutoProcessor` registration.
 - You expose task-specific constructor parameters (e.g. `reduce_holistic_poses`) and want them saved alongside the processor.
-- You want users to be able to call `MyTaskProcessor(tokenizer=tok, ...)` without constructing slots manually.
+- You want users to call `MyTaskProcessor(tokenizer=tok, ...)` without constructing slots manually.
 
 ### Template
 
@@ -233,10 +262,10 @@ class MyTask2TextProcessor(MultimodalMetaProcessor):
         **kwargs,
     ):
         # Pass-through for from_pretrained(), which reconstructs the processor by
-        # calling cls(encoder_slots=..., label_slot=..., tokenizer=...).
-        # Detect this case by the presence of "encoder_slots" in kwargs and delegate
+        # calling cls(slots=..., tokenizer=...).
+        # Detect this case by the presence of "slots" in kwargs and delegate
         # directly to the parent without rebuilding the slots.
-        if "encoder_slots" in kwargs:
+        if "slots" in kwargs:
             super().__init__(tokenizer=tokenizer, **kwargs)
             return
 
@@ -244,43 +273,45 @@ class MyTask2TextProcessor(MultimodalMetaProcessor):
         self.my_param = my_param
 
         super().__init__(
-            encoder_slots=[
+            slots=[
                 ProcessorSlot(
                     processor=MyModalityProcessor(my_param=my_param),
                     output_data_key="my_features",
                     output_mask_key="attention_mask",
                     # column_map defaults to {"signal": "signal"}
-                )
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+                    output_data_key="labels",
+                    is_label=True,
+                    column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+                    output_data_key="encoder_prompt",
+                    output_mask_key="encoder_prompt_length_padding_mask",
+                    column_map={"encoder_prompt": "signal"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+                    output_data_key="decoder_input_ids",
+                    output_mask_key="decoder_attention_mask",
+                    column_map={"decoder_prompt": "signal"},
+                ),
             ],
-            label_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
-                output_data_key="labels",
-            ),
-            encoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
-                output_data_key="encoder_prompt",
-                output_mask_key="encoder_prompt_length_padding_mask",
-                column_map={"encoder_prompt": "signal"},
-            ),
-            decoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
-                column_map={"decoder_prompt": "signal"},
-            ),
             tokenizer=tokenizer,
         )
 ```
 
-### The `encoder_slots` passthrough explained
+### The `slots` passthrough explained
 
 `MultimodalMetaProcessor.from_pretrained()` reconstructs the processor by calling:
 
 ```python
-cls(encoder_slots=[...], label_slot=..., encoder_prompt_slot=..., decoder_prompt_slot=..., tokenizer=...)
+cls(slots=[...], tokenizer=...)
 ```
 
-Without the passthrough guard, the subclass `__init__` would try to build new slots from `my_param` and ignore the pre-built ones. The guard detects this reconstruction call and routes directly to `super().__init__`, preserving the deserialized slots.
+Without the passthrough guard, the subclass `__init__` would try to build new slots from `my_param` and ignore the pre-built ones. The guard detects this reconstruction call and routes directly to `super().__init__`, preserving the deserialised slots.
 
 ### Registering with `AutoProcessor`
 
@@ -317,8 +348,6 @@ loaded = AutoProcessor.from_pretrained("/path/to/save/")
 
 ## Testing checklist
 
-When you have implemented your processor, verify the following:
-
 ```python
 import torch
 
@@ -353,6 +382,6 @@ assert torch.equal(result["labels"], result_loaded["labels"])
 
 | Scenario | What to do |
 |---|---|
-| New pipeline with existing modalities | Compose `ProcessorSlot` objects into a `MultimodalMetaProcessor` instance |
+| New pipeline with existing modalities | Compose `ProcessorSlot` objects into a `MultimodalMetaProcessor(slots=[...])` |
 | New modality | Subclass `ModalityProcessor`, implement `process_sample` and `process_batch` |
-| Named task processor | Subclass `MultimodalMetaProcessor`, add the `encoder_slots` passthrough guard, register with `AutoProcessor` |
+| Named task processor | Subclass `MultimodalMetaProcessor`, add the `slots` passthrough guard, register with `AutoProcessor` |

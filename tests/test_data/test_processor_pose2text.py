@@ -10,7 +10,7 @@ from multimodalhugs.processors.legacy.pose2text_preprocessor import (
 
 def _modality_proc(processor):
     """Return the underlying PoseModalityProcessor from the wrapper."""
-    return processor.encoder_slots[0].processor
+    return processor.slots[0].processor
 
 
 class TestPoseFileToTensor:

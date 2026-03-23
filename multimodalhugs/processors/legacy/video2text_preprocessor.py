@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class Video2TextTranslationProcessor(MultimodalMetaProcessor):
     name = "video2text_processor"
     attributes = ["tokenizer"]
-    model_input_names = ["inputs_embeds", "attention_mask"]
+    model_input_names = ["input_frames", "attention_mask"]
     tokenizer_class = "AutoTokenizer"
 
     def __init__(
@@ -20,11 +20,10 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
         custom_preprocessor_path: Optional[str] = None,
         skip_frames_stride: Optional[int] = None,
         join_chw: bool = False,
-        use_cache: bool = False,
+        use_cache: bool = True,
         **kwargs,
     ):
-        # Pass-through for from_pretrained, which calls cls(encoder_slots=..., ...)
-        if "encoder_slots" in kwargs:
+        if "slots" in kwargs:
             super().__init__(tokenizer=tokenizer, **kwargs)
             return
         self.custom_preprocessor_path = custom_preprocessor_path
@@ -32,7 +31,7 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
         self.join_chw = join_chw
         self.use_cache = use_cache
         super().__init__(
-            encoder_slots=[
+            slots=[
                 ProcessorSlot(
                     processor=VideoModalityProcessor(
                         custom_preprocessor_path=custom_preprocessor_path,
@@ -47,23 +46,25 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
                         "signal_start": "signal_start",
                         "signal_end": "signal_end",
                     },
-                )
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+                    output_data_key="labels",
+                    is_label=True,
+                    column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+                    output_data_key="encoder_prompt",
+                    output_mask_key="encoder_prompt_length_padding_mask",
+                    column_map={"encoder_prompt": "signal"},
+                ),
+                ProcessorSlot(
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+                    output_data_key="decoder_input_ids",
+                    output_mask_key="decoder_attention_mask",
+                    column_map={"decoder_prompt": "signal"},
+                ),
             ],
-            label_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
-                output_data_key="labels",
-            ),
-            encoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
-                output_data_key="encoder_prompt",
-                output_mask_key="encoder_prompt_length_padding_mask",
-                column_map={"encoder_prompt": "signal"},
-            ),
-            decoder_prompt_slot=ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
-                column_map={"decoder_prompt": "signal"},
-            ),
             tokenizer=tokenizer,
         )
