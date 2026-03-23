@@ -131,6 +131,51 @@ def load_tokenizers(tokenizer_path, new_vocabulary, output_dir: Optional[str] = 
     return tokenizer, pretrained, new_tokens
 
 
+def build_processor_from_config(processor_cfg, tokenizer):
+    """
+    Build a MultimodalMetaProcessor declaratively from a YAML processor config.
+
+    Reads ``processor_cfg.slots`` (a list of slot dicts) and constructs a
+    ``MultimodalMetaProcessor`` from them.  Each slot dict must have:
+
+      - ``processor_class`` (str): name of a ``ModalityProcessor`` subclass exported
+        from ``multimodalhugs.processors``
+      - ``output_data_key`` (str)
+      - ``output_mask_key`` (str, optional)
+      - ``column_map`` (dict, optional; defaults to ``{"signal": "signal"}``)
+      - ``is_label`` (bool, optional; defaults to False)
+      - ``processor_kwargs`` (dict, optional): extra kwargs forwarded to the
+        processor constructor.  The tokenizer is injected automatically when
+        the processor accepts it.
+
+    Returns ``None`` if ``processor_cfg`` has no ``slots`` key, so the caller
+    can fall back to its existing hardcoded construction.
+    """
+    import inspect
+    import multimodalhugs.processors as proc_module
+    from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+
+    slot_cfgs = getattr(processor_cfg, "slots", None)
+    if not slot_cfgs:
+        return None
+
+    slots = []
+    for slot_cfg in OmegaConf.to_container(slot_cfgs, resolve=True):
+        proc_cls = getattr(proc_module, slot_cfg["processor_class"])
+        proc_kwargs = dict(slot_cfg.get("processor_kwargs") or {})
+        if "tokenizer" in inspect.signature(proc_cls.__init__).parameters:
+            proc_kwargs.setdefault("tokenizer", tokenizer)
+        proc = proc_cls(**proc_kwargs)
+        slots.append(ProcessorSlot(
+            processor=proc,
+            output_data_key=slot_cfg["output_data_key"],
+            output_mask_key=slot_cfg.get("output_mask_key"),
+            column_map=slot_cfg.get("column_map", {"signal": "signal"}),
+            is_label=slot_cfg.get("is_label", False),
+        ))
+    return MultimodalMetaProcessor(slots=slots, tokenizer=tokenizer)
+
+
 def save_processor(processor, output_dir: str):
     path = os.path.join(output_dir, processor.name)
     processor.save_pretrained(save_directory=path, push_to_hub=False)

@@ -6,7 +6,8 @@ from typing import Optional
 from .setup_utils import (
     load_config, prepare_dataset, load_tokenizers,
     save_processor, build_and_save_model, update_configs, save_actor_paths,
-    resolve_setup_paths, resolve_update_choice, print_artifact_summary
+    resolve_setup_paths, resolve_update_choice, print_artifact_summary,
+    build_processor_from_config,
 )
 
 from multimodalhugs.data.datasets.bilingual_image2text import BilingualImage2TextDataset, BilingualImage2textMTDataConfig
@@ -83,38 +84,41 @@ def main(
             new_vocabulary,
         )
 
-        # Instantiate processor with modality-specific args
-        processor_kwargs = OmegaConf.to_container(processor_cfg, resolve=True) if processor_cfg else {}
-        _IMAGE_KWARGS = {"font_path", "width", "height", "normalize_image", "mean", "std"}
-        image_kwargs = {k: v for k, v in processor_kwargs.items() if k in _IMAGE_KWARGS}
-        proc = MultimodalMetaProcessor(
-            slots=[
-                ProcessorSlot(
-                    processor=ImageModalityProcessor(**image_kwargs),
-                    output_data_key="input_frames",
-                    output_mask_key="attention_mask",
-                ),
-                ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tok, role="label"),
-                    output_data_key="labels",
-                    is_label=True,
-                    column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
-                ),
-                ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
-                    output_data_key="encoder_prompt",
-                    output_mask_key="encoder_prompt_length_padding_mask",
-                    column_map={"encoder_prompt": "signal"},
-                ),
-                ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
-                    output_data_key="decoder_input_ids",
-                    output_mask_key="decoder_attention_mask",
-                    column_map={"decoder_prompt": "signal"},
-                ),
-            ],
-            tokenizer=tok,
-        )
+        # Instantiate processor — declarative slots config takes priority
+        proc = build_processor_from_config(processor_cfg, tok)
+        if proc is None:
+            # Fallback: hardcoded image2text construction
+            processor_kwargs = OmegaConf.to_container(processor_cfg, resolve=True) if processor_cfg else {}
+            _IMAGE_KWARGS = {"font_path", "width", "height", "normalize_image", "mean", "std"}
+            image_kwargs = {k: v for k, v in processor_kwargs.items() if k in _IMAGE_KWARGS}
+            proc = MultimodalMetaProcessor(
+                slots=[
+                    ProcessorSlot(
+                        processor=ImageModalityProcessor(**image_kwargs),
+                        output_data_key="input_frames",
+                        output_mask_key="attention_mask",
+                    ),
+                    ProcessorSlot(
+                        processor=TextModalityProcessor(tokenizer=tok, role="label"),
+                        output_data_key="labels",
+                        is_label=True,
+                        column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+                    ),
+                    ProcessorSlot(
+                        processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
+                        output_data_key="encoder_prompt",
+                        output_mask_key="encoder_prompt_length_padding_mask",
+                        column_map={"encoder_prompt": "signal"},
+                    ),
+                    ProcessorSlot(
+                        processor=TextModalityProcessor(tokenizer=tok, role="prompt"),
+                        output_data_key="decoder_input_ids",
+                        output_mask_key="decoder_attention_mask",
+                        column_map={"decoder_prompt": "signal"},
+                    ),
+                ],
+                tokenizer=tok,
+            )
         proc_path = save_processor(proc, processor_output_dir)
 
     # 3) Model setup
