@@ -97,7 +97,7 @@ def main(
                         processor=TextModalityProcessor(tokenizer=tok, role="label"),
                         output_data_key="labels",
                         is_label=True,
-                        column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+                        column_map={"decoder_prompt": "target_prefix", "output": "target"},
                     ),
                     ProcessorSlot(
                         processor=TextModalityProcessor(tokenizer=tok, role="encoder"),
@@ -115,14 +115,20 @@ def main(
                 tokenizer=tok,
             )
         else:
-            # Declarative path: extend tokenizer with new_vocabulary and sync back to
-            # all text slot processors so they share the same extended vocabulary.
-            if proc.tokenizer is not None:
-                tok, pre_tok, new = load_tokenizers(proc.tokenizer.name_or_path, new_vocabulary)
-                for slot in proc.slots:
-                    if hasattr(slot.processor, "tokenizer") and slot.processor.tokenizer is not None:
-                        slot.processor.tokenizer = tok
-                proc.tokenizer = tok
+            # Declarative path: each TextModalityProcessor owns its own tokenizer
+            # extension via new_vocabulary in its processor_kwargs. Derive tok,
+            # pre_tok, and new_tokens from the first text slot that performed extension.
+            # TODO: this derivation is a temporary bridge until model construction is
+            # refactored to read new_tokens from the processor directly. At that point
+            # this block (and load_tokenizers in the declarative path) can be removed.
+            text_slot = next(
+                (s for s in proc.slots if hasattr(s.processor, "new_tokens")),
+                None,
+            )
+            if text_slot is not None:
+                tok = proc.tokenizer
+                pre_tok = text_slot.processor.pretrained_tokenizer
+                new = text_slot.processor.new_tokens
             else:
                 # TODO: non-text-output tasks — tokenizer source for model construction
                 # needs a separate design (e.g. model-level tokenizer_path config key).

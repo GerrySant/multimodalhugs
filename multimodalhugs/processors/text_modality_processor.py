@@ -15,21 +15,32 @@ class TextModalityProcessor(ModalityProcessor):
 
     role="label"
         process_batch receives a list of sample dicts, each with
-        "decoder_prompt" and "output" keys.
-        Concatenates decoder_prompt + output + EOS, pads with -100.
+        "target_prefix" and "target" keys.
+        Concatenates target_prefix + target + EOS, pads with -100.
         Returns (labels [B, L], None).
-        If any sample has output=None, returns (None, None).
+        If any sample has target=None, returns (None, None).
 
-    tokenizer      — a pre-built tokenizer object.
-    tokenizer_path — path or HF Hub ID to load the tokenizer from.
-                     Used when constructing from a declarative YAML config.
-                     Ignored if tokenizer is provided directly.
+    tokenizer           — a pre-built tokenizer object.
+    tokenizer_path      — path or HF Hub ID to load the tokenizer from.
+                          Used when constructing from a declarative YAML config.
+                          Ignored if tokenizer is provided directly.
+    new_vocabulary      — path to a vocabulary file whose tokens are added as
+                          special tokens to the tokenizer. After extension,
+                          self.new_tokens holds the list of added tokens and
+                          self.pretrained_tokenizer holds the unextended copy.
+                          TODO: new_tokens / pretrained_tokenizer are exposed here
+                          so that setup scripts can derive them from the built
+                          processor instead of calling load_tokenizers separately.
+                          Once model construction is refactored to read new_tokens
+                          from the processor, the load_tokenizers call in the
+                          setup files' declarative branch can be removed entirely.
     """
 
     def __init__(
         self,
         tokenizer: Any = None,
         tokenizer_path: Optional[str] = None,
+        new_vocabulary: Optional[str] = None,
         role: str = "prompt",
     ):
         assert role in ("prompt", "encoder", "label"), (
@@ -38,8 +49,25 @@ class TextModalityProcessor(ModalityProcessor):
         if tokenizer is None and tokenizer_path is not None:
             from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+        self.pretrained_tokenizer = tokenizer
+        self.new_tokens: List[str] = []
+
+        if new_vocabulary is not None and tokenizer is not None:
+            # TODO: this extension logic duplicates setup_utils.load_tokenizers.
+            # It is intentionally kept here as a temporary bridge: the processor
+            # now owns vocabulary extension so the declarative YAML path does not
+            # need to call load_tokenizers. The duplication will be resolved when
+            # the model-construction step is refactored to derive new_tokens from
+            # the processor directly, at which point load_tokenizers in setup files
+            # can be removed entirely.
+            from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
+            base_path = tokenizer_path or tokenizer.name_or_path
+            tokenizer, self.new_tokens = extend_tokenizer(base_path, new_vocabulary)
+
         self.tokenizer = tokenizer
         self.tokenizer_path = tokenizer_path
+        self.new_vocabulary = new_vocabulary
         self.role = role
 
     # ------------------------------------------------------------------
@@ -85,16 +113,16 @@ class TextModalityProcessor(ModalityProcessor):
         self,
         samples: List[Dict[str, Any]],
     ) -> Tuple[Optional[torch.Tensor], None]:
-        if any(s.get("output") is None for s in samples):
+        if any(s.get("target") is None for s in samples):
             return None, None
 
         labels = []
         for sample in samples:
             prompt_ids = self.tokenizer.convert_tokens_to_ids(
-                self.tokenizer.tokenize(sample["decoder_prompt"])
+                self.tokenizer.tokenize(sample["target_prefix"])
             )
             output_ids = self.tokenizer.convert_tokens_to_ids(
-                self.tokenizer.tokenize(sample["output"])
+                self.tokenizer.tokenize(sample["target"])
             )
             labels.append(prompt_ids + output_ids + [self.tokenizer.eos_token_id])
 

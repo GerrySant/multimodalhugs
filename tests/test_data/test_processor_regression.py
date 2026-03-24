@@ -218,7 +218,7 @@ def _text_slots(tokenizer):
             processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
             output_data_key="labels",
             is_label=True,
-            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+            column_map={"decoder_prompt": "target_prefix", "output": "target"},
         ),
         ProcessorSlot(
             processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),

@@ -43,8 +43,8 @@ def _minimal_text_slots_yaml():
       output_data_key: labels
       is_label: true
       column_map:
-        decoder_prompt: decoder_prompt
-        output: output
+        decoder_prompt: target_prefix
+        output: target
 """
 
 
@@ -109,7 +109,7 @@ class TestBuildProcessorFromConfigReturnsProcessor:
         cfg = _make_cfg(_minimal_text_slots_yaml())
         proc = build_processor_from_config(cfg)
         label_slot = next(s for s in proc.slots if s.output_data_key == "labels")
-        assert label_slot.column_map == {"decoder_prompt": "decoder_prompt", "output": "output"}
+        assert label_slot.column_map == {"decoder_prompt": "target_prefix", "output": "target"}
 
     def test_processor_class_instantiated(self):
         cfg = _make_cfg(_minimal_text_slots_yaml())
@@ -205,8 +205,8 @@ class TestBuildProcessorFromConfigProducesValidOutput:
       output_data_key: labels
       is_label: true
       column_map:
-        decoder_prompt: decoder_prompt
-        output: output
+        decoder_prompt: target_prefix
+        output: target
 """
         cfg = _make_cfg(slots_yaml)
         proc = build_processor_from_config(cfg)
@@ -232,8 +232,8 @@ class TestBuildProcessorFromConfigProducesValidOutput:
       output_data_key: labels
       is_label: true
       column_map:
-        decoder_prompt: decoder_prompt
-        output: output
+        decoder_prompt: target_prefix
+        output: target
 """
         cfg = _make_cfg(slots_yaml)
         proc = build_processor_from_config(cfg)

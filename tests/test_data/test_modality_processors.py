@@ -251,16 +251,16 @@ class TestTextModalityProcessorPromptRole:
 class TestTextModalityProcessorLabelRole:
     """
     process_batch for role="label" receives a List[Dict] where each dict
-    contains at least "decoder_prompt" and "output" keys.  It mirrors the
+    contains at least "target_prefix" and "target" keys.  It mirrors the
     logic currently in create_seq2seq_labels_from_samples:
-      label = tokenize(decoder_prompt) + tokenize(output) + [eos_id]
+      label = tokenize(target_prefix) + tokenize(target) + [eos_id]
     with -100 padding.
     """
 
-    def _make_samples(self, decoder_prompts, outputs):
+    def _make_samples(self, target_prefixes, targets):
         return [
-            {"decoder_prompt": dp, "output": out}
-            for dp, out in zip(decoder_prompts, outputs)
+            {"target_prefix": tp, "target": t}
+            for tp, t in zip(target_prefixes, targets)
         ]
 
     def test_returns_tensor(self, tokenizer):
@@ -292,8 +292,8 @@ class TestTextModalityProcessorLabelRole:
         real_tokens = row[row != -100]
         assert real_tokens[-1].item() == tokenizer.eos_token_id
 
-    def test_decoder_prompt_appears_before_output(self, tokenizer):
-        """The decoder_prompt tokens must appear at the start of the label sequence."""
+    def test_target_prefix_appears_before_target(self, tokenizer):
+        """The target_prefix tokens must appear at the start of the label sequence."""
         proc = TextModalityProcessor(tokenizer=tokenizer, role="label")
         prompt = "de:"
         output = "Hello"
@@ -321,11 +321,11 @@ class TestTextModalityProcessorLabelRole:
         assert (labels[0] == -100).any()
 
     def test_missing_output_returns_none(self, tokenizer):
-        """If any sample has output=None, process_batch should return (None, None)."""
+        """If any sample has target=None, process_batch should return (None, None)."""
         proc = TextModalityProcessor(tokenizer=tokenizer, role="label")
         samples = [
-            {"decoder_prompt": "de:", "output": None},
-            {"decoder_prompt": "de:", "output": "Hallo"},
+            {"target_prefix": "de:", "target": None},
+            {"target_prefix": "de:", "target": "Hallo"},
         ]
         result, _ = proc.process_batch(samples)
         assert result is None
