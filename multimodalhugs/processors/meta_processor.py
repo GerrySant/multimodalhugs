@@ -68,7 +68,12 @@ class MultimodalMetaProcessor(ProcessorMixin):
     in the processors and their slot configuration.
 
     slots     — flat list of ProcessorSlot objects in processing order
-    tokenizer — kept for HF ProcessorMixin compatibility
+    tokenizer — optional pre-built tokenizer. If None, auto-derived from the
+                first text slot. Stored as self.tokenizer so that save_pretrained
+                writes the tokenizer to disk alongside the slot config, allowing
+                from_pretrained to reconstruct text slots without requiring the
+                original tokenizer_path to be accessible. None is valid for
+                pipelines with no text slots.
     """
 
     # attributes is empty because we fully own save_pretrained / from_pretrained.
