@@ -117,12 +117,16 @@ def main(
         else:
             # Declarative path: extend tokenizer with new_vocabulary and sync back to
             # all text slot processors so they share the same extended vocabulary.
-            # TODO: for non-text-output tasks, tokenizer discovery needs revisiting.
-            tok, pre_tok, new = load_tokenizers(proc.tokenizer.name_or_path, new_vocabulary)
-            for slot in proc.slots:
-                if hasattr(slot.processor, "tokenizer") and slot.processor.tokenizer is not None:
-                    slot.processor.tokenizer = tok
-            proc.tokenizer = tok
+            if proc.tokenizer is not None:
+                tok, pre_tok, new = load_tokenizers(proc.tokenizer.name_or_path, new_vocabulary)
+                for slot in proc.slots:
+                    if hasattr(slot.processor, "tokenizer") and slot.processor.tokenizer is not None:
+                        slot.processor.tokenizer = tok
+                proc.tokenizer = tok
+            else:
+                # TODO: non-text-output tasks — tokenizer source for model construction
+                # needs a separate design (e.g. model-level tokenizer_path config key).
+                tok, pre_tok, new = None, None, []
         proc_path = save_processor(proc, processor_output_dir)
 
     # 3) Model setup
