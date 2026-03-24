@@ -29,7 +29,7 @@ from multimodalhugs.processors.pose_modality_processor import PoseModalityProces
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
 from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
 from multimodalhugs.processors.image_modality_processor import ImageModalityProcessor
-from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 
 GOLDEN_DIR = os.path.join(ASSETS_DIR, "golden")
 
@@ -172,7 +172,7 @@ class TestLabelsRegression:
     Regression tests for create_seq2seq_labels_from_samples.
 
     This function currently lives in DataCollatorMultimodalSeq2Seq but will move
-    into TextModalityProcessor(role="target") during the processor refactoring.
+    into TextModalityProcessor(role=TextRole.TARGET) during the processor refactoring.
     The golden file defines the exact contract that the new implementation must satisfy.
     """
 
@@ -215,19 +215,19 @@ def _text_slots(tokenizer):
     """The three text slots shared by all modalities (label, encoder prompt, decoder prompt)."""
     return [
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
             output_data_key="labels",
             is_label=True,
             column_map={"decoder_prompt": "target_prefix", "output": "target"},
         ),
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
             output_data_key="encoder_prompt",
             output_mask_key="encoder_prompt_length_padding_mask",
             column_map={"encoder_prompt": "signal"},
         ),
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
             output_data_key="decoder_input_ids",
             output_mask_key="decoder_attention_mask",
             column_map={"decoder_prompt": "signal"},
@@ -312,7 +312,7 @@ class TestMetaProcessorText2TextGolden:
         processor = MultimodalMetaProcessor(
             slots=[
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                     output_data_key="input_ids",
                     output_mask_key="attention_mask",
                     column_map={"signal": "signal"},

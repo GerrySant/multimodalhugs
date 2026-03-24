@@ -24,8 +24,8 @@ Key design decisions reflected in these tests
     Must be implemented by every concrete subclass.
 
 * TextModalityProcessor role parameter
-    role="input"  – tokenise plain strings; returns (ids, attention_mask)
-    role="target" – receives List[Dict] with "target_prefix" and "target" keys;
+    role=TextRole.INPUT  – tokenise plain strings; returns (ids, attention_mask)
+    role=TextRole.TARGET – receives List[Dict] with "target_prefix" and "target" keys;
                     concatenates them, appends EOS, pads with -100
 """
 
@@ -35,7 +35,7 @@ import torch
 from multimodalhugs.processors.modality_processor import ModalityProcessor
 from multimodalhugs.processors.pose_modality_processor import PoseModalityProcessor
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
-from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 
 
 # ---------------------------------------------------------------------------
@@ -208,25 +208,25 @@ class TestVideoModalityProcessorProcessBatch:
 class TestTextModalityProcessorInputRole:
 
     def test_process_batch_returns_tuple(self, tokenizer):
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="input")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT)
         ids, mask = proc.process_batch(["translate:", "en:"])
         assert isinstance(ids, torch.Tensor)
         assert isinstance(mask, torch.Tensor)
 
     def test_process_batch_batch_dim(self, tokenizer):
         texts = ["translate:", "hello world"]
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="input")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT)
         ids, mask = proc.process_batch(texts)
         assert ids.shape[0] == len(texts)
         assert mask.shape[0] == len(texts)
 
     def test_process_batch_ids_and_mask_same_shape(self, tokenizer):
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="input")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT)
         ids, mask = proc.process_batch(["hello", "hello world how are you"])
         assert ids.shape == mask.shape
 
     def test_process_batch_pads_variable_length(self, tokenizer):
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="input")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT)
         ids, mask = proc.process_batch(["hi", "a much longer sentence with more tokens"])
         # Shorter sequence should contain padding (mask value 0)
         assert (mask[0] == 0).any()
@@ -235,8 +235,8 @@ class TestTextModalityProcessorInputRole:
 
     def test_process_batch_is_deterministic(self, tokenizer):
         texts = ["translate:", "hello world"]
-        proc_a = TextModalityProcessor(tokenizer=tokenizer, role="input")
-        proc_b = TextModalityProcessor(tokenizer=tokenizer, role="input")
+        proc_a = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT)
+        proc_b = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT)
         ids_a, mask_a = proc_a.process_batch(texts)
         ids_b, mask_b = proc_b.process_batch(texts)
         assert torch.equal(ids_a, ids_b)
@@ -249,7 +249,7 @@ class TestTextModalityProcessorInputRole:
 
 class TestTextModalityProcessorTargetRole:
     """
-    process_batch for role="target" receives a List[Dict] where each dict
+    process_batch for role=TextRole.TARGET receives a List[Dict] where each dict
     contains at least "target_prefix" and "target" keys.  It mirrors the
     logic currently in create_seq2seq_labels_from_samples:
       label = tokenize(target_prefix) + tokenize(target) + [eos_id]
@@ -263,27 +263,27 @@ class TestTextModalityProcessorTargetRole:
         ]
 
     def test_returns_tensor(self, tokenizer):
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         samples = self._make_samples(["de:"], ["Hallo"])
         labels, mask = proc.process_batch(samples)
         assert isinstance(labels, torch.Tensor)
 
     def test_mask_is_none_for_labels(self, tokenizer):
         """Labels do not need an attention mask — mask should be None."""
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         samples = self._make_samples(["de:"], ["Hallo"])
         _, mask = proc.process_batch(samples)
         assert mask is None
 
     def test_batch_dim(self, tokenizer):
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         samples = self._make_samples(["de:", "de:"], ["Hallo", "Welt"])
         labels, _ = proc.process_batch(samples)
         assert labels.shape[0] == 2
 
     def test_eos_token_is_last_real_token(self, tokenizer):
         """Last non-padding token in each sequence must be EOS."""
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         samples = self._make_samples([""], ["Hello"])
         labels, _ = proc.process_batch(samples)
         # Find last non-(-100) token
@@ -293,7 +293,7 @@ class TestTextModalityProcessorTargetRole:
 
     def test_target_prefix_appears_before_target(self, tokenizer):
         """The target_prefix tokens must appear at the start of the label sequence."""
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         prompt = "de:"
         output = "Hello"
         samples = self._make_samples([prompt], [output])
@@ -307,7 +307,7 @@ class TestTextModalityProcessorTargetRole:
 
     def test_shorter_sequence_padded_with_minus_100(self, tokenizer):
         """When sequences differ in length, shorter ones are padded with -100."""
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         samples = self._make_samples(
             ["", ""],
             ["Hi", "A much longer output sentence with many more tokens"],
@@ -321,7 +321,7 @@ class TestTextModalityProcessorTargetRole:
 
     def test_missing_output_returns_none(self, tokenizer):
         """If any sample has target=None, process_batch should return (None, None)."""
-        proc = TextModalityProcessor(tokenizer=tokenizer, role="target")
+        proc = TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET)
         samples = [
             {"target_prefix": "de:", "target": None},
             {"target_prefix": "de:", "target": "Hallo"},

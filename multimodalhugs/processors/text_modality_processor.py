@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -5,15 +6,26 @@ import torch
 from multimodalhugs.processors.modality_processor import ModalityProcessor
 
 
+class TextRole(str, Enum):
+    """Processing role for TextModalityProcessor.
+
+    INPUT  — tokenise plain strings; returns (ids, attention_mask).
+    TARGET — concatenate target_prefix + target + EOS; pad with -100;
+             returns (ids, None).
+    """
+    INPUT  = "input"
+    TARGET = "target"
+
+
 class TextModalityProcessor(ModalityProcessor):
     """
     Tokenizes and processes text for different roles in the pipeline.
 
-    role="input"
+    TextRole.INPUT
         process_batch receives a list of strings.
         Returns (token_ids [B, L], attention_mask [B, L]).
 
-    role="target"
+    TextRole.TARGET
         process_batch receives a list of sample dicts, each with
         "target_prefix" and "target" keys.
         Concatenates target_prefix + target + EOS, pads with -100.
@@ -41,11 +53,9 @@ class TextModalityProcessor(ModalityProcessor):
         tokenizer: Any = None,
         tokenizer_path: Optional[str] = None,
         new_vocabulary: Optional[str] = None,
-        role: str = "prompt",
+        role: Union[TextRole, str] = TextRole.INPUT,
     ):
-        assert role in ("input", "target"), (
-            f"role must be 'input' or 'target', got '{role}'"
-        )
+        role = TextRole(role)  # coerce plain string from YAML / from_pretrained
         if tokenizer is None and tokenizer_path is not None:
             from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
@@ -87,12 +97,12 @@ class TextModalityProcessor(ModalityProcessor):
         samples: List[Any],
         **kwargs,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
-        if self.role == "input":
+        if self.role == TextRole.INPUT:
             return self._process_prompt_batch(samples)
-        elif self.role == "target":
+        elif self.role == TextRole.TARGET:
             return self._process_label_batch(samples)
         else:
-            raise ValueError(f"Unknown role '{self.role}'. Must be 'input' or 'target'.")
+            raise ValueError(f"Unknown role '{self.role}'. Must be TextRole.INPUT or TextRole.TARGET.")
 
     # ------------------------------------------------------------------
     # Internal helpers

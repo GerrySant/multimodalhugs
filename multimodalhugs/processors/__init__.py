@@ -9,7 +9,7 @@ from .legacy import (
 from .modality_processor import ModalityProcessor
 from .pose_modality_processor import PoseModalityProcessor
 from .video_modality_processor import VideoModalityProcessor
-from .text_modality_processor import TextModalityProcessor
+from .text_modality_processor import TextModalityProcessor, TextRole
 from .features_modality_processor import FeaturesModalityProcessor
 from .image_modality_processor import ImageModalityProcessor
 from .signwriting_modality_processor import SignwritingModalityProcessor

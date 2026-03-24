@@ -42,7 +42,7 @@ from multimodalhugs.processors.meta_processor import (
 from multimodalhugs.processors.pose_modality_processor import PoseModalityProcessor
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
 from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
-from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 from multimodalhugs.data.datacollators.multimodal_datacollator import (
     DataCollatorMultimodalSeq2Seq,
 )
@@ -115,19 +115,19 @@ def make_pose2text_meta(tokenizer):
                 },
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                 output_data_key="labels",
                 is_label=True,
                 column_map={"decoder_prompt": "target_prefix", "output": "target"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="encoder_prompt",
                 output_mask_key="encoder_prompt_length_padding_mask",
                 column_map={"encoder_prompt": "signal"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="decoder_input_ids",
                 output_mask_key="decoder_attention_mask",
                 column_map={"decoder_prompt": "signal"},
@@ -142,24 +142,24 @@ def make_text2text_meta(tokenizer):
     return MultimodalMetaProcessor(
         slots=[
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="input_ids",
                 output_mask_key="attention_mask",
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                 output_data_key="labels",
                 is_label=True,
                 column_map={"decoder_prompt": "target_prefix", "output": "target"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="encoder_prompt",
                 output_mask_key="encoder_prompt_length_padding_mask",
                 column_map={"encoder_prompt": "signal"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="decoder_input_ids",
                 output_mask_key="decoder_attention_mask",
                 column_map={"decoder_prompt": "signal"},
@@ -179,19 +179,19 @@ def _make_features2text_meta(tokenizer, use_cache=False):
                 output_mask_key="attention_mask",
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                 output_data_key="labels",
                 is_label=True,
                 column_map={"decoder_prompt": "target_prefix", "output": "target"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="encoder_prompt",
                 output_mask_key="encoder_prompt_length_padding_mask",
                 column_map={"encoder_prompt": "signal"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="decoder_input_ids",
                 output_mask_key="decoder_attention_mask",
                 column_map={"decoder_prompt": "signal"},
@@ -211,25 +211,25 @@ def _make_multi_input_meta(tokenizer):
                 output_mask_key="attention_mask",
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="secondary_input",
                 output_mask_key="secondary_mask",
                 column_map={"encoder_prompt": "signal"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                 output_data_key="labels",
                 is_label=True,
                 column_map={"decoder_prompt": "target_prefix", "output": "target"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="encoder_prompt",
                 output_mask_key="encoder_prompt_length_padding_mask",
                 column_map={"encoder_prompt": "signal"},
             ),
             ProcessorSlot(
-                processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                 output_data_key="decoder_input_ids",
                 output_mask_key="decoder_attention_mask",
                 column_map={"decoder_prompt": "signal"},
@@ -255,7 +255,7 @@ class TestProcessorSlot:
 
     def test_output_mask_key_defaults_to_none(self, tokenizer):
         slot = ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
             output_data_key="labels",
             is_label=True,
             column_map={"decoder_prompt": "target_prefix", "output": "target"},
@@ -272,7 +272,7 @@ class TestProcessorSlot:
 
     def test_primary_field_custom_column_map(self, tokenizer):
         slot = ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
             output_data_key="labels",
             is_label=True,
             column_map={"decoder_prompt": "target_prefix", "output": "target"},
@@ -281,14 +281,14 @@ class TestProcessorSlot:
 
     def test_is_label_default_false(self, tokenizer):
         slot = ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
             output_data_key="input_ids",
         )
         assert slot.is_label is False
 
     def test_is_label_true(self, tokenizer):
         slot = ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
             output_data_key="labels",
             is_label=True,
             column_map={"decoder_prompt": "target_prefix", "output": "target"},
@@ -469,7 +469,7 @@ class TestMultimodalMetaProcessorMultiInput:
                     },
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                     output_data_key="labels",
                     is_label=True,
                     column_map={"decoder_prompt": "target_prefix", "output": "target"},
@@ -939,19 +939,19 @@ class TestMultimodalMetaProcessorRoundTrip:
                     output_mask_key="attention_mask",
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                     output_data_key="labels",
                     is_label=True,
                     column_map={"decoder_prompt": "target_prefix", "output": "target"},
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                     output_data_key="encoder_prompt",
                     output_mask_key="encoder_prompt_length_padding_mask",
                     column_map={"encoder_prompt": "signal"},
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                     output_data_key="decoder_input_ids",
                     output_mask_key="decoder_attention_mask",
                     column_map={"decoder_prompt": "signal"},

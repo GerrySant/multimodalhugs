@@ -15,6 +15,7 @@ from multimodalhugs.processors import (
     MultimodalMetaProcessor,
     ProcessorSlot,
     TextModalityProcessor,
+    TextRole,
 )
 
 def main(
@@ -85,24 +86,24 @@ def main(
             proc = MultimodalMetaProcessor(
                 slots=[
                     ProcessorSlot(
-                        processor=TextModalityProcessor(tokenizer=tok, role="input"),
+                        processor=TextModalityProcessor(tokenizer=tok, role=TextRole.INPUT),
                         output_data_key="input_ids",
                         output_mask_key="attention_mask",
                     ),
                     ProcessorSlot(
-                        processor=TextModalityProcessor(tokenizer=tok, role="target"),
+                        processor=TextModalityProcessor(tokenizer=tok, role=TextRole.TARGET),
                         output_data_key="labels",
                         is_label=True,
                         column_map={"decoder_prompt": "target_prefix", "output": "target"},
                     ),
                     ProcessorSlot(
-                        processor=TextModalityProcessor(tokenizer=tok, role="input"),
+                        processor=TextModalityProcessor(tokenizer=tok, role=TextRole.INPUT),
                         output_data_key="encoder_prompt",
                         output_mask_key="encoder_prompt_length_padding_mask",
                         column_map={"encoder_prompt": "signal"},
                     ),
                     ProcessorSlot(
-                        processor=TextModalityProcessor(tokenizer=tok, role="input"),
+                        processor=TextModalityProcessor(tokenizer=tok, role=TextRole.INPUT),
                         output_data_key="decoder_input_ids",
                         output_mask_key="decoder_attention_mask",
                         column_map={"decoder_prompt": "signal"},

@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
 from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
-from multimodalhugs.processors.text_modality_processor import TextModalityProcessor
+from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 
 logger = logging.getLogger(__name__)
 
@@ -38,19 +38,19 @@ class Features2TextTranslationProcessor(MultimodalMetaProcessor):
                     output_mask_key="attention_mask",
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="target"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
                     output_data_key="labels",
                     is_label=True,
                     column_map={"decoder_prompt": "target_prefix", "output": "target"},
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                     output_data_key="encoder_prompt",
                     output_mask_key="encoder_prompt_length_padding_mask",
                     column_map={"encoder_prompt": "signal"},
                 ),
                 ProcessorSlot(
-                    processor=TextModalityProcessor(tokenizer=tokenizer, role="input"),
+                    processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
                     output_data_key="decoder_input_ids",
                     output_mask_key="decoder_attention_mask",
                     column_map={"decoder_prompt": "signal"},
