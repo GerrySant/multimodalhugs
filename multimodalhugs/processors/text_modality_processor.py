@@ -125,6 +125,12 @@ class TextModalityProcessor(ModalityProcessor):
         self,
         samples: List[Dict[str, Any]],
     ) -> Tuple[Optional[torch.Tensor], None]:
+        # TODO: label construction is currently hardcoded as
+        # target_prefix + target + EOS, padded with -100. Customizable label
+        # creation strategies (e.g. target-only without prefix, different
+        # special tokens, or span masking for MLM) are not yet supported.
+        # When needed, this could be delegated to a configurable label_builder
+        # callable passed at construction time.
         if any(s.get("target") is None for s in samples):
             return None, None
 
