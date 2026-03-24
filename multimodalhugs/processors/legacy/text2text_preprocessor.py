@@ -9,9 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Text2TextTranslationProcessor(MultimodalMetaProcessor):
     name = "text2text_processor"
-    attributes = ["tokenizer"]
     model_input_names = ["input_ids", "attention_mask"]
-    tokenizer_class = "AutoTokenizer"
 
     def __init__(
         self,

@@ -78,16 +78,11 @@ def main(
 
         processor_output_dir = final_output_dir
 
-        # Load tokenizers (needed for both processor and model)
-        tok, pre_tok, new = load_tokenizers(
-            text_tokenizer_path,
-            new_vocabulary,
-        )
-
         # Instantiate processor — declarative slots config takes priority
-        proc = build_processor_from_config(processor_cfg, tok)
+        proc = build_processor_from_config(processor_cfg)
         if proc is None:
-            # Fallback: hardcoded signwriting2text construction
+            # Hardcoded path: load/extend tokenizer, then build with fixed slots
+            tok, pre_tok, new = load_tokenizers(text_tokenizer_path, new_vocabulary)
             processor_kwargs = OmegaConf.to_container(processor_cfg, resolve=True) if processor_cfg else {}
             _SIGNWRITING_KWARGS = {"custom_preprocessor_path", "width", "height", "channels", "invert_frame"}
             signwriting_kwargs = {k: v for k, v in processor_kwargs.items() if k in _SIGNWRITING_KWARGS}
@@ -119,6 +114,15 @@ def main(
                 ],
                 tokenizer=tok,
             )
+        else:
+            # Declarative path: extend tokenizer with new_vocabulary and sync back to
+            # all text slot processors so they share the same extended vocabulary.
+            # TODO: for non-text-output tasks, tokenizer discovery needs revisiting.
+            tok, pre_tok, new = load_tokenizers(proc.tokenizer.name_or_path, new_vocabulary)
+            for slot in proc.slots:
+                if hasattr(slot.processor, "tokenizer") and slot.processor.tokenizer is not None:
+                    slot.processor.tokenizer = tok
+            proc.tokenizer = tok
         proc_path = save_processor(proc, processor_output_dir)
 
     # 3) Model setup

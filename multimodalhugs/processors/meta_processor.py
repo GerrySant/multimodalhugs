@@ -1,6 +1,7 @@
 import inspect
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +10,7 @@ import torch
 from transformers import AutoTokenizer
 from transformers.feature_extraction_utils import BatchFeature
 from transformers.processing_utils import ProcessorMixin
+from transformers.utils import PROCESSOR_NAME
 
 from multimodalhugs.processors.modality_processor import ModalityProcessor
 
@@ -69,8 +71,12 @@ class MultimodalMetaProcessor(ProcessorMixin):
     tokenizer — kept for HF ProcessorMixin compatibility
     """
 
-    attributes = ["tokenizer"]
-    tokenizer_class = "AutoTokenizer"
+    # attributes is empty because we fully own save_pretrained / from_pretrained.
+    # ProcessorMixin.save_pretrained iterates attributes and calls .save_pretrained()
+    # on each — keeping "tokenizer" here would require a non-None tokenizer and
+    # would duplicate the saving we already do in our override.
+    attributes = []
+    tokenizer_class = None
     name = "multimodal_meta_processor"
 
     def __init__(
@@ -79,11 +85,39 @@ class MultimodalMetaProcessor(ProcessorMixin):
         tokenizer: Optional[Any] = None,
     ):
         self.slots = slots
-        super().__init__(tokenizer=tokenizer)
+        if tokenizer is None:
+            tokenizer = next(
+                (
+                    s.processor.tokenizer
+                    for s in slots
+                    if hasattr(s.processor, "tokenizer") and s.processor.tokenizer is not None
+                ),
+                None,
+            )
+        # Set tokenizer directly — bypasses ProcessorMixin type validation which
+        # requires a non-None PreTrainedTokenizerBase when tokenizer_class is set.
+        self.tokenizer = tokenizer
+        super().__init__()
 
     # ------------------------------------------------------------------
     # HF save / load compatibility
     # ------------------------------------------------------------------
+
+    def save_pretrained(self, save_directory: str, push_to_hub: bool = False, **kwargs):
+        """
+        Save the processor config and, when present, the tokenizer.
+
+        Overrides ProcessorMixin.save_pretrained to handle the case where
+        self.tokenizer is None (e.g. future non-text-output tasks).
+        """
+        os.makedirs(save_directory, exist_ok=True)
+        config_path = os.path.join(save_directory, PROCESSOR_NAME)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
+        if self.tokenizer is not None:
+            self.tokenizer.save_pretrained(save_directory)
+        if push_to_hub:
+            self.push_to_hub(save_directory, **kwargs)
 
     @staticmethod
     def _serialize_slot(slot: "ProcessorSlot") -> Dict[str, Any]:

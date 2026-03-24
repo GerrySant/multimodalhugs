@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Image2TextTranslationProcessor(MultimodalMetaProcessor):
     name = "image2text_processor"
-    attributes = ["tokenizer"]
     model_input_names = ["input_frames", "attention_mask"]
-    tokenizer_class = "AutoTokenizer"
 
     def __init__(
         self,

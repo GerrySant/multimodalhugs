@@ -19,13 +19,27 @@ class TextModalityProcessor(ModalityProcessor):
         Concatenates decoder_prompt + output + EOS, pads with -100.
         Returns (labels [B, L], None).
         If any sample has output=None, returns (None, None).
+
+    tokenizer      — a pre-built tokenizer object.
+    tokenizer_path — path or HF Hub ID to load the tokenizer from.
+                     Used when constructing from a declarative YAML config.
+                     Ignored if tokenizer is provided directly.
     """
 
-    def __init__(self, tokenizer: Any, role: str = "prompt"):
+    def __init__(
+        self,
+        tokenizer: Any = None,
+        tokenizer_path: Optional[str] = None,
+        role: str = "prompt",
+    ):
         assert role in ("prompt", "encoder", "label"), (
             f"role must be 'prompt', 'encoder', or 'label', got '{role}'"
         )
+        if tokenizer is None and tokenizer_path is not None:
+            from transformers import AutoTokenizer
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         self.tokenizer = tokenizer
+        self.tokenizer_path = tokenizer_path
         self.role = role
 
     # ------------------------------------------------------------------
