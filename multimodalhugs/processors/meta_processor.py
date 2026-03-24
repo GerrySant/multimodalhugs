@@ -129,8 +129,9 @@ class MultimodalMetaProcessor(ProcessorMixin):
         """Return a JSON-serializable dict describing one ProcessorSlot."""
         proc = slot.processor
         proc_kwargs: Dict[str, Any] = {}
+        _SKIP = {"tokenizer", "pretrained_tokenizer", "new_tokens"}
         for k, v in proc.__dict__.items():
-            if k.startswith("_") or k == "tokenizer" or callable(v):
+            if k.startswith("_") or k in _SKIP or callable(v):
                 continue
             try:
                 json.dumps(v)
