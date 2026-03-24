@@ -9,11 +9,11 @@ class TextModalityProcessor(ModalityProcessor):
     """
     Tokenizes and processes text for different roles in the pipeline.
 
-    role="prompt" / "encoder"
+    role="input"
         process_batch receives a list of strings.
         Returns (token_ids [B, L], attention_mask [B, L]).
 
-    role="label"
+    role="target"
         process_batch receives a list of sample dicts, each with
         "target_prefix" and "target" keys.
         Concatenates target_prefix + target + EOS, pads with -100.
@@ -43,8 +43,8 @@ class TextModalityProcessor(ModalityProcessor):
         new_vocabulary: Optional[str] = None,
         role: str = "prompt",
     ):
-        assert role in ("prompt", "encoder", "label"), (
-            f"role must be 'prompt', 'encoder', or 'label', got '{role}'"
+        assert role in ("input", "target"), (
+            f"role must be 'input' or 'target', got '{role}'"
         )
         if tokenizer is None and tokenizer_path is not None:
             from transformers import AutoTokenizer
@@ -87,10 +87,12 @@ class TextModalityProcessor(ModalityProcessor):
         samples: List[Any],
         **kwargs,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
-        if self.role in ("prompt", "encoder"):
+        if self.role == "input":
             return self._process_prompt_batch(samples)
-        else:
+        elif self.role == "target":
             return self._process_label_batch(samples)
+        else:
+            raise ValueError(f"Unknown role '{self.role}'. Must be 'input' or 'target'.")
 
     # ------------------------------------------------------------------
     # Internal helpers

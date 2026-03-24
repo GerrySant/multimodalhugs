@@ -30,7 +30,7 @@ def _minimal_text_slots_yaml():
     return f"""\
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: encoder
+        role: input
         tokenizer_path: {TINY_TOKENIZER_PATH}
       output_data_key: input_ids
       output_mask_key: attention_mask
@@ -38,7 +38,7 @@ def _minimal_text_slots_yaml():
         signal: signal
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: label
+        role: target
         tokenizer_path: {TINY_TOKENIZER_PATH}
       output_data_key: labels
       is_label: true
@@ -192,7 +192,7 @@ class TestBuildProcessorFromConfigProducesValidOutput:
         slots_yaml = f"""\
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: encoder
+        role: input
         tokenizer_path: {TINY_TOKENIZER_PATH}
       output_data_key: input_ids
       output_mask_key: attention_mask
@@ -200,7 +200,7 @@ class TestBuildProcessorFromConfigProducesValidOutput:
         signal: signal
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: label
+        role: target
         tokenizer_path: {TINY_TOKENIZER_PATH}
       output_data_key: labels
       is_label: true
@@ -219,7 +219,7 @@ class TestBuildProcessorFromConfigProducesValidOutput:
         slots_yaml = f"""\
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: encoder
+        role: input
         tokenizer_path: {TINY_TOKENIZER_PATH}
       output_data_key: input_ids
       output_mask_key: attention_mask
@@ -227,7 +227,7 @@ class TestBuildProcessorFromConfigProducesValidOutput:
         signal: signal
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: label
+        role: target
         tokenizer_path: {TINY_TOKENIZER_PATH}
       output_data_key: labels
       is_label: true
