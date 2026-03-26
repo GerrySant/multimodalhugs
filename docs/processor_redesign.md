@@ -12,8 +12,10 @@
 | 6 | Update `training_setup/` scripts to use flat `slots=[...]` | ✅ Done |
 | 7 | Wrap legacy task-specific processors as thin `MultimodalMetaProcessor` subclasses | ✅ Done |
 | 8 | Add `build_processor_from_config` — declarative slot builder for `multimodalhugs-setup` | ✅ Done |
-| 9 | Update dataset TSV handling for multi-column inputs | Deferred |
-| 10 | Extend `MultiModalEmbedderModel.forward()` for multi-stream input | Deferred |
+| 9 | Add shorthand processor config format for common use cases | 🔲 Todo |
+| 10 | Unified `multimodalhugs-setup` CLI — single general setup command | 🔲 Todo |
+| 11 | Update dataset TSV handling for multi-column inputs | Deferred (#71) |
+| 12 | Extend `MultiModalEmbedderModel.forward()` for multi-stream input | Deferred (#72) |
 
 ---
 
@@ -403,9 +405,101 @@ This path is used by all six modality setup files (`pose2text_training_setup.py`
 
 ---
 
+## Pending work
+
+### Step 9 — Shorthand processor config format
+
+The full declarative `slots:` format provides maximum flexibility but is verbose for the common single-modality case. A new shorthand layer on top of `build_processor_from_config` would let average users write a compact config while power users retain access to the full `slots:` syntax.
+
+**Before (old flat format):**
+```yaml
+processor:
+  text_tokenizer_path: facebook/m2m100_418M
+  new_vocabulary: "__asl__"
+  custom_preprocessor_path: openai/clip-vit-base-patch32
+  join_chw: false
+  skip_frames_stride: 2
+```
+
+**After (current full slots format):**
+```yaml
+processor:
+  slots:
+    - processor_class: VideoModalityProcessor
+      processor_kwargs:
+        custom_preprocessor_path: openai/clip-vit-base-patch32
+        join_chw: false
+        skip_frames_stride: 2
+      output_data_key: input_frames
+      output_mask_key: attention_mask
+      column_map:
+        signal: signal
+        signal_start: signal_start
+        signal_end: signal_end
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: facebook/m2m100_418M
+        new_vocabulary: "__asl__"
+        role: target
+      output_data_key: labels
+      is_label: true
+      column_map:
+        decoder_prompt: target_prefix
+        output: target
+    # ... two more TextModalityProcessor slots
+```
+
+**Proposed shorthand:**
+```yaml
+processor:
+  modality: video2text                           # expands to the standard 4-slot layout
+  modality_kwargs:
+    custom_preprocessor_path: openai/clip-vit-base-patch32
+    join_chw: false
+    skip_frames_stride: 2
+  tokenizer_path: facebook/m2m100_418M
+  new_vocabulary: "__asl__"
+```
+
+`build_processor_from_config` would detect `modality:` (no `slots:` key) and expand it into the equivalent full slots list for the given modality. This gives three levels of interface:
+
+| Level | Who uses it | Format |
+|---|---|---|
+| Shorthand (`modality:`) | Average user, standard tasks | 5–8 lines |
+| Full slots (`slots:`) | Power user, custom pipelines | Full declaration |
+| Python API | Developer, dynamic construction | `MultimodalMetaProcessor(slots=[...])` |
+
+The hardcoded training setup files (`pose2text_training_setup.py`, etc.) would become the reference implementations for what each `modality:` shorthand expands to — and could eventually be removed once the shorthand covers all cases.
+
+---
+
+### Step 10 — Unified `multimodalhugs-setup` CLI
+
+Currently `multimodalhugs-setup` dispatches on `--modality <name>` to one of six task-specific setup files. With the declarative config owning the full processor definition (steps 8 and 9), the modality dispatch becomes unnecessary.
+
+**Goal:** A single general setup command that reads the config and builds all actors (dataset, processor, model) regardless of modality, without requiring `--modality`.
+
+```bash
+# Current — modality must be specified explicitly
+multimodalhugs-setup --modality pose2text --config_path config.yaml --output_dir /out
+
+# Target — modality inferred from config
+multimodalhugs-setup --config_path config.yaml --output_dir /out
+```
+
+**Implementation sketch:**
+- `multimodalhugs-setup` reads the config and infers the dataset type from `data.dataset_type` (or a new top-level `modality:` key)
+- Calls `build_processor_from_config` to construct the processor (shorthand or full slots)
+- Builds dataset and model using the same shared logic currently duplicated across the six setup files
+- The six task-specific setup files become legacy/deprecated, kept only for backward compatibility
+
+**Depends on:** Step 9 (shorthand format) should be in place so that setup via config is ergonomic for all users.
+
+---
+
 ## Deferred work
 
-### Step 9 — Dataset multi-column support
+### Step 11 — Dataset multi-column support
 
 The TSV format and `GeneratorBasedBuilder` subclasses currently assume a fixed set of column names (`signal`, `signal_start`, `signal_end`, …). Multi-input scenarios like `video + pose → text` need additional columns with distinct names per stream:
 
@@ -415,7 +509,7 @@ pose_signal  pose_signal_start  pose_signal_end  video_signal  video_signal_star
 
 The `ProcessorSlot.column_map` mechanism is already designed to handle arbitrary column names. The remaining work is on the dataset side: making `GeneratorBasedBuilder` subclasses declare and yield additional columns.
 
-### Step 10 — Multi-stream model support
+### Step 12 — Multi-stream model support
 
 `MultiModalEmbedderModel.forward()` currently accepts one encoder stream (`input_frames` / `attention_mask`). Three options for multi-stream support exist, in increasing complexity:
 
