@@ -44,6 +44,7 @@ training:
 
 data:
   # Dataset and preprocessing settings:
+  dataset_type: "pose2text"                                                                                                    # Dataset class to use for the general setup path (multimodalhugs-setup without --modality).
   train_metadata_file: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/preprocessed/rwth_phoenix2014_t.train.tsv                            # Path to the training metadata file (e.g., TSV format).
   validation_metadata_file: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/preprocessed/rwth_phoenix2014_t.validation.tsv                  # Path to the validation metadata file.
   test_metadata_file: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/preprocessed/rwth_phoenix2014_t.test.tsv                              # Path to the test metadata file.

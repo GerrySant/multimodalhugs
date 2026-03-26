@@ -4,6 +4,7 @@
 
 data:
   # Dataset and preprocessing settings:
+  dataset_type: "pose2text"                                                                                                    # Dataset class to use for the general setup path (multimodalhugs-setup without --modality).
   train_metadata_file: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.

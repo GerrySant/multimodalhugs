@@ -13,7 +13,7 @@
 | 7 | Wrap legacy task-specific processors as thin `MultimodalMetaProcessor` subclasses | ✅ Done |
 | 8 | Add `build_processor_from_config` — declarative slot builder for `multimodalhugs-setup` | ✅ Done |
 | 9 | Add shorthand processor config format for common use cases | ✅ Done |
-| 10 | Unified `multimodalhugs-setup` CLI — single general setup command | 🔲 Todo |
+| 10 | Unified `multimodalhugs-setup` CLI — single general setup command | ✅ Done |
 | 11 | Update dataset TSV handling for multi-column inputs | Deferred (#71) |
 | 12 | Extend `MultiModalEmbedderModel.forward()` for multi-stream input | Deferred (#72) |
 
@@ -477,27 +477,33 @@ Three levels of interface, all supported simultaneously:
 
 ---
 
-### Step 10 — Unified `multimodalhugs-setup` CLI
+### Step 10 — Unified `multimodalhugs-setup` CLI ✅ Done
 
-Currently `multimodalhugs-setup` dispatches on `--modality <name>` to one of six task-specific setup files. With the declarative config owning the full processor definition (steps 8 and 9), the modality dispatch becomes unnecessary.
-
-**Goal:** A single general setup command that reads the config and builds all actors (dataset, processor, model) regardless of modality, without requiring `--modality`.
+`multimodalhugs-setup` now supports a general setup path that does not require `--modality`. The CLI routes based on whether `--modality` is supplied:
 
 ```bash
-# Current — modality must be specified explicitly
-multimodalhugs-setup --modality pose2text --config_path config.yaml --output_dir /out
-
-# Target — modality inferred from config
+# General path (new) — reads data.dataset_type from config
 multimodalhugs-setup --config_path config.yaml --output_dir /out
+
+# Legacy path (unchanged) — explicit modality dispatch
+multimodalhugs-setup --modality pose2text --config_path config.yaml --output_dir /out
 ```
 
-**Implementation sketch:**
-- `multimodalhugs-setup` reads the config and infers the dataset type from `data.dataset_type` (or a new top-level `modality:` key)
-- Calls `build_processor_from_config` to construct the processor (shorthand or full slots)
-- Builds dataset and model using the same shared logic currently duplicated across the six setup files
-- The six task-specific setup files become legacy/deprecated, kept only for backward compatibility
+**Implementation:**
+- `SetupArguments.modality` is now `Optional[str]` (default `None`); `--modality` is no longer required
+- `multimodalhugs_cli/training_setup.py` routes on `modality`:
+  - `None` → `general_training_setup.main` (new general path)
+  - known modality string → legacy task-specific setup file (unchanged)
+  - unknown string → informative error with valid values + hint to omit `--modality`
+- `training_setup/general_training_setup.py` (new module):
+  - Reads `data.dataset_type` from the config to select `(DatasetClass, DataConfigClass)`
+  - Calls `build_processor_from_config` (supports `pipeline:` shorthand and `slots:` full format)
+  - Model construction reuses the shared `build_and_save_model` helper
+  - Raises a `ValueError` with guidance if `dataset_type` is missing/unknown or if the processor config has neither `pipeline:` nor `slots:`
+- `extract_tokenizer_info_from_processor_config()` helper added to `setup_utils.py` so the model step can find the tokenizer path without re-running the processor step
+- Example configs updated: `dataset_type:` added under `data:` for all four example configs
 
-**Depends on:** Step 9 (shorthand format) ✅ — setup via config is now ergonomic for all users.
+**Supported `data.dataset_type` values:** `pose2text`, `video2text`, `features2text`, `signwriting`, `bilingual_image2text`, `bilingual_text2text`.
 
 ---
 

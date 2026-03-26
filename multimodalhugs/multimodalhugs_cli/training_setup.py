@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 """
 Dispatcher for training setup.
-Usage example:
+Usage examples:
+    # General path (no --modality required; reads data.dataset_type from config):
+    multimodalhugs-setup --config_path "/path/to/config.yaml"
+
+    # Legacy path (explicit modality):
     multimodalhugs-setup --modality "pose2text" --config_path "/path/to/pose2text_config.yaml"
 """
 
@@ -62,18 +66,22 @@ def main():
     if not (setup_args.do_dataset or setup_args.do_processor or setup_args.do_model):
         setup_args.do_dataset = setup_args.do_processor = setup_args.do_model = True
     
-    if setup_args.modality not in MODALITY_MAP:
-        sys.exit(f"Unknown modality: {setup_args.modality}")
-
     if hasattr(setup_args, "seed") and setup_args.seed is not None:
-        # Set seed before initializing model.
         set_seed(setup_args.seed)
 
-    from importlib import import_module
-    modality_module = import_module(MODALITY_MAP[setup_args.modality])
-    modality_setup_main = modality_module.main
-
-    call_setup(modality_setup_main, setup_args)
+    if setup_args.modality is None:
+        from multimodalhugs.training_setup.general_training_setup import main as general_main
+        call_setup(general_main, setup_args)
+    elif setup_args.modality in MODALITY_MAP:
+        from importlib import import_module
+        modality_module = import_module(MODALITY_MAP[setup_args.modality])
+        call_setup(modality_module.main, setup_args)
+    else:
+        sys.exit(
+            f"Unknown modality: '{setup_args.modality}'. "
+            f"Valid values: {sorted(MODALITY_MAP)}. "
+            "Omit --modality to use the general setup path (requires data.dataset_type in config)."
+        )
 
 if __name__ == "__main__":
     main()

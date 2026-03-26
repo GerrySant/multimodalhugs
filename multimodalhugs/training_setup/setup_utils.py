@@ -493,6 +493,57 @@ def build_processor_from_config(processor_cfg):
     return MultimodalMetaProcessor(slots=slots)
 
 
+def extract_tokenizer_info_from_processor_config(processor_cfg):
+    """
+    Extract ``(tokenizer_path, new_vocabulary)`` from a processor config without
+    instantiating any processors.
+
+    Used by the general setup path when ``do_model=True`` but ``do_processor=False``:
+    the processor was not built in this run, so the tokenizer must be reconstructed
+    from the YAML config alone.
+
+    Probes three config formats in order:
+
+    1. **Pipeline shorthand** (``pipeline:`` key present):
+       ``tokenizer_path`` and ``new_vocabulary`` are top-level keys in the
+       processor section.
+
+    2. **Full slots** (``slots:`` key present):
+       Searches for the first slot whose ``processor_kwargs`` contains
+       ``tokenizer_path`` (typically a ``TextModalityProcessor`` slot).
+
+    3. **Legacy flat format** (neither key present):
+       Reads ``text_tokenizer_path`` and ``new_vocabulary`` directly from the
+       processor section (the old pre-redesign config format).
+
+    Args:
+        processor_cfg: OmegaConf DictConfig or plain dict for ``cfg.processor``.
+
+    Returns:
+        ``(tokenizer_path, new_vocabulary)`` — either value may be ``None``.
+    """
+    if processor_cfg is None:
+        return None, None
+
+    if OmegaConf.is_config(processor_cfg):
+        cfg_dict = OmegaConf.to_container(processor_cfg, resolve=True)
+    else:
+        cfg_dict = dict(processor_cfg)
+
+    # 1. Pipeline shorthand — tokenizer_path is at the processor root level.
+    if "pipeline" in cfg_dict:
+        return cfg_dict.get("tokenizer_path"), cfg_dict.get("new_vocabulary")
+
+    # 2. Full slots — find the first text slot with tokenizer_path in its kwargs.
+    for slot in cfg_dict.get("slots") or []:
+        pkw = slot.get("processor_kwargs") or {}
+        if "tokenizer_path" in pkw:
+            return pkw["tokenizer_path"], pkw.get("new_vocabulary")
+
+    # 3. Legacy flat format.
+    return cfg_dict.get("text_tokenizer_path"), cfg_dict.get("new_vocabulary")
+
+
 def save_processor(processor, output_dir: str):
     path = os.path.join(output_dir, processor.name)
     processor.save_pretrained(save_directory=path, push_to_hub=False)
