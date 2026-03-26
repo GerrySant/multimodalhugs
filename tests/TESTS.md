@@ -577,7 +577,7 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 ### `test_setup_utils.py`
 
-Tests for `build_processor_from_config()` in `training_setup/setup_utils.py` — the declarative YAML → `MultimodalMetaProcessor` factory.
+Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `training_setup/setup_utils.py`.
 
 **`TestBuildProcessorFromConfigReturnsNone`** — no-op cases
 
@@ -622,6 +622,83 @@ Tests for `build_processor_from_config()` in `training_setup/setup_utils.py` —
 |---|---|
 | `test_text_batch_produces_expected_keys` | Built processor produces `input_ids`, `attention_mask`, `labels` from a text batch |
 | `test_text_batch_label_batch_dim` | Labels batch dimension matches number of input samples |
+
+**`TestExpandPipelineShorthandPassthrough`** — non-shorthand configs returned unchanged
+
+| Test | What it checks |
+|---|---|
+| `test_passthrough_none` | `None` input returned unchanged |
+| `test_passthrough_slots_present` | Config with `slots:` key returned as the same object (no expansion) |
+| `test_passthrough_legacy_config` | Config with neither `pipeline:` nor `slots:` returned unchanged |
+| `test_passthrough_preserves_omegaconf_type` | OmegaConf type preserved on passthrough |
+
+**`TestExpandPipelineShorthandValidation`** — error cases
+
+| Test | What it checks |
+|---|---|
+| `test_unknown_pipeline_raises` | Unknown `pipeline:` value raises `ValueError` with informative message |
+| `test_missing_tokenizer_path_raises` | Absent `tokenizer_path` raises `ValueError` |
+
+**`TestExpandPipelineShorthandStructure`** — output shape and key hygiene
+
+| Test | What it checks |
+|---|---|
+| `test_returns_slots_key` | Expanded config contains a `slots` key |
+| `test_four_slots_generated` | Exactly 4 slots generated (1 modality + 3 text) |
+| `test_output_data_keys_match_standard` | Output keys are `input_frames`, `labels`, `encoder_prompt`, `decoder_input_ids` |
+| `test_pipeline_key_removed` | `pipeline:` key absent from expanded config |
+| `test_shorthand_keys_removed` | All shorthand keys (`pipeline`, `tokenizer_path`, `new_vocabulary`, `modality_kwargs`, `slot_overrides`) absent |
+| `test_returns_omegaconf_for_omegaconf_input` | OmegaConf input → OmegaConf output |
+| `test_returns_dict_for_dict_input` | Plain dict input → plain dict output |
+
+**`TestExpandPipelineShorthandModalitySlot`** — first-slot processor class per pipeline
+
+| Test | What it checks |
+|---|---|
+| `test_modality_processor_class[pose2text-PoseModalityProcessor]` | `pose2text` uses `PoseModalityProcessor` |
+| `test_modality_processor_class[video2text-VideoModalityProcessor]` | `video2text` uses `VideoModalityProcessor` |
+| `test_modality_processor_class[features2text-FeaturesModalityProcessor]` | `features2text` uses `FeaturesModalityProcessor` |
+| `test_modality_processor_class[image2text-ImageModalityProcessor]` | `image2text` uses `ImageModalityProcessor` |
+| `test_modality_processor_class[signwriting2text-SignwritingModalityProcessor]` | `signwriting2text` uses `SignwritingModalityProcessor` |
+| `test_modality_processor_class[text2text-TextModalityProcessor]` | `text2text` uses `TextModalityProcessor` |
+| `test_modality_slot_output_data_key` | Modality slot writes to `input_frames` |
+| `test_modality_slot_output_mask_key` | Modality slot mask key is `attention_mask` |
+| `test_pose_column_map_has_offsets` | `pose2text` column_map includes `signal_start` and `signal_end` |
+| `test_image_column_map_no_offsets` | `image2text` column_map does not include temporal offsets |
+| `test_modality_kwargs_forwarded` | `modality_kwargs` forwarded to modality slot's `processor_kwargs` |
+| `test_no_processor_kwargs_when_modality_kwargs_absent` | No `processor_kwargs` set when `modality_kwargs` is absent |
+| `test_text2text_modality_slot_has_tokenizer` | `text2text` modality slot injects `tokenizer_path` |
+| `test_text2text_modality_slot_has_role_input` | `text2text` modality slot has `role=input` |
+
+**`TestExpandPipelineShorthandTextSlots`** — standard text output slots
+
+| Test | What it checks |
+|---|---|
+| `test_labels_slot_is_label_true` | `labels` slot has `is_label=True` |
+| `test_labels_slot_column_map` | `labels` column_map is `{decoder_prompt: target_prefix, output: target}` |
+| `test_labels_slot_role_target` | `labels` slot has `role=target` |
+| `test_encoder_prompt_slot_has_mask_key` | `encoder_prompt` slot has correct mask key |
+| `test_decoder_input_ids_slot_has_mask_key` | `decoder_input_ids` slot has correct mask key |
+| `test_tokenizer_path_in_text_slots` | All three text slots contain `tokenizer_path` |
+| `test_new_vocabulary_propagated` | `new_vocabulary` propagated to all text slots when set |
+| `test_new_vocabulary_absent_when_not_set` | `new_vocabulary` absent from slot kwargs when not provided |
+
+**`TestExpandPipelineShorthandSlotOverrides`** — sparse per-slot overrides
+
+| Test | What it checks |
+|---|---|
+| `test_override_column_map_merged` | `slot_overrides` dict fields are shallow-merged (override key added, original preserved) |
+| `test_override_scalar_replaces` | `slot_overrides` scalar fields replace the generated value |
+| `test_override_processor_kwargs_merged` | `processor_kwargs` override merges new keys without removing existing ones |
+| `test_unknown_override_key_is_ignored` | Unknown `slot_overrides` key logs a warning and does not raise |
+
+**`TestExpandPipelineShorthandEndToEnd`** — shorthand roundtrip through `build_processor_from_config`
+
+| Test | What it checks |
+|---|---|
+| `test_pipeline_shorthand_builds_processor` | `build_processor_from_config` with `pipeline:` returns a `MultimodalMetaProcessor` |
+| `test_pipeline_shorthand_slot_count` | Processor has 4 slots |
+| `test_pipeline_shorthand_tokenizer_set` | `MultimodalMetaProcessor.tokenizer` is non-`None` |
 
 ---
 

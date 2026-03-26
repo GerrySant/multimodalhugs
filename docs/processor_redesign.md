@@ -12,7 +12,7 @@
 | 6 | Update `training_setup/` scripts to use flat `slots=[...]` | ✅ Done |
 | 7 | Wrap legacy task-specific processors as thin `MultimodalMetaProcessor` subclasses | ✅ Done |
 | 8 | Add `build_processor_from_config` — declarative slot builder for `multimodalhugs-setup` | ✅ Done |
-| 9 | Add shorthand processor config format for common use cases | 🔲 Todo |
+| 9 | Add shorthand processor config format for common use cases | ✅ Done |
 | 10 | Unified `multimodalhugs-setup` CLI — single general setup command | 🔲 Todo |
 | 11 | Update dataset TSV handling for multi-column inputs | Deferred (#71) |
 | 12 | Extend `MultiModalEmbedderModel.forward()` for multi-stream input | Deferred (#72) |
@@ -407,9 +407,11 @@ This path is used by all six modality setup files (`pose2text_training_setup.py`
 
 ## Pending work
 
-### Step 9 — Shorthand processor config format
+### Step 9 — Shorthand processor config format ✅ Done
 
-The full declarative `slots:` format provides maximum flexibility but is verbose for the common single-modality case. A new shorthand layer on top of `build_processor_from_config` would let average users write a compact config while power users retain access to the full `slots:` syntax.
+The full declarative `slots:` format provides maximum flexibility but is verbose for the common single-modality case. `expand_pipeline_shorthand()` in `training_setup/setup_utils.py` adds a compact `pipeline:` shorthand layer on top of `build_processor_from_config`, while power users retain full access to the `slots:` syntax.
+
+`build_processor_from_config` calls `expand_pipeline_shorthand` automatically — no call-site changes are needed in existing code.
 
 **Before (old flat format):**
 ```yaml
@@ -421,7 +423,7 @@ processor:
   skip_frames_stride: 2
 ```
 
-**After (current full slots format):**
+**Current full slots format (unchanged, still fully supported):**
 ```yaml
 processor:
   slots:
@@ -449,27 +451,33 @@ processor:
     # ... two more TextModalityProcessor slots
 ```
 
-**Proposed shorthand:**
+**New shorthand format (implemented):**
 ```yaml
 processor:
-  modality: video2text                           # expands to the standard 4-slot layout
-  modality_kwargs:
+  pipeline: video2text                           # expands to the standard 4-slot layout
+  tokenizer_path: facebook/m2m100_418M
+  new_vocabulary: "__asl__"
+  modality_kwargs:                               # forwarded to the modality slot's processor_kwargs
     custom_preprocessor_path: openai/clip-vit-base-patch32
     join_chw: false
     skip_frames_stride: 2
-  tokenizer_path: facebook/m2m100_418M
-  new_vocabulary: "__asl__"
+  slot_overrides:                                # optional sparse per-slot overrides
+    encoder_prompt:
+      column_map:
+        my_column: signal
 ```
 
-`build_processor_from_config` would detect `modality:` (no `slots:` key) and expand it into the equivalent full slots list for the given modality. This gives three levels of interface:
+Supported `pipeline` values: `pose2text`, `video2text`, `image2text`, `features2text`, `signwriting2text`, `text2text`.
+
+The shorthand always expands to the same 4-slot layout: one modality slot (`input_frames` / `attention_mask`) plus three `TextModalityProcessor` slots (`labels`, `encoder_prompt`, `decoder_input_ids`). `slot_overrides` allows any slot field to be overridden by `output_data_key` without writing the full slots list.
+
+Three levels of interface, all supported simultaneously:
 
 | Level | Who uses it | Format |
 |---|---|---|
-| Shorthand (`modality:`) | Average user, standard tasks | 5–8 lines |
+| Shorthand (`pipeline:`) | Average user, standard tasks | 5–8 lines |
 | Full slots (`slots:`) | Power user, custom pipelines | Full declaration |
 | Python API | Developer, dynamic construction | `MultimodalMetaProcessor(slots=[...])` |
-
-The hardcoded training setup files (`pose2text_training_setup.py`, etc.) would become the reference implementations for what each `modality:` shorthand expands to — and could eventually be removed once the shorthand covers all cases.
 
 ---
 
@@ -493,7 +501,7 @@ multimodalhugs-setup --config_path config.yaml --output_dir /out
 - Builds dataset and model using the same shared logic currently duplicated across the six setup files
 - The six task-specific setup files become legacy/deprecated, kept only for backward compatibility
 
-**Depends on:** Step 9 (shorthand format) should be in place so that setup via config is ergonomic for all users.
+**Depends on:** Step 9 (shorthand format) ✅ — setup via config is now ergonomic for all users.
 
 ---
 
