@@ -575,6 +575,48 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 ---
 
+### `test_general_training_setup.py`
+
+Tests for `_build_dataset_map()` and `general_training_setup.main()` in `training_setup/general_training_setup.py`.
+
+**`TestBuildDatasetMapKeys`** — registry key names
+
+| Test | What it checks |
+|---|---|
+| `test_returns_all_expected_keys` | Map contains exactly the 6 expected `dataset_type` keys |
+| `test_no_legacy_signwriting_key` | `"signwriting"` (old name) is not present |
+| `test_no_bilingual_image2text_key` | `"bilingual_image2text"` (old name) is not present |
+| `test_no_bilingual_text2text_key` | `"bilingual_text2text"` (old name) is not present |
+
+**`TestBuildDatasetMapValues`** — class references per dataset type
+
+| Test | What it checks |
+|---|---|
+| `test_each_entry_is_two_tuple` | Every map value is a 2-tuple `(DatasetClass, DataConfigClass)` |
+| `test_pose2text_classes` | `"pose2text"` maps to `Pose2TextDataset` / `Pose2TextDataConfig` |
+| `test_video2text_classes` | `"video2text"` maps to `Video2TextDataset` / `Video2TextDataConfig` |
+| `test_features2text_classes` | `"features2text"` maps to `Features2TextDataset` / `Features2TextDataConfig` |
+| `test_signwriting2text_classes` | `"signwriting2text"` maps to `SignWritingDataset` / `MultimodalDataConfig` |
+| `test_image2text_classes` | `"image2text"` maps to `BilingualImage2TextDataset` / `BilingualImage2textMTDataConfig` |
+| `test_text2text_classes` | `"text2text"` maps to `BilingualText2TextDataset` / `BilingualText2textMTDataConfig` |
+
+**`TestBuildDatasetMapMatchesModalityMap`** — consistency with CLI `--modality` values
+
+| Test | What it checks |
+|---|---|
+| `test_all_modality_map_keys_covered` | `dataset_type` keys exactly mirror the CLI `--modality` accepted values |
+
+**`TestGeneralTrainingSetupMainValidation`** — config validation errors
+
+| Test | What it checks |
+|---|---|
+| `test_missing_dataset_type_raises` | `do_dataset=True` with no `data.dataset_type` in config raises `ValueError` mentioning `data.dataset_type` |
+| `test_unknown_dataset_type_raises` | An unrecognised `dataset_type` value raises `ValueError` mentioning the bad value |
+| `test_missing_processor_config_raises` | `do_processor=True` with no `processor:` section raises `ValueError` mentioning `processor` |
+| `test_default_dataset_type_fallback` | `default_dataset_type` argument bypasses the "required" error when `data.dataset_type` is absent |
+
+---
+
 ### `test_setup_utils.py`
 
 Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `training_setup/setup_utils.py`.

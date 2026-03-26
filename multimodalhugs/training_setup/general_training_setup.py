@@ -75,13 +75,13 @@ def _build_dataset_map() -> dict:
     )
 
     return {
-        "pose2text":            (Pose2TextDataset,           Pose2TextDataConfig),
-        "video2text":           (Video2TextDataset,           Video2TextDataConfig),
-        "features2text":        (Features2TextDataset,        Features2TextDataConfig),
+        "pose2text":        (Pose2TextDataset,          Pose2TextDataConfig),
+        "video2text":       (Video2TextDataset,          Video2TextDataConfig),
+        "features2text":    (Features2TextDataset,       Features2TextDataConfig),
         # SignWritingDataset uses the base MultimodalDataConfig (no subclass needed).
-        "signwriting":          (SignWritingDataset,          MultimodalDataConfig),
-        "bilingual_image2text": (BilingualImage2TextDataset,  BilingualImage2textMTDataConfig),
-        "bilingual_text2text":  (BilingualText2TextDataset,   BilingualText2textMTDataConfig),
+        "signwriting2text": (SignWritingDataset,         MultimodalDataConfig),
+        "image2text":       (BilingualImage2TextDataset, BilingualImage2textMTDataConfig),
+        "text2text":        (BilingualText2TextDataset,  BilingualText2textMTDataConfig),
     }
 
 
@@ -93,6 +93,7 @@ def main(
     output_dir: Optional[str] = None,
     update_config: Optional[bool] = None,
     rebuild_dataset_from_scratch: bool = False,
+    default_dataset_type: Optional[str] = None,
 ):
     """
     Run the general (modality-agnostic) setup pipeline.
@@ -109,10 +110,14 @@ def main(
             False).
         rebuild_dataset_from_scratch: If True, ignore the HuggingFace cache
             and rebuild the dataset from zero.
+        default_dataset_type: Fallback ``dataset_type`` used when
+            ``data.dataset_type`` is absent from the config.  The legacy
+            task-specific setup scripts pass this to stay backward-compatible
+            with configs that predate the ``dataset_type`` field.
 
     Raises:
         ValueError: If ``do_dataset=True`` and ``data.dataset_type`` is absent
-            or unknown.
+            (and no ``default_dataset_type`` was given) or unknown.
         ValueError: If ``do_processor=True`` and the processor config has
             neither ``pipeline:`` nor ``slots:``.
         ValueError: If ``do_model=True`` without a prior ``do_processor=True``
@@ -130,6 +135,8 @@ def main(
 
         data_cfg_node = getattr(cfg, "data", None)
         dataset_type = getattr(data_cfg_node, "dataset_type", None) if data_cfg_node else None
+        if not dataset_type:
+            dataset_type = default_dataset_type
 
         if not dataset_type:
             raise ValueError(
