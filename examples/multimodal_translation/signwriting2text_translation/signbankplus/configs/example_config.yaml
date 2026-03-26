@@ -36,7 +36,7 @@ processor:
     - processor_class: TextModalityProcessor
       processor_kwargs:
         tokenizer_path: "<pretrained-tokenizer>"      # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/other/new_languages_sign_bank_plus.txt"  # Path to file with new tokens. Added to all text slots for consistent vocabulary.
+        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/signbankplus/other/new_languages_sign_bank_plus.txt"  # Path to file with new tokens. Added to all text slots for consistent vocabulary.
         role: target
       output_data_key: labels
       is_label: true
@@ -47,7 +47,7 @@ processor:
     - processor_class: TextModalityProcessor
       processor_kwargs:
         tokenizer_path: "<pretrained-tokenizer>"
-        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/other/new_languages_sign_bank_plus.txt"
+        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/signbankplus/other/new_languages_sign_bank_plus.txt"
         role: input
       output_data_key: encoder_prompt
       output_mask_key: encoder_prompt_length_padding_mask
@@ -57,7 +57,7 @@ processor:
     - processor_class: TextModalityProcessor
       processor_kwargs:
         tokenizer_path: "<pretrained-tokenizer>"
-        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/other/new_languages_sign_bank_plus.txt"
+        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/signbankplus/other/new_languages_sign_bank_plus.txt"
         role: input
       output_data_key: decoder_input_ids
       output_mask_key: decoder_attention_mask
