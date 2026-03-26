@@ -6,6 +6,9 @@ processed/
 wandb/
 
 
+# Claude Code
+.claude/worktrees/
+
 # JetBrains PyCharm IDE
 .idea/
 
