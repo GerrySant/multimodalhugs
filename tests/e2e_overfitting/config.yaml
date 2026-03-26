@@ -125,10 +125,41 @@ data:
   test_metadata_file: tests/e2e_overfitting/other_files/metadata_train_toy.tsv
 
 processor:
-  font_path: tests/e2e_overfitting/other_files/Arial.ttf
-  width: 224
-  height: 224
-  channels: 3
-  text_tokenizer_path: google/t5-efficient-tiny
-  mean: '[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]'
-  std: '[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]'
+  slots:
+    - processor_class: ImageModalityProcessor
+      processor_kwargs:
+        font_path: tests/e2e_overfitting/other_files/Arial.ttf
+        width: 224
+        height: 224
+        mean: '[0.9819646859188279, 0.9819646859188279, 0.9819646859188279]'
+        std: '[0.12833405937294548, 0.12833405937294548, 0.12833405937294548]'
+      output_data_key: input_frames
+      output_mask_key: attention_mask
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: google/t5-efficient-tiny
+        role: target
+      output_data_key: labels
+      is_label: true
+      column_map:
+        decoder_prompt: target_prefix
+        output: target
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: google/t5-efficient-tiny
+        role: input
+      output_data_key: encoder_prompt
+      output_mask_key: encoder_prompt_length_padding_mask
+      column_map:
+        encoder_prompt: signal
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: google/t5-efficient-tiny
+        role: input
+      output_data_key: decoder_input_ids
+      output_mask_key: decoder_attention_mask
+      column_map:
+        decoder_prompt: signal
