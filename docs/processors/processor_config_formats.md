@@ -376,7 +376,13 @@ column_map:
 
 ## Reference: model-expected key names
 
-The `output_data_key` and `output_mask_key` values you write in a slot are the exact keys passed to `MultiModalEmbedderModel.forward()`. The model's signature is:
+The `output_data_key` and `output_mask_key` values you write in a slot become the keys in the batch dict that the model receives. **The correct key names depend on the model you are using** — they must exactly match the parameter names of the model's `forward()` method. A mismatch means the tensor is produced by the processor but silently ignored by the model, leading to wrong training results.
+
+> **Rule:** look up the `forward()` signature of your model class and use its parameter names as `output_data_key` / `output_mask_key` values.
+
+### `MultiModalEmbedderModel` (built-in)
+
+The current built-in model (`type: multimodal_embedder`) expects:
 
 ```python
 def forward(
@@ -392,8 +398,6 @@ def forward(
 )
 ```
 
-**Use exactly these key names** in your `output_data_key` and `output_mask_key` fields:
-
 | Slot purpose | `output_data_key` | `output_mask_key` |
 |---|---|---|
 | Main encoder input (pose, video, image, features, SignWriting) | `input_frames` | `attention_mask` |
@@ -401,7 +405,9 @@ def forward(
 | Decoder context text | `decoder_input_ids` | `decoder_attention_mask` |
 | Training labels | `labels` | *(omit — no mask needed)* |
 
-> If you use a different `output_data_key`, the tensor will be produced by the processor but the model will not consume it, and training will silently produce wrong results.
+### Custom or future models
+
+If you register a new model with a different `forward()` signature, document its expected key names here (or in the model's own docs page) following the same table format. The processor config does not need to change — only the `output_data_key` and `output_mask_key` values in the slots need to match the new model's parameter names.
 
 ---
 
