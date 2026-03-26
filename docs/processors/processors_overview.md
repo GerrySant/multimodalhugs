@@ -219,6 +219,12 @@ The collator no longer needs a tokenizer — label processing lives inside `Text
 
 ---
 
+## Configuring processors in YAML
+
+See [Processor Config Formats](processor_config_formats.md) for a full guide to the three ways to define a processor in a YAML config file: the `pipeline:` shorthand, the full `slots:` format, and the Python API.
+
+---
+
 ## Data flow summary
 
 ```
