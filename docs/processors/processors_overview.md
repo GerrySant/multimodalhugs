@@ -70,12 +70,14 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 | `ImageModalityProcessor` | Image files / text-rendered images | `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` |
 | `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimention_position`, `use_cache` |
 | `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |
-| `TextModalityProcessor` | Text strings | `tokenizer`, `role` (`"encoder"`, `"prompt"`, `"label"`) |
+| `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) |
 
-`TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter controls how the batch is assembled:
+`TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter (a `TextRole` enum) controls how the batch is assembled:
 
-- `"encoder"` / `"prompt"` — receives a list of strings; returns `(token_ids [B, L], attention_mask [B, L])`.
-- `"label"` — receives a list of dicts `{"decoder_prompt": ..., "output": ...}`; concatenates them, appends EOS, pads with `-100`; returns `(labels [B, L], None)`.
+- `TextRole.INPUT` — receives a list of strings; returns `(token_ids [B, L], attention_mask [B, L])`. Used for both encoder prompts and decoder prompts.
+- `TextRole.TARGET` — receives a list of dicts `{"target_prefix": ..., "target": ...}`; concatenates them, appends EOS, pads with `-100`; returns `(labels [B, L], None)`.
+
+`new_vocabulary` is an optional path to a vocabulary file. When provided, the processor extends the tokenizer internally and exposes `self.new_tokens` (the added tokens) and `self.pretrained_tokenizer` (the unextended copy) as bridge attributes for setup scripts.
 
 ---
 
@@ -119,8 +121,8 @@ column_map={
 
 **Label slot — two required columns:**
 ```python
-# TextModalityProcessor(role="label") needs both decoder_prompt and output
-column_map={"decoder_prompt": "decoder_prompt", "output": "output"}
+# TSV columns "decoder_prompt" and "output" map to processor params "target_prefix" and "target"
+column_map={"decoder_prompt": "target_prefix", "output": "target"}
 ```
 
 **Non-standard column name (multi-input scenario):**
@@ -213,7 +215,7 @@ def __call__(self, samples):
     return batch
 ```
 
-The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role="label")`.
+The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role=TextRole.TARGET)`.
 
 ---
 

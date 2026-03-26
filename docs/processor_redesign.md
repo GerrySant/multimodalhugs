@@ -7,7 +7,7 @@
 | 1 | Implement `ModalityProcessor` base + concrete modality processors | ✅ Done |
 | 2 | Implement `ProcessorSlot` dataclass | ✅ Done |
 | 3 | Implement `MultimodalMetaProcessor` with HF save/load | ✅ Done |
-| 4 | Move label processing into `TextModalityProcessor(role="label")` | ✅ Done |
+| 4 | Move label processing into `TextModalityProcessor(role=TextRole.TARGET)` | ✅ Done |
 | 5 | Simplify `DataCollatorMultimodalSeq2Seq` | ✅ Done |
 | 6 | Update `training_setup/` scripts to use flat `slots=[...]` | ✅ Done |
 | 7 | Wrap legacy task-specific processors as thin `MultimodalMetaProcessor` subclasses | ✅ Done |
@@ -91,14 +91,16 @@ class ModalityProcessor(ABC):
 | `ImageModalityProcessor` | Image files / text-rendered images | `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` |
 | `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimention_position`, `use_cache` |
 | `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |
-| `TextModalityProcessor` | Text strings | `tokenizer`, `role` (`"encoder"`, `"prompt"`, `"label"`) |
+| `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) |
 
-`TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter controls batching behaviour:
+`TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter (a `TextRole` enum) controls batching behaviour:
 
 | Role | Input | Output |
 |---|---|---|
-| `"encoder"` / `"prompt"` | List of strings | `(token_ids [B, L], attention_mask [B, L])` |
-| `"label"` | List of dicts `{"decoder_prompt": …, "output": …}` | `(labels [B, L], None)` — padded with `-100` |
+| `TextRole.INPUT` | List of strings | `(token_ids [B, L], attention_mask [B, L])` |
+| `TextRole.TARGET` | List of dicts `{"target_prefix": …, "target": …}` | `(labels [B, L], None)` — padded with `-100` |
+
+`new_vocabulary` is an optional path to a vocabulary file. When provided, the processor extends the tokenizer with the new tokens internally and exposes `self.new_tokens` (the added tokens) and `self.pretrained_tokenizer` (the unextended copy) as bridge attributes. These are used by setup scripts to derive tokenizer info for model construction without calling `load_tokenizers` separately — see TODO comments in `text_modality_processor.py` and the setup files.
 
 ---
 
@@ -142,7 +144,8 @@ column_map={
 
 **Label slot (needs two columns):**
 ```python
-column_map={"decoder_prompt": "decoder_prompt", "output": "output"}
+# TSV columns "decoder_prompt" and "output" map to processor params "target_prefix" and "target"
+column_map={"decoder_prompt": "target_prefix", "output": "target"}
 ```
 
 **Multi-input (two encoder streams sharing temporal bound column names):**
@@ -211,19 +214,19 @@ MultimodalMetaProcessor(
             column_map={"signal": "signal", "signal_start": "signal_start", "signal_end": "signal_end"},
         ),
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
             output_data_key="labels",
             is_label=True,
-            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+            column_map={"decoder_prompt": "target_prefix", "output": "target"},
         ),
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
             output_data_key="encoder_prompt",
             output_mask_key="encoder_prompt_length_padding_mask",
             column_map={"encoder_prompt": "signal"},
         ),
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="prompt"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
             output_data_key="decoder_input_ids",
             output_mask_key="decoder_attention_mask",
             column_map={"decoder_prompt": "signal"},
@@ -251,10 +254,10 @@ MultimodalMetaProcessor(
             column_map={"pose_signal": "signal", "pose_signal_start": "signal_start", "pose_signal_end": "signal_end"},
         ),
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="label"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
             output_data_key="labels",
             is_label=True,
-            column_map={"decoder_prompt": "decoder_prompt", "output": "output"},
+            column_map={"decoder_prompt": "target_prefix", "output": "target"},
         ),
     ],
     tokenizer=tokenizer,
@@ -267,7 +270,7 @@ MultimodalMetaProcessor(
 MultimodalMetaProcessor(
     slots=[
         ProcessorSlot(
-            processor=TextModalityProcessor(tokenizer=tokenizer, role="encoder"),
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
             output_data_key="input_ids",
             output_mask_key="attention_mask",
             column_map={"signal": "signal"},
@@ -335,7 +338,7 @@ All six are re-exported from `multimodalhugs.processors` so existing import path
 
 ## Step 8 — Declarative processor builder (complete)
 
-`build_processor_from_config(processor_cfg, tokenizer)` in `multimodalhugs/training_setup/setup_utils.py` lets any YAML config opt in to constructing a `MultimodalMetaProcessor` directly, without touching Python code.
+`build_processor_from_config(processor_cfg)` in `multimodalhugs/training_setup/setup_utils.py` lets any YAML config opt in to constructing a `MultimodalMetaProcessor` directly, without touching Python code.
 
 If `processor.slots` is absent the function returns `None` and every modality setup file falls through to its existing hardcoded construction — fully backward compatible.
 
@@ -343,7 +346,6 @@ If `processor.slots` is absent the function returns `None` and every modality se
 
 ```yaml
 processor:
-  text_tokenizer_path: /path/to/tokenizer
   slots:
     - processor_class: PoseModalityProcessor
       processor_kwargs:
@@ -357,16 +359,18 @@ processor:
 
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: label
+        tokenizer_path: /path/to/tokenizer  # each TextModalityProcessor loads its own tokenizer
+        role: target
       output_data_key: labels
       is_label: true
       column_map:
-        decoder_prompt: decoder_prompt
-        output: output
+        decoder_prompt: target_prefix  # TSV column → processor param
+        output: target
 
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: encoder
+        tokenizer_path: /path/to/tokenizer
+        role: input
       output_data_key: encoder_prompt
       output_mask_key: encoder_prompt_length_padding_mask
       column_map:
@@ -374,7 +378,8 @@ processor:
 
     - processor_class: TextModalityProcessor
       processor_kwargs:
-        role: prompt
+        tokenizer_path: /path/to/tokenizer
+        role: input
       output_data_key: decoder_input_ids
       output_mask_key: decoder_attention_mask
       column_map:
@@ -392,7 +397,7 @@ Each slot dict mirrors the `ProcessorSlot` API:
 | `column_map` | no | Dataset column → processor param mapping (default `{"signal": "signal"}`) |
 | `is_label` | no | Whether this slot produces the loss target (default `false`) |
 
-The `tokenizer` is injected automatically into any processor whose `__init__` accepts it.
+Each `TextModalityProcessor` loads its own tokenizer from `tokenizer_path` in `processor_kwargs`. There is no global tokenizer injection — the `MultimodalMetaProcessor.tokenizer` is auto-derived from the first text slot after construction.
 
 This path is used by all six modality setup files (`pose2text_training_setup.py`, `video2text_training_setup.py`, etc.). Each checks `build_processor_from_config` first; only if it returns `None` does it execute its hardcoded slot construction.
 

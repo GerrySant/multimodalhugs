@@ -290,27 +290,27 @@ Unit tests for all `ModalityProcessor` subclasses at the method level.
 | `test_data_batch_dim_matches_input` | Batch dimension preserved |
 | `test_variable_length_sequences_are_padded` | Variable frame counts padded |
 
-**`TestTextModalityProcessorPromptRole`**
+**`TestTextModalityProcessorInputRole`**
 
 | Test | What it checks |
 |---|---|
-| `test_process_batch_returns_tuple` | Returns `(ids, mask)` for `role="prompt"` |
+| `test_process_batch_returns_tuple` | Returns `(ids, mask)` for `TextRole.INPUT` |
 | `test_process_batch_batch_dim` | Batch dimension matches input size |
 | `test_process_batch_ids_and_mask_same_shape` | `ids` and `mask` have equal shapes |
 | `test_process_batch_pads_variable_length` | Variable-length text padded to same length |
-| `test_encoder_role_behaves_like_prompt` | `role="encoder"` and `role="prompt"` produce identical output |
+| `test_process_batch_is_deterministic` | Two `TextRole.INPUT` processors produce identical output |
 
-**`TestTextModalityProcessorLabelRole`**
+**`TestTextModalityProcessorTargetRole`**
 
 | Test | What it checks |
 |---|---|
-| `test_returns_tensor` | Returns a tensor for `role="label"` |
-| `test_mask_is_none_for_labels` | Mask is `None` for labels |
+| `test_returns_tensor` | Returns a tensor for `TextRole.TARGET` |
+| `test_mask_is_none_for_labels` | Mask is `None` for target role |
 | `test_batch_dim` | Batch dimension correct |
 | `test_eos_token_is_last_real_token` | Last non-padding token is EOS |
-| `test_decoder_prompt_appears_before_output` | Decoder prompt tokens precede output tokens |
+| `test_target_prefix_appears_before_target` | `target_prefix` tokens precede `target` tokens |
 | `test_shorter_sequence_padded_with_minus_100` | Short sequences padded with `-100` |
-| `test_missing_output_returns_none` | Missing `output` field returns `(None, None)` |
+| `test_missing_output_returns_none` | Missing `target` field returns `(None, None)` |
 
 ---
 
@@ -575,6 +575,56 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 ---
 
+### `test_setup_utils.py`
+
+Tests for `build_processor_from_config()` in `training_setup/setup_utils.py` — the declarative YAML → `MultimodalMetaProcessor` factory.
+
+**`TestBuildProcessorFromConfigReturnsNone`** — no-op cases
+
+| Test | What it checks |
+|---|---|
+| `test_returns_none_when_slots_absent` | Returns `None` when no `slots` key in config |
+| `test_returns_none_when_slots_empty_list` | Returns `None` for an empty `slots` list |
+| `test_returns_none_for_none_cfg` | Returns `None` when `cfg` is `None` |
+
+**`TestBuildProcessorFromConfigReturnsProcessor`** — successful construction
+
+| Test | What it checks |
+|---|---|
+| `test_returns_meta_processor` | Returns a `MultimodalMetaProcessor` instance |
+| `test_slot_count_matches` | Number of slots matches the YAML declaration |
+| `test_output_data_keys` | `input_ids` and `labels` keys present on slots |
+| `test_output_mask_key` | `output_mask_key` set correctly on the encoder slot |
+| `test_is_label_flag` | `is_label=True` on the labels slot |
+| `test_non_label_slot_is_false` | `is_label=False` on non-label slots |
+| `test_column_map_set` | `column_map` matches the YAML declaration |
+| `test_processor_class_instantiated` | Each slot holds an instance of the declared processor class |
+| `test_tokenizer_loaded_from_path` | `TextModalityProcessor.tokenizer` loaded from `tokenizer_path` |
+| `test_meta_processor_tokenizer_auto_derived` | `MultimodalMetaProcessor.tokenizer` auto-derived from first text slot |
+
+**`TestBuildProcessorFromConfigFeaturesSlot`** — non-text processor (no tokenizer param)
+
+| Test | What it checks |
+|---|---|
+| `test_features_slot_built` | `FeaturesModalityProcessor` slot is constructed without error |
+| `test_features_meta_tokenizer_is_none` | `MultimodalMetaProcessor.tokenizer` is `None` when there are no text slots |
+| `test_features_processor_kwargs_forwarded` | Constructor kwargs (e.g. `skip_frames_stride`) forwarded to the processor |
+
+**`TestBuildProcessorFromConfigDefaultColumnMap`**
+
+| Test | What it checks |
+|---|---|
+| `test_default_column_map` | Slot without explicit `column_map` gets default `{"signal": "signal"}` |
+
+**`TestBuildProcessorFromConfigProducesValidOutput`** — end-to-end batch processing
+
+| Test | What it checks |
+|---|---|
+| `test_text_batch_produces_expected_keys` | Built processor produces `input_ids`, `attention_mask`, `labels` from a text batch |
+| `test_text_batch_label_batch_dim` | Labels batch dimension matches number of input samples |
+
+---
+
 ### `test_processor_regression.py`
 
 Regression tests comparing processor output against golden files in `tests/assets/golden/`. Golden files capture shape, dtype, mean, std, min, max, sum, and first/last 8 values of every output tensor. To regenerate: `python tests/assets/generate_golden.py`.
@@ -597,7 +647,7 @@ Regression tests comparing processor output against golden files in `tests/asset
 | `TestMetaProcessorPose2TextGolden` | `PoseModalityProcessor(reduce_holistic_poses=True)` | `pose2text.json` |
 | `TestMetaProcessorVideo2TextGolden` | `VideoModalityProcessor(custom_preprocessor_path=..., use_cache=True)` | `video2text.json` |
 | `TestMetaProcessorFeatures2TextGolden` | `FeaturesModalityProcessor(use_cache=False)` | `features2text.json` |
-| `TestMetaProcessorText2TextGolden` | `TextModalityProcessor(role="encoder")` | `text2text.json` |
+| `TestMetaProcessorText2TextGolden` | `TextModalityProcessor(role=TextRole.INPUT)` | `text2text.json` |
 | `TestMetaProcessorImage2TextGolden` | `ImageModalityProcessor(font_path=..., width=224, height=224)` | `image2text.json` |
 
 ---

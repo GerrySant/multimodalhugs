@@ -1,4 +1,8 @@
-# Processor Redesign: Modality-First Architecture
+# Processor Redesign: Modality-First Architecture (v1 — Historical)
+
+> **This document is a historical design proposal.** It describes the architecture as originally conceived before implementation. The final design differs in several ways (flat `slots` list instead of named constructor params, `TextRole` enum instead of role strings, `target_prefix`/`target` param names, etc.). For the current architecture, see [`processor_redesign.md`](processor_redesign.md) and [`processors/processors_overview.md`](processors/processors_overview.md).
+
+---
 
 ## Motivation
 

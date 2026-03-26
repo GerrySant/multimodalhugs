@@ -1,4 +1,6 @@
-# Test Map
+# Test Map (Historical — Migration Planning Document)
+
+> **This document is a historical planning artifact.** It was written before the processor refactoring to track which tests needed to be migrated, created, or updated. The refactoring described here is now complete. For the current, up-to-date test reference see [`tests/TESTS.md`](../tests/TESTS.md).
 
 This document records what each test file checks and how it relates to the
 processor refactoring.  Use it after the refactoring to verify that every
