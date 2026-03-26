@@ -4,7 +4,7 @@
 
 MultiModalHugs is a modular framework built on Hugging Face for training, evaluating, and deploying multimodal AI models. Primary focus: sign language translation and multimodal machine translation. Supports input modalities: pose sequences, video, images, SignWriting, precomputed features, and text.
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **License:** MIT
 **Python package:** `multimodalhugs`
 
