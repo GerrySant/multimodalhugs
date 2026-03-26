@@ -35,11 +35,9 @@ processor:
     custom_preprocessor_path: openai/clip-vit-base-patch32
     join_chw: false
     skip_frames_stride: 2
-  slot_overrides:                        # optional — sparse per-slot patches
-    encoder_prompt:
-      column_map:
-        my_column: signal                # replace the default column name for this slot only
 ```
+
+If you need anything beyond these fields — different column names, extra slots, non-standard output keys — use the full `slots:` format instead.
 
 ### What the shorthand expands to
 
@@ -62,23 +60,6 @@ Slot 1 is the only one that varies between pipelines:
 | `features2text` | `FeaturesModalityProcessor` |
 | `signwriting2text` | `SignwritingModalityProcessor` |
 | `text2text` | `TextModalityProcessor` (role=input) |
-
-### `slot_overrides`
-
-`slot_overrides` lets you patch specific slots without writing the full `slots:` list. The key is the `output_data_key` of the slot to modify. Dict fields (`column_map`, `processor_kwargs`) are shallow-merged; scalar fields (`output_mask_key`, `is_label`) are replaced.
-
-```yaml
-processor:
-  pipeline: pose2text
-  tokenizer_path: facebook/m2m100_418M
-  slot_overrides:
-    input_frames:
-      processor_kwargs:
-        reduce_holistic_poses: true   # added to the PoseModalityProcessor constructor
-    encoder_prompt:
-      column_map:
-        lang_tag: signal              # read from 'lang_tag' column instead of 'encoder_prompt'
-```
 
 ---
 

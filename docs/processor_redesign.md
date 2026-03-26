@@ -461,15 +461,11 @@ processor:
     custom_preprocessor_path: openai/clip-vit-base-patch32
     join_chw: false
     skip_frames_stride: 2
-  slot_overrides:                                # optional sparse per-slot overrides
-    encoder_prompt:
-      column_map:
-        my_column: signal
 ```
 
 Supported `pipeline` values: `pose2text`, `video2text`, `image2text`, `features2text`, `signwriting2text`, `text2text`.
 
-The shorthand always expands to the same 4-slot layout: one modality slot (`input_frames` / `attention_mask`) plus three `TextModalityProcessor` slots (`labels`, `encoder_prompt`, `decoder_input_ids`). `slot_overrides` allows any slot field to be overridden by `output_data_key` without writing the full slots list.
+The shorthand always expands to the same 4-slot layout: one modality slot (`input_frames` / `attention_mask`) plus three `TextModalityProcessor` slots (`labels`, `encoder_prompt`, `decoder_input_ids`). When the standard layout is not enough, use the full `slots:` format instead.
 
 Three levels of interface, all supported simultaneously:
 

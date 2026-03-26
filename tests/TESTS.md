@@ -647,7 +647,7 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 | `test_four_slots_generated` | Exactly 4 slots generated (1 modality + 3 text) |
 | `test_output_data_keys_match_standard` | Output keys are `input_frames`, `labels`, `encoder_prompt`, `decoder_input_ids` |
 | `test_pipeline_key_removed` | `pipeline:` key absent from expanded config |
-| `test_shorthand_keys_removed` | All shorthand keys (`pipeline`, `tokenizer_path`, `new_vocabulary`, `modality_kwargs`, `slot_overrides`) absent |
+| `test_shorthand_keys_removed` | All shorthand keys (`pipeline`, `tokenizer_path`, `new_vocabulary`, `modality_kwargs`) absent |
 | `test_returns_omegaconf_for_omegaconf_input` | OmegaConf input → OmegaConf output |
 | `test_returns_dict_for_dict_input` | Plain dict input → plain dict output |
 
@@ -682,15 +682,6 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 | `test_tokenizer_path_in_text_slots` | All three text slots contain `tokenizer_path` |
 | `test_new_vocabulary_propagated` | `new_vocabulary` propagated to all text slots when set |
 | `test_new_vocabulary_absent_when_not_set` | `new_vocabulary` absent from slot kwargs when not provided |
-
-**`TestExpandPipelineShorthandSlotOverrides`** — sparse per-slot overrides
-
-| Test | What it checks |
-|---|---|
-| `test_override_column_map_merged` | `slot_overrides` dict fields are shallow-merged (override key added, original preserved) |
-| `test_override_scalar_replaces` | `slot_overrides` scalar fields replace the generated value |
-| `test_override_processor_kwargs_merged` | `processor_kwargs` override merges new keys without removing existing ones |
-| `test_unknown_override_key_is_ignored` | Unknown `slot_overrides` key logs a warning and does not raise |
 
 **`TestExpandPipelineShorthandEndToEnd`** — shorthand roundtrip through `build_processor_from_config`
 

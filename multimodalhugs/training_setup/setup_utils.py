@@ -157,10 +157,6 @@ def expand_pipeline_shorthand(processor_cfg):
           new_vocabulary: "__asl__"       # optional — comma-separated tokens or path
           modality_kwargs:                # optional — forwarded to the modality slot's
             skip_frames_stride: 2        #   processor_kwargs unchanged
-          slot_overrides:                 # optional — sparse per-slot overrides
-            encoder_prompt:              #   keyed by output_data_key
-              column_map:
-                my_column: signal
 
     Supported ``pipeline`` values: ``pose2text``, ``video2text``,
     ``image2text``, ``features2text``, ``signwriting2text``, ``text2text``.
@@ -169,24 +165,8 @@ def expand_pipeline_shorthand(processor_cfg):
     slots (``labels``, ``encoder_prompt``, ``decoder_input_ids``) follow in
     that order.
 
-    ``slot_overrides``
-    ------------------
-    Each key in ``slot_overrides`` must match an ``output_data_key`` produced
-    by the pipeline template (e.g. ``input_frames``, ``labels``,
-    ``encoder_prompt``, ``decoder_input_ids``).  The value is a dict of
-    top-level slot fields to *merge* into the generated slot.  Merging rules:
-
-    - Scalar fields (``output_mask_key``, ``is_label``) are replaced outright.
-    - Dict fields (``column_map``, ``processor_kwargs``) are shallow-merged so
-      only the specified keys are overridden; unmentioned keys are preserved.
-
-    Override keys that do not match any generated slot produce a warning and
-    are silently ignored (rather than raising an error) to make configs
-    resilient to minor pipeline changes.
-
-    Full ``slots:`` format is always accepted
-    -----------------------------------------
-    Users who need full control can skip the shorthand entirely::
+    When the standard layout is not enough (different column names, extra
+    slots, non-text labels, etc.) use the full ``slots:`` format instead::
 
         processor:
           slots:
@@ -203,8 +183,8 @@ def expand_pipeline_shorthand(processor_cfg):
 
     Returns:
         The (possibly expanded) config.  When ``pipeline:`` was present the
-        return value contains ``slots:`` and no longer contains ``pipeline:``,
-        ``modality_kwargs:``, or ``slot_overrides:``.
+        return value contains ``slots:`` and no longer contains ``pipeline:``
+        or ``modality_kwargs:``.
 
     Raises:
         ValueError: If ``pipeline`` names an unsupported value.
@@ -247,7 +227,6 @@ def expand_pipeline_shorthand(processor_cfg):
     # Optional top-level shorthand fields.
     new_vocabulary = cfg_dict.get("new_vocabulary")       # str | None
     modality_kwargs = dict(cfg_dict.get("modality_kwargs") or {})
-    slot_overrides = dict(cfg_dict.get("slot_overrides") or {})
 
     # ------------------------------------------------------------------
     # 4. Build the modality slot (always first in the generated list).
@@ -303,42 +282,13 @@ def expand_pipeline_shorthand(processor_cfg):
         slots.append(slot)
 
     # ------------------------------------------------------------------
-    # 6. Apply slot_overrides — sparse per-slot customisation.
-    # ------------------------------------------------------------------
-    if slot_overrides:
-        # Index the generated slots by output_data_key for O(1) lookup.
-        slots_by_key = {s["output_data_key"]: s for s in slots}
-
-        for override_key, override_fields in slot_overrides.items():
-            if override_key not in slots_by_key:
-                logger.warning(
-                    "slot_overrides key '%s' does not match any generated slot "
-                    "(available: %s). Override ignored.",
-                    override_key,
-                    list(slots_by_key),
-                )
-                continue
-
-            target_slot = slots_by_key[override_key]
-            for field, value in override_fields.items():
-                existing = target_slot.get(field)
-                if isinstance(value, dict) and isinstance(existing, dict):
-                    # Shallow-merge dicts (e.g. column_map, processor_kwargs)
-                    # so the caller only needs to specify the changed keys.
-                    target_slot[field] = {**existing, **value}
-                else:
-                    # Scalar fields (e.g. output_mask_key, is_label) replace.
-                    target_slot[field] = value
-
-    # ------------------------------------------------------------------
-    # 7. Assemble the expanded config.
+    # 6. Assemble the expanded config.
     # ------------------------------------------------------------------
     # Copy all processor-level keys that are not shorthand-specific, then
     # replace them with the expanded slots list.  This preserves any extra
     # processor-level fields the user may have added (e.g. a future
     # ``save_directory:`` key) without the shorthand keys leaking through.
-    _SHORTHAND_KEYS = {"pipeline", "tokenizer_path", "new_vocabulary",
-                       "modality_kwargs", "slot_overrides"}
+    _SHORTHAND_KEYS = {"pipeline", "tokenizer_path", "new_vocabulary", "modality_kwargs"}
     expanded = {k: v for k, v in cfg_dict.items() if k not in _SHORTHAND_KEYS}
     expanded["slots"] = slots
 

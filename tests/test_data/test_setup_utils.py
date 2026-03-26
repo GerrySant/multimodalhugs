@@ -345,8 +345,7 @@ class TestExpandPipelineShorthandStructure:
                                    "modality_kwargs": {"skip_frames_stride": 2}})
         result = expand_pipeline_shorthand(cfg)
         d = OmegaConf.to_container(result)
-        for key in ("pipeline", "tokenizer_path", "new_vocabulary",
-                    "modality_kwargs", "slot_overrides"):
+        for key in ("pipeline", "tokenizer_path", "new_vocabulary", "modality_kwargs"):
             assert key not in d, f"Shorthand key '{key}' should have been removed"
 
     def test_returns_omegaconf_for_omegaconf_input(self):
@@ -481,56 +480,6 @@ class TestExpandPipelineShorthandTextSlots:
         slots = self._get_slots_by_key(_make_pipeline_cfg())
         for key in ("labels", "encoder_prompt", "decoder_input_ids"):
             assert "new_vocabulary" not in slots[key]["processor_kwargs"]
-
-
-# ---------------------------------------------------------------------------
-# TestExpandPipelineShorthandSlotOverrides — per-slot sparse overrides
-# ---------------------------------------------------------------------------
-
-class TestExpandPipelineShorthandSlotOverrides:
-    """slot_overrides merges correctly into the generated slots."""
-
-    def test_override_column_map_merged(self):
-        cfg = _make_pipeline_cfg({
-            "slot_overrides": {"encoder_prompt": {"column_map": {"my_col": "signal"}}}
-        })
-        result = expand_pipeline_shorthand(cfg)
-        slots_by_key = {s["output_data_key"]: s
-                        for s in OmegaConf.to_container(result)["slots"]}
-        # The override key is present...
-        assert "my_col" in slots_by_key["encoder_prompt"]["column_map"]
-        # ...and the original key is preserved (shallow merge, not replace).
-        assert "encoder_prompt" in slots_by_key["encoder_prompt"]["column_map"]
-
-    def test_override_scalar_replaces(self):
-        cfg = _make_pipeline_cfg({
-            "slot_overrides": {"encoder_prompt": {"output_mask_key": "custom_mask"}}
-        })
-        result = expand_pipeline_shorthand(cfg)
-        slots_by_key = {s["output_data_key"]: s
-                        for s in OmegaConf.to_container(result)["slots"]}
-        assert slots_by_key["encoder_prompt"]["output_mask_key"] == "custom_mask"
-
-    def test_override_processor_kwargs_merged(self):
-        cfg = _make_pipeline_cfg({
-            "slot_overrides": {"labels": {"processor_kwargs": {"pad_token_id": 1}}}
-        })
-        result = expand_pipeline_shorthand(cfg)
-        slots_by_key = {s["output_data_key"]: s
-                        for s in OmegaConf.to_container(result)["slots"]}
-        # Override key added...
-        assert slots_by_key["labels"]["processor_kwargs"]["pad_token_id"] == 1
-        # ...existing keys preserved.
-        assert "tokenizer_path" in slots_by_key["labels"]["processor_kwargs"]
-
-    def test_unknown_override_key_is_ignored(self, caplog):
-        import logging
-        cfg = _make_pipeline_cfg({
-            "slot_overrides": {"nonexistent_key": {"column_map": {"x": "y"}}}
-        })
-        with caplog.at_level(logging.WARNING):
-            expand_pipeline_shorthand(cfg)  # must not raise
-        assert "nonexistent_key" in caplog.text
 
 
 # ---------------------------------------------------------------------------
