@@ -221,6 +221,190 @@ The Python API is used internally by the legacy task-specific setup files (`pose
 
 ---
 
+## Reference: processor classes
+
+This section lists every built-in `ModalityProcessor` subclass, its valid `processor_kwargs`, and the processor parameter names you can use in `column_map` values.
+
+### `PoseModalityProcessor`
+
+Loads `.pose` files and converts them to `[T, D]` tensors (T = frames, D = keypoint features).
+
+**`processor_kwargs`:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `reduce_holistic_poses` | bool | `true` | Reduce full holistic pose to a smaller set of landmarks |
+| `skip_frames_stride` | int | `null` | Keep every N-th frame (e.g. `2` = keep every other frame) |
+
+**`column_map` processor param names:** `signal`, `signal_start`, `signal_end`
+
+```yaml
+column_map:
+  signal: signal             # TSV column → processor param (required)
+  signal_start: signal_start # start frame offset (optional)
+  signal_end: signal_end     # end frame offset (optional)
+```
+
+---
+
+### `VideoModalityProcessor`
+
+Loads video files and converts them to `[T, C, H, W]` tensors (or `[T, C*H*W]` if `join_chw=true`).
+
+**`processor_kwargs`:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `custom_preprocessor_path` | str | `null` | HF preprocessor identifier for frame resizing/normalisation (e.g. `openai/clip-vit-base-patch32`) |
+| `skip_frames_stride` | int | `null` | Keep every N-th frame |
+| `join_chw` | bool | `false` | Flatten channel, height, and width dimensions into one |
+| `use_cache` | bool | `false` | Cache loaded videos in memory (speeds up repeated access) |
+
+**`column_map` processor param names:** `signal`, `signal_start`, `signal_end`
+
+```yaml
+column_map:
+  signal: signal
+  signal_start: signal_start # start time in seconds
+  signal_end: signal_end     # end time in seconds
+```
+
+---
+
+### `ImageModalityProcessor`
+
+Loads image files (PNG/JPEG/`.npy`) or renders text strings as images. Output is a `[C, H, W]` tensor.
+
+**`processor_kwargs`:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `font_path` | str | `null` | Path to a `.ttf` font file used when rendering text-as-image |
+| `width` | int | `null` | Target image width in pixels |
+| `height` | int | `null` | Target image height in pixels |
+| `normalize_image` | bool | `true` | Normalise pixel values; requires `mean` and `std` when enabled |
+| `mean` | list[float] | `null` | Per-channel mean for normalisation (e.g. `[0.5, 0.5, 0.5]`) |
+| `std` | list[float] | `null` | Per-channel std for normalisation (e.g. `[0.5, 0.5, 0.5]`) |
+
+> **Note:** `mean` and `std` are required when `normalize_image=true`.
+
+**`column_map` processor param names:** `signal` only (no temporal bounds)
+
+```yaml
+column_map:
+  signal: signal
+```
+
+---
+
+### `FeaturesModalityProcessor`
+
+Loads pre-computed feature files (`.npy`) and returns them as `[T, D]` tensors.
+
+**`processor_kwargs`:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `skip_frames_stride` | int | `null` | Keep every N-th frame |
+| `temporal_dimention_position` | int | `0` | Axis index of the temporal dimension in the loaded array |
+| `use_cache` | bool | `true` | Cache loaded files in memory |
+
+**`column_map` processor param names:** `signal` only (no temporal bounds; temporal slicing is not supported — load the full file)
+
+```yaml
+column_map:
+  signal: signal
+```
+
+---
+
+### `SignwritingModalityProcessor`
+
+Converts ASCII SignWriting (FSW) strings to `[N, C, H, W]` symbol-image tensors.
+
+**`processor_kwargs`:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `custom_preprocessor_path` | str | `null` | HF preprocessor identifier for image normalisation |
+| `width` | int | `224` | Symbol image width in pixels |
+| `height` | int | `224` | Symbol image height in pixels |
+| `channels` | int | `3` | Number of image channels |
+| `invert_frame` | bool | `true` | Invert pixel values (black symbols on white background → white on black) |
+
+**`column_map` processor param names:** `signal` only
+
+```yaml
+column_map:
+  signal: signal
+```
+
+---
+
+### `TextModalityProcessor`
+
+Tokenises text strings. Behaviour is controlled by the `role` parameter.
+
+**`processor_kwargs`:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `tokenizer_path` | str | `null` | HF tokenizer identifier or local path (mutually exclusive with `tokenizer`) |
+| `tokenizer` | object | `null` | Pre-loaded tokenizer instance (used in the Python API) |
+| `new_vocabulary` | str | `null` | Comma-separated new tokens or path to a vocabulary file; extends the tokenizer internally |
+| `role` | str | `input` | `input` — produce `(token_ids, attention_mask)`; `target` — produce `(labels, None)` with `-100` padding |
+
+**`role` values explained:**
+
+- **`role: input`** — used for encoder prompts and decoder context text. Returns `(token_ids [B, L], attention_mask [B, L])`. The `column_map` should map one TSV column to the `signal` processor param.
+- **`role: target`** — used for the training target (labels). Concatenates a prefix and the target, appends EOS, and pads with `-100` (the standard ignore index for cross-entropy loss). The `column_map` must map two TSV columns to `target_prefix` and `target`.
+
+**`column_map` processor param names depend on `role`:**
+
+```yaml
+# role: input — read one text column
+column_map:
+  encoder_prompt: signal   # or decoder_prompt: signal, or any single-column TSV field
+
+# role: target — read two text columns and combine them
+column_map:
+  decoder_prompt: target_prefix   # optional prefix prepended before the target sequence
+  output: target                  # the reference translation / generation target
+```
+
+---
+
+## Reference: model-expected key names
+
+The `output_data_key` and `output_mask_key` values you write in a slot are the exact keys passed to `MultiModalEmbedderModel.forward()`. The model's signature is:
+
+```python
+def forward(
+    self,
+    input_frames,                        # encoder visual/pose/feature input tensor
+    attention_mask,                      # padding mask for input_frames
+    encoder_prompt,                      # encoder text prompt token IDs
+    encoder_prompt_length_padding_mask,  # padding mask for encoder_prompt
+    decoder_input_ids,                   # decoder context token IDs
+    decoder_attention_mask,              # padding mask for decoder_input_ids
+    labels,                              # training target token IDs (with -100 padding)
+    ...
+)
+```
+
+**Use exactly these key names** in your `output_data_key` and `output_mask_key` fields:
+
+| Slot purpose | `output_data_key` | `output_mask_key` |
+|---|---|---|
+| Main encoder input (pose, video, image, features, SignWriting) | `input_frames` | `attention_mask` |
+| Encoder text prompt | `encoder_prompt` | `encoder_prompt_length_padding_mask` |
+| Decoder context text | `decoder_input_ids` | `decoder_attention_mask` |
+| Training labels | `labels` | *(omit — no mask needed)* |
+
+> If you use a different `output_data_key`, the tensor will be produced by the processor but the model will not consume it, and training will silently produce wrong results.
+
+---
+
 ## Equivalence
 
 The three formats are semantically equivalent for standard cases. This pose-to-text config:
