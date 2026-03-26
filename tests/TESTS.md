@@ -617,6 +617,28 @@ Tests for `_build_dataset_map()` and `general_training_setup.main()` in `trainin
 
 ---
 
+### `test_setup_path_equivalence.py`
+
+Equivalence tests verifying that the legacy `--modality` path and the general path (with `dataset_type` in config) produce identical processor artifacts (`processor_config.json` must be byte-for-byte identical).
+
+**`TestText2TextProcessorEquivalence`** — `text2text` modality
+
+| Test | What it checks |
+|---|---|
+| `test_processor_slot_structure_identical` | General path and legacy `text2text` path produce processors with identical slot structure (class names, output keys, column maps, is_label flags) |
+| `test_processor_slot_count` | `pipeline: text2text` expands to exactly 4 slots |
+| `test_processor_json_files_byte_identical` | `processor_config.json` is byte-for-byte identical between general and legacy paths |
+
+**`TestPose2TextProcessorEquivalence`** — `pose2text` modality
+
+| Test | What it checks |
+|---|---|
+| `test_processor_slot_structure_identical` | General path and legacy `pose2text` path produce processors with identical slot structure |
+| `test_pose_slot_is_first` | Slot 0 is `PoseModalityProcessor` for the `pose2text` pipeline |
+| `test_processor_json_files_byte_identical` | `processor_config.json` is byte-for-byte identical between general and legacy paths |
+
+---
+
 ### `test_setup_utils.py`
 
 Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `training_setup/setup_utils.py`.
