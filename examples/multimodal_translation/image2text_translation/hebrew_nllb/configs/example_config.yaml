@@ -24,7 +24,7 @@ processor:
   slots:
     - processor_class: ImageModalityProcessor
       processor_kwargs:
-        font_path: "/examples/multimodal_translation/image2text_translation/other/Arial.ttf"  # Path to the font file used for generating images.
+        font_path: "/examples/multimodal_translation/image2text_translation/hebrew_nllb/other/Arial.ttf"  # Path to the font file used for generating images.
         width: 224                                    # Input image width in pixels.
         height: 224                                   # Input image height in pixels.
         mean: "<[mean_values]>"                       # Mean pixel values for image normalization (e.g., "[0.9819646859188279, ...]").

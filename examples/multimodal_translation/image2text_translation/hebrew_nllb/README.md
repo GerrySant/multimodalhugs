@@ -170,15 +170,16 @@ This evaluation process enables you to assess the quality of your model's transl
 ## Directory Overview
 ```kotlin
 image2text_translation
-├── README.md                  # Current documentation
-├── configs
-│   └── example_config.yaml    # Example config template
-├── example_scripts
-│   ├── hebrew_dataset_preprocessing_script.py
-│   └── hebrew_training_pipeline.sh
-└── other
-    └── Arial.ttf                   # File needed for the creation of the images
+└── hebrew_nllb
+    ├── README.md                  # Current documentation
+    ├── configs
+    │   └── example_config.yaml    # Example config template
+    ├── example_scripts
+    │   ├── hebrew_dataset_preprocessing_script.py
+    │   └── hebrew_training_pipeline.sh
+    └── other
+        └── Arial.ttf              # Font file used for rendering text as images
 ```
 - `configs`: Contains YAML config files (e.g., model / data / training hyperparameters).
 - `example_scripts`: Contains sample Python and bash scripts for preprocessing, setting up training, and launching experiments.
-- `other`: Additional resources (e.g., file containig the font used).
+- `other`: Additional resources (e.g., font file used for image generation).
