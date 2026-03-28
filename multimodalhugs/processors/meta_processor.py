@@ -67,7 +67,21 @@ class MultimodalMetaProcessor(ProcessorMixin):
     of task structure (encoder vs. label vs. prompt). All semantic meaning lives
     in the processors and their slot configuration.
 
-    slots     — flat list of ProcessorSlot objects in processing order
+    slots     — flat list of ProcessorSlot objects in processing order.
+
+                Ordering rules:
+                  • Slots are processed strictly in declaration order during
+                    both _transform_get_items_output (dataset transform) and
+                    __call__ (collation).
+                  • Slots are independent: no slot can read output produced by
+                    an earlier slot.  Each slot reads raw dataset columns via
+                    its column_map and writes to a dedicated output_data_key.
+                  • Duplicate output_data_key values across slots are rejected
+                    at construction time.  The skip-if-present rule in __call__
+                    is intended for *external* overrides (e.g. a DataCollator
+                    pre-populating decoder_input_ids), not for intra-slot
+                    communication.
+
     tokenizer — optional pre-built tokenizer. If None, auto-derived from the
                 first text slot. Stored as self.tokenizer so that save_pretrained
                 writes the tokenizer to disk alongside the slot config, allowing
@@ -89,6 +103,20 @@ class MultimodalMetaProcessor(ProcessorMixin):
         slots: List[ProcessorSlot],
         tokenizer: Optional[Any] = None,
     ):
+        if not slots:
+            raise ValueError(
+                "MultimodalMetaProcessor requires at least one ProcessorSlot."
+            )
+        seen_keys: set = set()
+        for slot in slots:
+            if slot.output_data_key in seen_keys:
+                raise ValueError(
+                    f"Duplicate output_data_key '{slot.output_data_key}' detected in slots. "
+                    "Each slot must write to a unique key. "
+                    "Pre-populating a key before __call__ (e.g. from a DataCollator) is the "
+                    "intended mechanism for overrides — not duplicate slot declarations."
+                )
+            seen_keys.add(slot.output_data_key)
         self.slots = slots
         if tokenizer is None:
             tokenizer = next(
@@ -199,6 +227,13 @@ class MultimodalMetaProcessor(ProcessorMixin):
             slots=[_reconstruct_slot(s) for s in config["slots"]],
             tokenizer=tokenizer,
         )
+
+    def __repr__(self) -> str:
+        tok = type(self.tokenizer).__name__ if self.tokenizer is not None else "None"
+        slots_str = ", ".join(
+            f"{s.output_data_key}→{type(s.processor).__name__}" for s in self.slots
+        )
+        return f"MultimodalMetaProcessor(slots=[{slots_str}], tokenizer={tok})"
 
     # ------------------------------------------------------------------
     # Internal helpers

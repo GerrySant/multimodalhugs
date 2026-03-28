@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from PIL import ImageOps
@@ -9,7 +9,7 @@ from signwriting.tokenizer import normalize_signwriting
 from signwriting.visualizer.visualize import signwriting_to_image
 
 from multimodalhugs.data import pad_and_create_mask, center_image_on_white_background
-from multimodalhugs.processors.modality_processor import ModalityProcessor
+from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class SignwritingModalityProcessor(ModalityProcessor):
         self,
         samples: List[torch.Tensor],
         **kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> ProcessBatchOutput:
         """Pad [N_i, C, H, W] tensors to [B, N_max, C, H, W] and return a [B, N_max] mask."""
         padded, mask = pad_and_create_mask(samples)
-        return padded, mask
+        return ProcessBatchOutput(data=padded, mask=mask)

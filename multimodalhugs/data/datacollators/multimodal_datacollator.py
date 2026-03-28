@@ -168,7 +168,7 @@ class DataCollatorMultimodalSeq2Seq:
             return_tensors (str, optional): Format of output tensors: 'pt', 'tf', or 'np'. Defaults to 'pt'.
         """
         if return_tensors != "pt":
-            logger.warning(
+            logger.info(
                 f"return_tensors='{return_tensors}' was requested, but only 'pt' (PyTorch) "
                 "is currently supported. All modality processors produce torch.Tensor outputs "
                 "directly and do not honour this setting. The argument will be ignored."

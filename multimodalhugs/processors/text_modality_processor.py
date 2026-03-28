@@ -1,9 +1,9 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from multimodalhugs.processors.modality_processor import ModalityProcessor
+from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
 
 
 class TextRole(str, Enum):
@@ -55,7 +55,14 @@ class TextModalityProcessor(ModalityProcessor):
         new_vocabulary: Optional[str] = None,
         role: Union[TextRole, str] = TextRole.INPUT,
     ):
-        role = TextRole(role)  # coerce plain string from YAML / from_pretrained
+        if isinstance(role, str):
+            valid = [r.value for r in TextRole]
+            if role not in valid:
+                raise ValueError(
+                    f"Invalid role '{role}'. Must be one of: {valid}. "
+                    f"Check the 'role' argument passed to {self.__class__.__name__}."
+                )
+            role = TextRole(role)
         if tokenizer is None and tokenizer_path is not None:
             from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
@@ -96,7 +103,7 @@ class TextModalityProcessor(ModalityProcessor):
         self,
         samples: List[Any],
         **kwargs,
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
+    ) -> ProcessBatchOutput:
         if self.role == TextRole.INPUT:
             return self._process_prompt_batch(samples)
         elif self.role == TextRole.TARGET:
@@ -111,7 +118,7 @@ class TextModalityProcessor(ModalityProcessor):
     def _process_prompt_batch(
         self,
         texts: List[str],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> ProcessBatchOutput:
         tokenized = self.tokenizer(
             texts,
             add_special_tokens=False,
@@ -119,12 +126,15 @@ class TextModalityProcessor(ModalityProcessor):
             truncation=False,
             return_tensors="pt",
         )
-        return tokenized["input_ids"], tokenized["attention_mask"]
+        return ProcessBatchOutput(
+            data=tokenized["input_ids"],
+            mask=tokenized["attention_mask"],
+        )
 
     def _process_label_batch(
         self,
         samples: List[Dict[str, Any]],
-    ) -> Tuple[Optional[torch.Tensor], None]:
+    ) -> ProcessBatchOutput:
         # TODO: label construction is currently hardcoded as
         # target_prefix + target + EOS, padded with -100. Customizable label
         # creation strategies (e.g. target-only without prefix, different
@@ -132,10 +142,18 @@ class TextModalityProcessor(ModalityProcessor):
         # When needed, this could be delegated to a configurable label_builder
         # callable passed at construction time.
         if any(s.get("target") is None for s in samples):
-            return None, None
+            return ProcessBatchOutput(data=None, mask=None)
 
         labels = []
         for sample in samples:
+            for key in ("target_prefix", "target"):
+                if key not in sample:
+                    raise KeyError(
+                        f"Sample is missing required key '{key}'. "
+                        f"Available keys: {list(sample.keys())}. "
+                        "Check that the column_map for this slot maps the correct "
+                        "dataset columns to 'target_prefix' and 'target'."
+                    )
             prompt_ids = self.tokenizer.convert_tokens_to_ids(
                 self.tokenizer.tokenize(sample["target_prefix"])
             )
@@ -145,6 +163,8 @@ class TextModalityProcessor(ModalityProcessor):
             labels.append(prompt_ids + output_ids + [self.tokenizer.eos_token_id])
 
         max_len = max(len(seq) for seq in labels)
+        # -100 is CrossEntropyLoss's default ignore_index — the same convention
+        # used throughout HuggingFace Transformers for seq2seq label padding.
         pad_id = -100
         side = self.tokenizer.padding_side
         padded = []
@@ -155,4 +175,4 @@ class TextModalityProcessor(ModalityProcessor):
             else:
                 padded.append([pad_id] * pad_len + seq)
 
-        return torch.tensor(padded, dtype=torch.int64), None
+        return ProcessBatchOutput(data=torch.tensor(padded, dtype=torch.int64), mask=None)

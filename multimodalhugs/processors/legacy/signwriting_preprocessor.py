@@ -9,6 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class SignwritingProcessor(MultimodalMetaProcessor):
+    """
+    .. deprecated::
+        Use ``MultimodalMetaProcessor`` with explicit ``ProcessorSlot`` declarations
+        instead.  This task-specific wrapper is kept for backward compatibility and
+        will be removed in a future release.  See ``processors/meta_processor.py``
+        and the processor configuration docs for the recommended approach.
+    """
     name = "signwritting_processor"
     model_input_names = ["input_frames", "attention_mask"]
 

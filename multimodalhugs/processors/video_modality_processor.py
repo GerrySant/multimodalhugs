@@ -1,7 +1,7 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import cv2
 import numpy as np
@@ -11,7 +11,7 @@ from torchvision.io import read_video
 from transformers import AutoProcessor
 
 from multimodalhugs.data import pad_and_create_mask
-from multimodalhugs.processors.modality_processor import ModalityProcessor
+from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
 from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size
 
 logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ class VideoModalityProcessor(ModalityProcessor):
         self,
         samples: List[torch.Tensor],
         **kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> ProcessBatchOutput:
         """
         Pad [T_i, ...] tensors to [B, T_max, ...] and return a [B, T_max] mask.
         """
@@ -136,4 +136,4 @@ class VideoModalityProcessor(ModalityProcessor):
         if self.join_chw:
             B, T = padded.shape[:2]
             padded = padded.view(B, T, -1)
-        return padded, mask
+        return ProcessBatchOutput(data=padded, mask=mask)

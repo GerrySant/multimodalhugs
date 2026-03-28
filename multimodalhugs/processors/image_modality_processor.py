@@ -1,14 +1,14 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import cv2
 import numpy as np
 import torch
 
 from multimodalhugs.data import pad_and_create_mask, get_images, string_to_list
-from multimodalhugs.processors.modality_processor import ModalityProcessor
+from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class ImageModalityProcessor(ModalityProcessor):
         self,
         samples: List[torch.Tensor],
         **kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> ProcessBatchOutput:
         """Pad tensors along the first dimension and return a mask."""
         padded, mask = pad_and_create_mask(samples)
-        return padded, mask
+        return ProcessBatchOutput(data=padded, mask=mask)

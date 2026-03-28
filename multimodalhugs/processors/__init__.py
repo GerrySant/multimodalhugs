@@ -6,7 +6,7 @@ from .legacy import (
     Text2TextTranslationProcessor,
     SignwritingProcessor,
 )
-from .modality_processor import ModalityProcessor
+from .modality_processor import ModalityProcessor, ProcessBatchOutput
 from .pose_modality_processor import PoseModalityProcessor
 from .video_modality_processor import VideoModalityProcessor
 from .text_modality_processor import TextModalityProcessor, TextRole

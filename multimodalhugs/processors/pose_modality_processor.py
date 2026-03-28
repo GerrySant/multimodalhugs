@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
@@ -7,7 +7,7 @@ from pose_format import Pose
 from pose_format.utils.generic import reduce_holistic, pose_hide_legs
 
 from multimodalhugs.data import pad_and_create_mask
-from multimodalhugs.processors.modality_processor import ModalityProcessor
+from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
 from multimodalhugs.processors.utils import frame_skipping
 
 
@@ -86,9 +86,9 @@ class PoseModalityProcessor(ModalityProcessor):
         self,
         samples: List[torch.Tensor],
         **kwargs,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> ProcessBatchOutput:
         """
         Pad [T_i, D] tensors to [B, T_max, D] and return a [B, T_max] mask.
         """
         padded, mask = pad_and_create_mask(samples)
-        return padded, mask
+        return ProcessBatchOutput(data=padded, mask=mask)
