@@ -990,3 +990,118 @@ class TestMultimodalMetaProcessorRoundTrip:
                 assert torch.equal(result_orig[key], result_load[key]), (
                     f"Tensor mismatch for key '{key}'"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Validation: empty slots, duplicate keys
+# ---------------------------------------------------------------------------
+
+class TestMetaProcessorValidation:
+
+    def test_empty_slots_raises(self):
+        """MultimodalMetaProcessor rejects an empty slots list."""
+        with pytest.raises(ValueError, match="at least one"):
+            MultimodalMetaProcessor(slots=[])
+
+    def test_duplicate_output_data_key_raises(self, tokenizer):
+        """Duplicate output_data_key across slots must raise ValueError."""
+        slot = ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
+            output_data_key="input_ids",
+            column_map={"signal": "signal"},
+        )
+        with pytest.raises(ValueError, match="Duplicate output_data_key"):
+            MultimodalMetaProcessor(slots=[slot, slot])
+
+    def test_duplicate_output_mask_key_raises(self, tokenizer):
+        """Duplicate non-None output_mask_key across slots must raise ValueError."""
+        make_slot = lambda key: ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
+            output_data_key=key,
+            output_mask_key="shared_mask",
+            column_map={"signal": "signal"},
+        )
+        with pytest.raises(ValueError, match="Duplicate output_mask_key"):
+            MultimodalMetaProcessor(slots=[make_slot("key_a"), make_slot("key_b")])
+
+    def test_none_mask_keys_do_not_conflict(self, tokenizer):
+        """Multiple slots with output_mask_key=None must not trigger the uniqueness check."""
+        make_slot = lambda key: ProcessorSlot(
+            processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
+            output_data_key=key,
+            output_mask_key=None,
+            column_map={"signal": "signal"},
+        )
+        # Should not raise
+        MultimodalMetaProcessor(slots=[make_slot("key_a"), make_slot("key_b")])
+
+
+# ---------------------------------------------------------------------------
+# from_pretrained with processor_registry
+# ---------------------------------------------------------------------------
+
+class TestFromPretrainedRegistry:
+
+    def test_unknown_class_raises_attribute_error(self, tokenizer, tmp_path):
+        """from_pretrained raises AttributeError for unknown processor class."""
+        from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
+        meta = MultimodalMetaProcessor(slots=[
+            ProcessorSlot(
+                processor=FeaturesModalityProcessor(),
+                output_data_key="input_frames",
+                output_mask_key="attention_mask",
+            ),
+        ])
+        meta.save_pretrained(str(tmp_path))
+
+        # Monkey-patch the saved config to reference an unknown class
+        import json
+        config_path = tmp_path / "processor_config.json"
+        config = json.loads(config_path.read_text())
+        config["slots"][0]["processor_class"] = "NoSuchProcessor"
+        config_path.write_text(json.dumps(config))
+
+        with pytest.raises(AttributeError, match="processor_registry"):
+            MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+
+    def test_registry_resolves_custom_class(self, tokenizer, tmp_path):
+        """processor_registry allows from_pretrained to find a user-defined class."""
+        from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
+        meta = MultimodalMetaProcessor(slots=[
+            ProcessorSlot(
+                processor=FeaturesModalityProcessor(),
+                output_data_key="input_frames",
+                output_mask_key="attention_mask",
+            ),
+        ])
+        meta.save_pretrained(str(tmp_path))
+
+        import json
+        config_path = tmp_path / "processor_config.json"
+        config = json.loads(config_path.read_text())
+        config["slots"][0]["processor_class"] = "MyFeaturesProcessor"
+        config_path.write_text(json.dumps(config))
+
+        loaded = MultimodalMetaProcessor.from_pretrained(
+            str(tmp_path),
+            processor_registry={"MyFeaturesProcessor": FeaturesModalityProcessor},
+        )
+        assert isinstance(loaded.slots[0].processor, FeaturesModalityProcessor)
+
+
+# ---------------------------------------------------------------------------
+# Missing column warning in _transform_get_items_output
+# ---------------------------------------------------------------------------
+
+class TestMissingColumnWarning:
+
+    def test_warning_emitted_for_missing_primary_field(self, tokenizer, caplog):
+        """A logger.warning is emitted when a slot's primary column is absent."""
+        import logging
+        meta = _make_features2text_meta(tokenizer)
+        batch = {"encoder_prompt": ["translate:"]}  # 'signal' column absent
+
+        with caplog.at_level(logging.WARNING, logger="multimodalhugs.processors.meta_processor"):
+            meta._transform_get_items_output(batch)
+
+        assert any("input_frames" in r.message and "signal" in r.message for r in caplog.records)

@@ -1,5 +1,6 @@
 """Tests for SignwritingProcessor."""
 
+import pytest
 import torch
 from unittest.mock import patch, MagicMock
 from transformers.feature_extraction_utils import BatchFeature
@@ -218,3 +219,21 @@ class TestSignwritingProcessorCall:
                 assert val.shape[0] == batch_size, (
                     f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# SignwritingModalityProcessor — required preprocessor validation
+# ---------------------------------------------------------------------------
+
+class TestSignwritingModalityProcessorValidation:
+
+    def test_raises_when_no_preprocessor_path(self):
+        """SignwritingModalityProcessor requires custom_preprocessor_path."""
+        from multimodalhugs.processors.signwriting_modality_processor import SignwritingModalityProcessor
+        with pytest.raises(ValueError, match="custom_preprocessor_path"):
+            SignwritingModalityProcessor()
+
+    def test_raises_with_none_preprocessor_path(self):
+        from multimodalhugs.processors.signwriting_modality_processor import SignwritingModalityProcessor
+        with pytest.raises(ValueError, match="custom_preprocessor_path"):
+            SignwritingModalityProcessor(custom_preprocessor_path=None)

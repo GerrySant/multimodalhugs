@@ -378,6 +378,13 @@ End-to-end tests for `SignwritingProcessor`.
 | `TestSignwritingTransformGetItemsOutput` | Converts FSW strings to tensors |
 | `TestSignwritingProcessorCall` | Returns `BatchFeature`; has expected keys; batch dims consistent |
 
+**`TestSignwritingModalityProcessorValidation`** — required-argument validation on `SignwritingModalityProcessor`
+
+| Test | What it checks |
+|---|---|
+| `test_raises_when_no_preprocessor_path` | `SignwritingModalityProcessor()` with no arguments raises `ValueError` mentioning `custom_preprocessor_path` |
+| `test_raises_with_none_preprocessor_path` | `SignwritingModalityProcessor(custom_preprocessor_path=None)` raises `ValueError` mentioning `custom_preprocessor_path` |
+
 ---
 
 ### `test_processor_text2text.py`
@@ -509,7 +516,29 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 |---|---|
 | `test_tensor_written_back` | File paths converted to tensors in-place |
 | `test_text_not_corrupted` | Text columns not altered by the transform |
-| `test_missing_primary_field_skipped` | Slots whose `primary_field` is absent are silently skipped |
+| `test_missing_primary_field_skipped` | Slots whose `primary_field` is absent are skipped and a `logger.warning` is emitted |
+
+**`TestMetaProcessorValidation`** — constructor guard rails
+
+| Test | What it checks |
+|---|---|
+| `test_empty_slots_raises` | `MultimodalMetaProcessor(slots=[])` raises `ValueError` |
+| `test_duplicate_output_data_key_raises` | Two slots sharing `output_data_key` raise `ValueError` |
+| `test_duplicate_output_mask_key_raises` | Two slots sharing a non-`None` `output_mask_key` raise `ValueError` |
+| `test_none_mask_keys_do_not_conflict` | Multiple slots with `output_mask_key=None` do not raise |
+
+**`TestFromPretrainedRegistry`** — `processor_registry` kwarg on `from_pretrained`
+
+| Test | What it checks |
+|---|---|
+| `test_unknown_class_raises_attribute_error` | Unknown `processor_class` in saved JSON raises `AttributeError` with a hint about `processor_registry` |
+| `test_registry_resolves_custom_class` | User-defined `ModalityProcessor` subclass passed via `processor_registry=` is resolved correctly |
+
+**`TestMissingColumnWarning`** — warning for missing primary field
+
+| Test | What it checks |
+|---|---|
+| `test_warning_emitted_for_missing_primary_field` | `_transform_get_items_output` emits a `logger.warning` when a slot's `primary_field` is absent from the batch |
 
 **`TestMetaProcessorMultiSlot`** — multi-encoder-slot with features
 

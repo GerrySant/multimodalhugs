@@ -481,11 +481,20 @@ def build_processor_from_config(processor_cfg):
     if OmegaConf.is_config(slot_cfgs):
         slot_cfgs = OmegaConf.to_container(slot_cfgs, resolve=True)
 
-    # Tokenizer cache: keyed by (tokenizer_path, new_vocabulary) so that the
-    # three standard TextModalityProcessor slots share one tokenizer object
-    # instead of each calling AutoTokenizer.from_pretrained independently.
-    # Only processors whose constructor accepts a 'tokenizer' parameter benefit
-    # from this; all others are constructed normally.
+    # Tokenizer cache: keyed by tokenizer_path.  Caches only the BASE
+    # (unextended) tokenizer returned by AutoTokenizer.from_pretrained.
+    #
+    # Why only the base tokenizer and not the extended one?
+    # extend_tokenizer() always calls AutoTokenizer.from_pretrained()
+    # internally, so it is not possible to skip re-extension by injecting a
+    # pre-extended object without modifying TextModalityProcessor itself.
+    # Caching the base tokenizer saves the redundant from_pretrained call at
+    # the top of TextModalityProcessor.__init__; vocabulary extension still
+    # runs once per text slot (reading the vocab file + add_special_tokens).
+    #
+    # tokenizer_path is intentionally NOT popped from proc_kwargs so that
+    # self.tokenizer_path is correctly set on every TextModalityProcessor
+    # instance (needed for serialization and for from_pretrained round-trips).
     import inspect
     from transformers import AutoTokenizer
     _tok_cache: dict = {}
@@ -495,20 +504,14 @@ def build_processor_from_config(processor_cfg):
         proc_cls = getattr(proc_module, slot_cfg["processor_class"])
         proc_kwargs = dict(slot_cfg.get("processor_kwargs") or {})
 
-        # Inject a pre-built tokenizer when the processor accepts one and a
-        # tokenizer_path is present, avoiding redundant from_pretrained calls.
+        # Inject the pre-loaded base tokenizer so TextModalityProcessor can
+        # skip its own AutoTokenizer.from_pretrained call.
         if "tokenizer" in inspect.signature(proc_cls.__init__).parameters:
-            tok_path = proc_kwargs.pop("tokenizer_path", None)
-            new_vocab = proc_kwargs.get("new_vocabulary")
+            tok_path = proc_kwargs.get("tokenizer_path")
+            if tok_path is not None and tok_path not in _tok_cache:
+                _tok_cache[tok_path] = AutoTokenizer.from_pretrained(tok_path)
             if tok_path is not None:
-                cache_key = (tok_path, new_vocab)
-                if cache_key not in _tok_cache:
-                    from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
-                    tok = AutoTokenizer.from_pretrained(tok_path)
-                    if new_vocab:
-                        tok, _ = extend_tokenizer(tok_path, new_vocab)
-                    _tok_cache[cache_key] = tok
-                proc_kwargs["tokenizer"] = _tok_cache[cache_key]
+                proc_kwargs["tokenizer"] = _tok_cache[tok_path]
 
         proc = proc_cls(**proc_kwargs)
         slots.append(ProcessorSlot(
