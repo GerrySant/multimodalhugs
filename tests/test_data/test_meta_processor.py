@@ -46,6 +46,7 @@ from multimodalhugs.processors.text_modality_processor import TextModalityProces
 from multimodalhugs.data.datacollators.multimodal_datacollator import (
     DataCollatorMultimodalSeq2Seq,
 )
+from tests.test_data.conftest import TINY_TOKENIZER_PATH
 
 
 # ---------------------------------------------------------------------------
@@ -1104,4 +1105,121 @@ class TestMissingColumnWarning:
         with caplog.at_level(logging.WARNING, logger="multimodalhugs.processors.meta_processor"):
             meta._transform_get_items_output(batch)
 
-        assert any("input_frames" in r.message and "signal" in r.message for r in caplog.records)
+        assert any(
+            "input_frames" in r.message and "signal" in r.message
+            for r in caplog.records
+        ), "Expected warning mentioning the missing column ('signal') and slot key ('input_frames')"
+
+
+# ---------------------------------------------------------------------------
+# Tokenizer cache scenarios in build_processor_from_config
+# ---------------------------------------------------------------------------
+
+class TestTokenizerCacheScenarios:
+    """
+    build_processor_from_config supports three tokenizer configurations:
+
+    1. Different tokenizer_path values → fully independent tokenizers.
+    2. Same tokenizer_path, same new_vocabulary → identical tokenizers
+       (shared base object, same extension).
+    3. Same tokenizer_path, different new_vocabulary → independently-extended
+       tokenizers with different vocabulary sizes; a logger.warning is emitted.
+    """
+
+    def _slot_cfg(self, proc_class, tok_path, new_vocab=None, role="input",
+                  output_data_key="input_ids", output_mask_key=None, is_label=False):
+        kwargs = {"tokenizer_path": tok_path, "role": role}
+        if new_vocab is not None:
+            kwargs["new_vocabulary"] = new_vocab
+        return {
+            "processor_class": proc_class,
+            "processor_kwargs": kwargs,
+            "output_data_key": output_data_key,
+            "output_mask_key": output_mask_key,
+            "column_map": {"signal": "signal"},
+            "is_label": is_label,
+        }
+
+    def test_different_paths_produce_independent_tokenizers(self, tmp_path):
+        """Two slots with different tokenizer_path get fully independent tokenizers."""
+        from multimodalhugs.training_setup.setup_utils import build_processor_from_config
+
+        path_a = str(TINY_TOKENIZER_PATH)
+        # Create a second tokenizer dir by copying the first (same files, different path)
+        import shutil
+        path_b = str(tmp_path / "tok_b")
+        shutil.copytree(path_a, path_b)
+
+        cfg = {
+            "slots": [
+                self._slot_cfg("TextModalityProcessor", path_a,
+                               output_data_key="enc", output_mask_key="enc_mask"),
+                self._slot_cfg("TextModalityProcessor", path_b,
+                               role="target", output_data_key="labels", is_label=True),
+            ]
+        }
+        meta = build_processor_from_config(cfg)
+        tok_a = meta.slots[0].processor.tokenizer
+        tok_b = meta.slots[1].processor.tokenizer
+        # Different path → different objects (no shared reference)
+        assert tok_a is not tok_b
+
+    def test_same_path_same_vocab_produce_shared_base_tokenizer(self):
+        """Two slots with the same tokenizer_path share the same base tokenizer object."""
+        from multimodalhugs.training_setup.setup_utils import build_processor_from_config
+
+        path = str(TINY_TOKENIZER_PATH)
+        cfg = {
+            "slots": [
+                self._slot_cfg("TextModalityProcessor", path,
+                               output_data_key="enc", output_mask_key="enc_mask"),
+                self._slot_cfg("TextModalityProcessor", path,
+                               role="target", output_data_key="labels", is_label=True),
+            ]
+        }
+        meta = build_processor_from_config(cfg)
+        # Both pretrained_tokenizer attributes must be the same object (cache hit)
+        assert (
+            meta.slots[0].processor.pretrained_tokenizer
+            is meta.slots[1].processor.pretrained_tokenizer
+        )
+
+    def test_same_path_different_vocab_emits_warning_and_produces_different_tokenizers(
+        self, tmp_path, caplog
+    ):
+        """Same tokenizer_path but different new_vocabulary → warning + different vocab sizes."""
+        import logging
+        from multimodalhugs.training_setup.setup_utils import build_processor_from_config
+
+        path = str(TINY_TOKENIZER_PATH)
+
+        # Two minimal vocabulary files with non-overlapping tokens
+        vocab_a = tmp_path / "vocab_a.txt"
+        vocab_b = tmp_path / "vocab_b.txt"
+        vocab_a.write_text("<extra_token_A1>\n<extra_token_A2>\n")
+        vocab_b.write_text("<extra_token_B1>\n<extra_token_B2>\n<extra_token_B3>\n")
+
+        cfg = {
+            "slots": [
+                self._slot_cfg("TextModalityProcessor", path,
+                               new_vocab=str(vocab_a),
+                               output_data_key="enc", output_mask_key="enc_mask"),
+                self._slot_cfg("TextModalityProcessor", path,
+                               new_vocab=str(vocab_b),
+                               role="target", output_data_key="labels", is_label=True),
+            ]
+        }
+
+        with caplog.at_level(logging.WARNING,
+                             logger="multimodalhugs.training_setup.setup_utils"):
+            meta = build_processor_from_config(cfg)
+
+        assert any("new_vocabulary" in r.message or "vocabulary size" in r.message
+                   for r in caplog.records), \
+            "Expected a warning about different new_vocabulary values"
+
+        vocab_size_a = len(meta.slots[0].processor.tokenizer)
+        vocab_size_b = len(meta.slots[1].processor.tokenizer)
+        assert vocab_size_a != vocab_size_b, (
+            "Slots with different new_vocabulary should produce different vocabulary sizes"
+        )

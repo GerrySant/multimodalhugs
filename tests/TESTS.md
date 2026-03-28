@@ -538,7 +538,15 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 | Test | What it checks |
 |---|---|
-| `test_warning_emitted_for_missing_primary_field` | `_transform_get_items_output` emits a `logger.warning` when a slot's `primary_field` is absent from the batch |
+| `test_warning_emitted_for_missing_primary_field` | `_transform_get_items_output` emits a `logger.warning` mentioning the missing column name and the slot's `output_data_key` when the slot's `primary_field` is absent from the batch |
+
+**`TestTokenizerCacheScenarios`** — tokenizer cache behaviour in `build_processor_from_config`
+
+| Test | What it checks |
+|---|---|
+| `test_different_paths_produce_independent_tokenizers` | Two slots with different `tokenizer_path` get fully independent tokenizer objects |
+| `test_same_path_same_vocab_produce_shared_base_tokenizer` | Two slots with the same `tokenizer_path` (and no `new_vocabulary`) share the same base tokenizer object via the cache |
+| `test_same_path_different_vocab_emits_warning_and_produces_different_tokenizers` | Two slots with the same `tokenizer_path` but different `new_vocabulary` files produce independently-extended tokenizers with different vocabulary sizes, and a `logger.warning` is emitted |
 
 **`TestMetaProcessorMultiSlot`** — multi-encoder-slot with features
 

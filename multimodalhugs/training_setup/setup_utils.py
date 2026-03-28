@@ -499,6 +499,30 @@ def build_processor_from_config(processor_cfg):
     from transformers import AutoTokenizer
     _tok_cache: dict = {}
 
+    # Warn when two slots share tokenizer_path but use different new_vocabulary
+    # values.  Each slot will still get its own independently-extended tokenizer
+    # (extend_tokenizer loads from disk), so the processor works correctly, but
+    # the resulting vocabulary sizes will differ.  A model embedding matrix has a
+    # fixed size, so mixing differently-extended tokenizers in one pipeline will
+    # almost certainly cause a shape mismatch at training time.
+    _path_to_vocab: dict = {}
+    for _sc in slot_cfgs:
+        _kw = dict(_sc.get("processor_kwargs") or {})
+        _tp = _kw.get("tokenizer_path")
+        _nv = _kw.get("new_vocabulary")
+        if _tp is not None:
+            if _tp in _path_to_vocab and _path_to_vocab[_tp] != _nv:
+                logger.warning(
+                    "Two processor slots share tokenizer_path='%s' but have "
+                    "different new_vocabulary values ('%s' vs '%s'). Each slot "
+                    "will produce an independently-extended tokenizer with a "
+                    "different vocabulary size. This is unlikely to work with a "
+                    "single model embedding matrix.",
+                    _tp, _path_to_vocab[_tp], _nv,
+                )
+            else:
+                _path_to_vocab[_tp] = _nv
+
     slots = []
     for slot_cfg in slot_cfgs:
         proc_cls = getattr(proc_module, slot_cfg["processor_class"])
