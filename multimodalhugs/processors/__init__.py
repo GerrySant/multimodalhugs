@@ -33,7 +33,7 @@ Features2TextTranslationProcessor.register_for_auto_class("AutoProcessor")
 AutoProcessor.register("features2text_translation_processor", Features2TextTranslationProcessor)
 
 SignwritingProcessor.register_for_auto_class("AutoProcessor")
-AutoProcessor.register("signwritting_processor", SignwritingProcessor)
+AutoProcessor.register("signwriting_processor", SignwritingProcessor)
 
 Image2TextTranslationProcessor.register_for_auto_class("AutoProcessor")
 AutoProcessor.register("image2text_translation_processor", Image2TextTranslationProcessor)

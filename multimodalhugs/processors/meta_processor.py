@@ -107,16 +107,24 @@ class MultimodalMetaProcessor(ProcessorMixin):
             raise ValueError(
                 "MultimodalMetaProcessor requires at least one ProcessorSlot."
             )
-        seen_keys: set = set()
+        seen_data_keys: set = set()
+        seen_mask_keys: set = set()
         for slot in slots:
-            if slot.output_data_key in seen_keys:
+            if slot.output_data_key in seen_data_keys:
                 raise ValueError(
                     f"Duplicate output_data_key '{slot.output_data_key}' detected in slots. "
                     "Each slot must write to a unique key. "
                     "Pre-populating a key before __call__ (e.g. from a DataCollator) is the "
                     "intended mechanism for overrides — not duplicate slot declarations."
                 )
-            seen_keys.add(slot.output_data_key)
+            seen_data_keys.add(slot.output_data_key)
+            if slot.output_mask_key is not None:
+                if slot.output_mask_key in seen_mask_keys:
+                    raise ValueError(
+                        f"Duplicate output_mask_key '{slot.output_mask_key}' detected in slots. "
+                        "Each slot must write its mask to a unique key."
+                    )
+                seen_mask_keys.add(slot.output_mask_key)
         self.slots = slots
         if tokenizer is None:
             tokenizer = next(
@@ -157,7 +165,14 @@ class MultimodalMetaProcessor(ProcessorMixin):
         """Return a JSON-serializable dict describing one ProcessorSlot."""
         proc = slot.processor
         proc_kwargs: Dict[str, Any] = {}
-        _SKIP = {"tokenizer", "pretrained_tokenizer", "new_tokens"}
+        # Attributes excluded from slot serialization fall into two categories:
+        #   Saved separately  — tokenizer, pretrained_tokenizer: saved as a full
+        #     tokenizer directory by save_pretrained; not needed in the slot JSON.
+        #   Reconstructable derived  — custom_preprocessor, new_tokens: heavy
+        #     runtime objects rebuilt deterministically in __init__ from their
+        #     serializable counterparts (custom_preprocessor_path, tokenizer
+        #     extension); they will be correctly present after from_pretrained.
+        _SKIP = {"tokenizer", "pretrained_tokenizer", "new_tokens", "custom_preprocessor"}
         for k, v in proc.__dict__.items():
             if k.startswith("_") or k in _SKIP or callable(v):
                 continue
@@ -188,9 +203,31 @@ class MultimodalMetaProcessor(ProcessorMixin):
         }
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: str, **kwargs):
+    def from_pretrained(
+        cls,
+        pretrained_model_name_or_path: str,
+        processor_registry: Optional[Dict[str, type]] = None,
+        **kwargs,
+    ):
         """
         Reconstruct a MultimodalMetaProcessor saved with save_pretrained().
+
+        processor_registry — optional mapping of class name → class for
+            user-defined ModalityProcessor subclasses not exported from
+            ``multimodalhugs.processors``.  Lookup order: registry first,
+            then the built-in ``multimodalhugs.processors`` module.
+
+            Example::
+
+                from mylib import MyCustomProcessor
+                proc = MultimodalMetaProcessor.from_pretrained(
+                    "/path/to/saved",
+                    processor_registry={"MyCustomProcessor": MyCustomProcessor},
+                )
+
+            Note: all processor classes used in a saved config must be either
+            exported from ``multimodalhugs.processors`` or supplied via this
+            argument.  See issue #77 for a planned global-registration API.
         """
         import multimodalhugs.processors as proc_module
 
@@ -208,7 +245,19 @@ class MultimodalMetaProcessor(ProcessorMixin):
             tokenizer = None
 
         def _reconstruct_slot(slot_dict: Dict[str, Any]) -> ProcessorSlot:
-            proc_cls = getattr(proc_module, slot_dict["processor_class"])
+            class_name = slot_dict["processor_class"]
+            if processor_registry and class_name in processor_registry:
+                proc_cls = processor_registry[class_name]
+            else:
+                try:
+                    proc_cls = getattr(proc_module, class_name)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Processor class '{class_name}' not found in "
+                        "multimodalhugs.processors. If this is a user-defined "
+                        "subclass, pass it via processor_registry="
+                        f"{{''{class_name}'': YourClass}}."
+                    )
             proc_kwargs = slot_dict["processor_kwargs"]
             sig = inspect.signature(proc_cls.__init__)
             if "tokenizer" in sig.parameters:
@@ -272,6 +321,14 @@ class MultimodalMetaProcessor(ProcessorMixin):
         for slot in self.slots:
             primary = slot.primary_field
             if primary not in batch:
+                logger.warning(
+                    "Slot '%s': primary column '%s' not found in batch (available: %s). "
+                    "Check the column_map for this slot — a typo in the dataset column "
+                    "name is the most common cause.",
+                    slot.output_data_key,
+                    primary,
+                    sorted(batch.keys()),
+                )
                 continue
             n = len(batch[primary])
             new_values = []

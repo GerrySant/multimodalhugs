@@ -132,6 +132,9 @@ MODALITY_SPECS = [
         {
             "pipeline": "signwriting2text",
             "tokenizer_path": TINY_TOKENIZER_PATH,
+            "modality_kwargs": {
+                "custom_preprocessor_path": CLIP_PROCESSOR_PATH,
+            },
         },
         {
             "train_metadata_file": os.path.join(ASSETS_DIR, "signwriting", "metadata.tsv"),

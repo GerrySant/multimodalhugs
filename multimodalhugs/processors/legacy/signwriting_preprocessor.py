@@ -16,7 +16,11 @@ class SignwritingProcessor(MultimodalMetaProcessor):
         will be removed in a future release.  See ``processors/meta_processor.py``
         and the processor configuration docs for the recommended approach.
     """
-    name = "signwritting_processor"
+    # BREAKING CHANGE (v0.5.0): name was corrected from "signwritting_processor"
+    # (double-t typo) to "signwriting_processor". Any processor_config.json
+    # saved with the old name will not be auto-discovered by AutoProcessor.
+    # Re-save the processor with save_pretrained() to update the stored key.
+    name = "signwriting_processor"
     model_input_names = ["input_frames", "attention_mask"]
 
     def __init__(
@@ -26,7 +30,7 @@ class SignwritingProcessor(MultimodalMetaProcessor):
         width: int = 224,
         height: int = 224,
         channels: int = 3,
-        invert_frame: bool = False,
+        invert_frame: bool = True,
         **kwargs,
     ):
         self.custom_preprocessor_path = custom_preprocessor_path

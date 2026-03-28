@@ -34,16 +34,19 @@ class SignwritingModalityProcessor(ModalityProcessor):
         channels: int = 3,
         invert_frame: bool = True,
     ):
+        if custom_preprocessor_path is None:
+            raise ValueError(
+                "SignwritingModalityProcessor requires a 'custom_preprocessor_path' "
+                "(a HuggingFace model ID or local path to an image preprocessor such as "
+                "CLIPImageProcessor). Pass it as a constructor argument or set it in the "
+                "processor_kwargs of the slot config."
+            )
         self.custom_preprocessor_path = custom_preprocessor_path
         self.width = width
         self.height = height
         self.channels = channels
         self.invert_frame = invert_frame
-        self.custom_preprocessor = (
-            AutoProcessor.from_pretrained(custom_preprocessor_path)
-            if custom_preprocessor_path is not None
-            else None
-        )
+        self.custom_preprocessor = AutoProcessor.from_pretrained(custom_preprocessor_path)
 
     # ------------------------------------------------------------------
     # Internal helpers

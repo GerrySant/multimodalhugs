@@ -56,15 +56,18 @@ _PIPELINE_PRESETS: dict = {
             "signal_end": "signal_end",
         },
     },
+    # TODO (issue #76): FeaturesModalityProcessor currently only supports one
+    # .npy file per sample. signal_start / signal_end are intentionally absent
+    # here because the processor has no dict-handling branch and no temporal
+    # clipping logic. When issue #76 is resolved (adding row-index slicing),
+    # add a 3-key column_map matching pose2text/video2text. Note that the unit
+    # for features would be row indices, not milliseconds — document the
+    # difference when that work lands.
     "features2text": {
         "processor_class": "FeaturesModalityProcessor",
         "output_data_key": "input_frames",
         "output_mask_key": "attention_mask",
-        "column_map": {
-            "signal": "signal",
-            "signal_start": "signal_start",
-            "signal_end": "signal_end",
-        },
+        "column_map": {"signal": "signal"},
     },
     # --- Frame / image modalities (no temporal offsets) ---
     "image2text": {
@@ -478,10 +481,35 @@ def build_processor_from_config(processor_cfg):
     if OmegaConf.is_config(slot_cfgs):
         slot_cfgs = OmegaConf.to_container(slot_cfgs, resolve=True)
 
+    # Tokenizer cache: keyed by (tokenizer_path, new_vocabulary) so that the
+    # three standard TextModalityProcessor slots share one tokenizer object
+    # instead of each calling AutoTokenizer.from_pretrained independently.
+    # Only processors whose constructor accepts a 'tokenizer' parameter benefit
+    # from this; all others are constructed normally.
+    import inspect
+    from transformers import AutoTokenizer
+    _tok_cache: dict = {}
+
     slots = []
     for slot_cfg in slot_cfgs:
         proc_cls = getattr(proc_module, slot_cfg["processor_class"])
         proc_kwargs = dict(slot_cfg.get("processor_kwargs") or {})
+
+        # Inject a pre-built tokenizer when the processor accepts one and a
+        # tokenizer_path is present, avoiding redundant from_pretrained calls.
+        if "tokenizer" in inspect.signature(proc_cls.__init__).parameters:
+            tok_path = proc_kwargs.pop("tokenizer_path", None)
+            new_vocab = proc_kwargs.get("new_vocabulary")
+            if tok_path is not None:
+                cache_key = (tok_path, new_vocab)
+                if cache_key not in _tok_cache:
+                    from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
+                    tok = AutoTokenizer.from_pretrained(tok_path)
+                    if new_vocab:
+                        tok, _ = extend_tokenizer(tok_path, new_vocab)
+                    _tok_cache[cache_key] = tok
+                proc_kwargs["tokenizer"] = _tok_cache[cache_key]
+
         proc = proc_cls(**proc_kwargs)
         slots.append(ProcessorSlot(
             processor=proc,
