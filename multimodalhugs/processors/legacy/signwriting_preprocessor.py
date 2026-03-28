@@ -22,14 +22,14 @@ class SignwritingProcessor(MultimodalMetaProcessor):
         invert_frame: bool = False,
         **kwargs,
     ):
-        if "slots" in kwargs:
-            super().__init__(tokenizer=tokenizer, **kwargs)
-            return
         self.custom_preprocessor_path = custom_preprocessor_path
         self.width = width
         self.height = height
         self.channels = channels
         self.invert_frame = invert_frame
+        if "slots" in kwargs:
+            super().__init__(tokenizer=tokenizer, **kwargs)
+            return
         super().__init__(
             slots=[
                 ProcessorSlot(

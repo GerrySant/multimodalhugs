@@ -306,7 +306,7 @@ Loads pre-computed feature files (`.npy`) and returns them as `[T, D]` tensors.
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `skip_frames_stride` | int | `null` | Keep every N-th frame |
-| `temporal_dimention_position` | int | `0` | Axis index of the temporal dimension in the loaded array |
+| `temporal_dimension_position` | int | `0` | Axis index of the temporal dimension in the loaded array |
 | `use_cache` | bool | `true` | Cache loaded files in memory |
 
 **`column_map` processor param names:** `signal` only (no temporal bounds; temporal slicing is not supported — load the full file)

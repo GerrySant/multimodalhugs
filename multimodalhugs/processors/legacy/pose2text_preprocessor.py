@@ -19,12 +19,12 @@ class Pose2TextTranslationProcessor(MultimodalMetaProcessor):
         skip_frames_stride: Optional[int] = None,
         **kwargs,
     ):
+        self.reduce_holistic_poses = reduce_holistic_poses
+        self.skip_frames_stride = skip_frames_stride
         # Pass-through for from_pretrained, which calls cls(slots=..., tokenizer=...)
         if "slots" in kwargs:
             super().__init__(tokenizer=tokenizer, **kwargs)
             return
-        self.reduce_holistic_poses = reduce_holistic_poses
-        self.skip_frames_stride = skip_frames_stride
         super().__init__(
             slots=[
                 ProcessorSlot(

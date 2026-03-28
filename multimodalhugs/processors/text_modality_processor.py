@@ -70,7 +70,7 @@ class TextModalityProcessor(ModalityProcessor):
             # need to call load_tokenizers. The duplication will be resolved when
             # the model-construction step is refactored to derive new_tokens from
             # the processor directly, at which point load_tokenizers in setup files
-            # can be removed entirely.
+            # can be removed entirely. Tracked in issue #74.
             from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
             base_path = tokenizer_path or tokenizer.name_or_path
             tokenizer, self.new_tokens = extend_tokenizer(base_path, new_vocabulary)

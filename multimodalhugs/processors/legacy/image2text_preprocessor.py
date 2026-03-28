@@ -23,15 +23,15 @@ class Image2TextTranslationProcessor(MultimodalMetaProcessor):
         std: Optional[List[float]] = None,
         **kwargs,
     ):
-        if "slots" in kwargs:
-            super().__init__(tokenizer=tokenizer, **kwargs)
-            return
         self.font_path = font_path
         self.width = width
         self.height = height
         self.normalize_image = normalize_image
         self.mean = mean
         self.std = std
+        if "slots" in kwargs:
+            super().__init__(tokenizer=tokenizer, **kwargs)
+            return
         super().__init__(
             slots=[
                 ProcessorSlot(

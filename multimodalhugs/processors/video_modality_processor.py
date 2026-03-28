@@ -1,12 +1,10 @@
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-import psutil
 import torch
 from PIL import Image
 from torchvision.io import read_video
@@ -14,19 +12,9 @@ from transformers import AutoProcessor
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor
-from multimodalhugs.processors.utils import frame_skipping
+from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size
 
 logger = logging.getLogger(__name__)
-
-
-def _get_dynamic_cache_size() -> int:
-    cluster_mem = None
-    for var in ("SLURM_MEM_PER_GPU", "SLURM_MEM_PER_NODE", "SLURM_MEM_PER_CPU"):
-        if os.getenv(var):
-            cluster_mem = int(os.getenv(var)) * 1e6
-            break
-    total = cluster_mem or psutil.virtual_memory().total
-    return max(10, int((total * 0.05) / 50e6))
 
 
 class VideoModalityProcessor(ModalityProcessor):
@@ -56,7 +44,7 @@ class VideoModalityProcessor(ModalityProcessor):
             else None
         )
         if use_cache:
-            cache_size = _get_dynamic_cache_size()
+            cache_size = get_dynamic_cache_size(avg_item_size_bytes=50e6)  # ~50 MB per video
             logger.info(f"Video cache size: {cache_size}")
             self._load_video = lru_cache(maxsize=cache_size)(self._load_video)
 

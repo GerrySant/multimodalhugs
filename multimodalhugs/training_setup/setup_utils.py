@@ -3,7 +3,7 @@ multimodalhugs/utils/training_setup.py
 
 Common utilities to initialize dataset, processor, and model for all modalities.
 '''
-import os, tempfile
+import os
 import yaml
 import logging
 from pathlib import Path
@@ -644,7 +644,7 @@ def save_actor_paths(final_output_dir: Union[str, Path],
                      proc_path: Union[str, Path, None] = None,
                      data_path: Union[str, Path, None] = None,
                      model_path: Union[str, Path, None] = None) -> Path:
-    """Guarda los paths en final_output_dir/actors_paths.yaml con las claves requeridas."""
+    """Save artifact paths to final_output_dir/actors_paths.yaml."""
     final_dir = Path(final_output_dir).expanduser().resolve()
     final_dir.mkdir(parents=True, exist_ok=True)
     out_file = final_dir / "actors_paths.yaml"

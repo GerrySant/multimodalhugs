@@ -69,6 +69,11 @@ class ImageModalityProcessor(ModalityProcessor):
             raise ValueError(f"Unsupported file format: {ext}")
         if image is None:
             raise ValueError(f"Failed to read image from path: {path}")
+        if self.mean is not None and image.ndim >= 3 and len(self.mean) != image.shape[-1]:
+            raise ValueError(
+                f"Image at '{path}' has {image.shape[-1]} channels but "
+                f"mean/std have {len(self.mean)} values."
+            )
         if self.normalize_image:
             image = (image - self.mean) / self.std
         return torch.from_numpy(image)

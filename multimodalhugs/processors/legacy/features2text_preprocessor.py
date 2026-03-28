@@ -17,21 +17,21 @@ class Features2TextTranslationProcessor(MultimodalMetaProcessor):
         tokenizer: Optional[Any] = None,
         use_cache: bool = True,
         skip_frames_stride: Optional[int] = None,
-        temporal_dimention_position: int = 0,
+        temporal_dimension_position: int = 0,
         **kwargs,
     ):
+        self.use_cache = use_cache
+        self.skip_frames_stride = skip_frames_stride
+        self.temporal_dimension_position = temporal_dimension_position
         if "slots" in kwargs:
             super().__init__(tokenizer=tokenizer, **kwargs)
             return
-        self.use_cache = use_cache
-        self.skip_frames_stride = skip_frames_stride
-        self.temporal_dimention_position = temporal_dimention_position
         super().__init__(
             slots=[
                 ProcessorSlot(
                     processor=FeaturesModalityProcessor(
                         skip_frames_stride=skip_frames_stride,
-                        temporal_dimention_position=temporal_dimention_position,
+                        temporal_dimension_position=temporal_dimension_position,
                         use_cache=use_cache,
                     ),
                     output_data_key="input_frames",

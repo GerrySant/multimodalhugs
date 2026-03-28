@@ -137,7 +137,12 @@ class MultimodalMetaProcessor(ProcessorMixin):
                 json.dumps(v)
                 proc_kwargs[k] = v
             except (TypeError, ValueError):
-                pass
+                logger.warning(
+                    "Processor attribute '%s' of type %s is not JSON-serializable "
+                    "and will be omitted from the saved config. The processor will "
+                    "be missing this attribute after from_pretrained().",
+                    k, type(v).__name__,
+                )
         return {
             "processor_class": proc.__class__.__name__,
             "processor_kwargs": proc_kwargs,
@@ -165,7 +170,13 @@ class MultimodalMetaProcessor(ProcessorMixin):
 
         try:
             tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
-        except Exception:
+        except OSError:
+            # No tokenizer files present in the directory — valid for non-text pipelines.
+            logger.debug(
+                "No tokenizer found in '%s'; setting tokenizer=None. "
+                "This is expected for processors with no text slots.",
+                pretrained_model_name_or_path,
+            )
             tokenizer = None
 
         def _reconstruct_slot(slot_dict: Dict[str, Any]) -> ProcessorSlot:
@@ -254,8 +265,11 @@ class MultimodalMetaProcessor(ProcessorMixin):
         Process a collated batch (list of sample dicts) into a BatchFeature.
 
         Iterates slots in declaration order. Skips a slot if its output_data_key
-        is already present in the result (allows callers to pre-populate keys,
-        e.g. decoder_input_ids derived from labels by the model).
+        is already present in the result. This skip-if-present rule is also the
+        mechanism that allows post-hoc overrides by callers: for example, the
+        DataCollator can call prepare_decoder_input_ids_from_labels() and place
+        the result under "decoder_input_ids" in batch_dict before invoking the
+        processor, and the corresponding slot will be skipped automatically.
 
         batch_dict — pre-populated dict merged into the result before slot
                      processing begins. Keys already present are not overwritten.

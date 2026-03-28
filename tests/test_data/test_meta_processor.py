@@ -925,14 +925,14 @@ class TestMultimodalMetaProcessorRoundTrip:
     # ------------------------------------------------------------------
 
     def _make_features2text_meta_with_kwargs(
-        self, tokenizer, skip_frames_stride=2, temporal_dimention_position=1
+        self, tokenizer, skip_frames_stride=2, temporal_dimension_position=1
     ):
         return MultimodalMetaProcessor(
             slots=[
                 ProcessorSlot(
                     processor=FeaturesModalityProcessor(
                         skip_frames_stride=skip_frames_stride,
-                        temporal_dimention_position=temporal_dimention_position,
+                        temporal_dimension_position=temporal_dimension_position,
                         use_cache=False,
                     ),
                     output_data_key="input_frames",
@@ -963,7 +963,7 @@ class TestMultimodalMetaProcessorRoundTrip:
     def test_features2text_processor_kwargs_preserved(self, tokenizer, tmp_path):
         """Non-trivial ModalityProcessor kwargs must survive the save/load cycle."""
         meta = self._make_features2text_meta_with_kwargs(
-            tokenizer, skip_frames_stride=3, temporal_dimention_position=1
+            tokenizer, skip_frames_stride=3, temporal_dimension_position=1
         )
         meta.save_pretrained(str(tmp_path))
         loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
@@ -973,7 +973,7 @@ class TestMultimodalMetaProcessorRoundTrip:
 
         assert isinstance(load_proc, FeaturesModalityProcessor)
         assert load_proc.skip_frames_stride == orig_proc.skip_frames_stride
-        assert load_proc.temporal_dimention_position == orig_proc.temporal_dimention_position
+        assert load_proc.temporal_dimension_position == orig_proc.temporal_dimension_position
         assert load_proc.use_cache == orig_proc.use_cache
 
     def test_features2text_output_identical(self, tokenizer, tmp_path, features_batch_samples):

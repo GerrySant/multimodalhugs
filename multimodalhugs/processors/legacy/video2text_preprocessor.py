@@ -21,13 +21,13 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
         use_cache: bool = True,
         **kwargs,
     ):
-        if "slots" in kwargs:
-            super().__init__(tokenizer=tokenizer, **kwargs)
-            return
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw
         self.use_cache = use_cache
+        if "slots" in kwargs:
+            super().__init__(tokenizer=tokenizer, **kwargs)
+            return
         super().__init__(
             slots=[
                 ProcessorSlot(

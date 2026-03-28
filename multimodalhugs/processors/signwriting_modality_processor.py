@@ -52,10 +52,6 @@ class SignwritingModalityProcessor(ModalityProcessor):
     def _ascii_to_tensor(self, sign: str) -> torch.Tensor:
         sign_arrays = []
         for ascii_sign in normalize_signwriting(sign).split():
-            if ascii_sign == "M511x510S27034490x490":
-                ascii_sign = "M511x510S2c734490x490"
-            if ascii_sign == "M510x518S21005490x483":
-                ascii_sign = "M510x518S2c105490x483"
             _sign = signwriting_to_image(ascii_sign, trust_box=False)
             _sign = center_image_on_white_background(
                 _sign, target_width=self.width, target_height=self.height

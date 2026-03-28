@@ -126,6 +126,11 @@ def main(
     cfg = load_config(config_path)
     final_output_dir = resolve_setup_paths(cfg, output_dir)
 
+    # Tokenizer variables are set in the processor step when do_processor=True,
+    # or derived from the config in the model step when do_processor=False.
+    tok = pre_tok = None
+    new: list = []
+
     # ------------------------------------------------------------------
     # 1. Dataset setup
     # ------------------------------------------------------------------
@@ -206,10 +211,7 @@ def main(
     if do_model:
         print("\nSetting Up Model:\n")
 
-        try:
-            # tok/pre_tok/new were set during the processor step above.
-            tok, pre_tok, new
-        except NameError:
+        if tok is None:
             # do_model=True without do_processor=True: reconstruct tokenizers
             # directly from the config without building the processor.
             processor_cfg = getattr(cfg, "processor", None)

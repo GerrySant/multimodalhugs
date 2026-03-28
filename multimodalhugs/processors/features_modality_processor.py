@@ -1,29 +1,16 @@
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import psutil
 import torch
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor
-from multimodalhugs.processors.utils import frame_skipping
+from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size
 
 logger = logging.getLogger(__name__)
-
-
-def _get_dynamic_cache_size() -> int:
-    cluster_mem = None
-    for var in ("SLURM_MEM_PER_GPU", "SLURM_MEM_PER_NODE", "SLURM_MEM_PER_CPU"):
-        if os.getenv(var):
-            cluster_mem = int(os.getenv(var)) * 1e6
-            break
-    total = cluster_mem or psutil.virtual_memory().total
-    avg_feature_size = 1e6 * 0.688779  # ~1 MB per feature file
-    return max(500, int((total * 0.05) / avg_feature_size))
 
 
 class FeaturesModalityProcessor(ModalityProcessor):
@@ -40,14 +27,14 @@ class FeaturesModalityProcessor(ModalityProcessor):
     def __init__(
         self,
         skip_frames_stride: Optional[int] = None,
-        temporal_dimention_position: int = 0,
+        temporal_dimension_position: int = 0,
         use_cache: bool = True,
     ):
         self.skip_frames_stride = skip_frames_stride
-        self.temporal_dimention_position = temporal_dimention_position
+        self.temporal_dimension_position = temporal_dimension_position
         self.use_cache = use_cache
         if use_cache:
-            self._cache_size = _get_dynamic_cache_size()
+            self._cache_size = get_dynamic_cache_size(avg_item_size_bytes=1e6 * 0.688779)  # ~0.7 MB per feature file
             logger.info(f"Features cache size: {self._cache_size}")
             self._load_from_disk = lru_cache(maxsize=self._cache_size)(self._load_from_disk)
 
@@ -58,8 +45,8 @@ class FeaturesModalityProcessor(ModalityProcessor):
     def _load_from_disk(self, path: str) -> torch.Tensor:
         """Load a .npy feature file from disk and apply transforms."""
         features = torch.from_numpy(np.load(path))
-        if self.temporal_dimention_position != 0:
-            features = torch.movedim(features, self.temporal_dimention_position, 0)
+        if self.temporal_dimension_position != 0:
+            features = torch.movedim(features, self.temporal_dimension_position, 0)
         if self.skip_frames_stride is not None:
             features = frame_skipping(x=features, t_dim=0, stride=self.skip_frames_stride)
         return features

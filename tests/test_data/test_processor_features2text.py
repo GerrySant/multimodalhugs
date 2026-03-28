@@ -59,12 +59,12 @@ class TestFeaturesFileToTensor:
         assert tensor.shape[0] == 4
 
     def test_temporal_dimension_position(self, tokenizer, tmp_path):
-        """temporal_dimention_position moves correct axis to position 0."""
+        """temporal_dimension_position moves correct axis to position 0."""
         path = str(tmp_path / "transposed.npy")
         # Shape (64, 10) where temporal dim is at position 1
         np.save(path, np.random.rand(64, 10).astype(np.float32))
         processor = Features2TextTranslationProcessor(
-            tokenizer=tokenizer, use_cache=False, temporal_dimention_position=1
+            tokenizer=tokenizer, use_cache=False, temporal_dimension_position=1
         )
         tensor = _modality_proc(processor).process_sample(path)
         # After movedim(1, 0), shape should be (10, 64)

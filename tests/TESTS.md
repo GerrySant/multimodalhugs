@@ -346,7 +346,7 @@ End-to-end tests for `Features2TextTranslationProcessor`.
 
 | Class | Tests |
 |---|---|
-| `TestFeaturesFileToTensor` | Loads `.npy`; converts ndarray/list/tensor; `skip_frames_stride`; `temporal_dimention_position` |
+| `TestFeaturesFileToTensor` | Loads `.npy`; converts ndarray/list/tensor; `skip_frames_stride`; `temporal_dimension_position` |
 | `TestFeaturesObtainMultimodalInputAndMasks` | Returns `input_frames` and `attention_mask`; variable-length padding |
 | `TestFeaturesTransformGetItemsOutput` | Converts paths to tensors |
 | `TestFeaturesCacheBehavior` | `use_cache=True` initializes internal cache |
@@ -526,7 +526,7 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 | `test_text2text_encoder_slot_processor_type` | Encoder slot holds a `TextModalityProcessor` after load |
 | `test_text2text_output_identical` | All output tensors identical before and after save/load (text→text) |
 | `test_text2text_transform_output_identical` | `_transform_get_items_output` output identical after load |
-| `test_features2text_processor_kwargs_preserved` | `skip_frames_stride`, `temporal_dimention_position`, `use_cache` survive serialisation |
+| `test_features2text_processor_kwargs_preserved` | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` survive serialisation |
 | `test_features2text_output_identical` | All output tensors identical before and after save/load (features→text) |
 
 ---
