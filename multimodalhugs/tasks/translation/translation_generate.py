@@ -33,6 +33,7 @@ import logging
 import os
 import sys
 import argparse
+import warnings
 
 import datasets
 import evaluate
@@ -156,12 +157,17 @@ def main():
     _LOG_LEVEL = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR}
     verbosity = _LOG_LEVEL.get((extra_args.verbosity_level or "warning").lower(), logging.WARNING)
 
-    # Apply unified verbosity to our logger (main process only) and HF libraries.
-    logger.setLevel(verbosity if training_args.should_log else logging.WARNING)
+    # Apply unified verbosity to all multimodalhugs loggers (main process only) and HF libraries.
+    pkg_level = verbosity if training_args.should_log else logging.WARNING
+    logger.setLevel(pkg_level)
+    logging.getLogger("multimodalhugs").setLevel(pkg_level)
     datasets.utils.logging.set_verbosity(verbosity)
     transformers.utils.logging.set_verbosity(verbosity)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
+
+    if verbosity > logging.INFO:
+        warnings.filterwarnings("ignore", category=FutureWarning, module="transformers")
 
     # --- Load the test dataset ---
     if data_args.dataset_dir is not None:
