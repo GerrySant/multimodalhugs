@@ -90,8 +90,8 @@ def main():
     _HF_LEVEL = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR}
     hf_level = _HF_LEVEL.get((extra_args.hf_verbosity or "warning").lower(), logging.WARNING)
 
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
+    # Our own logger: INFO on main process, WARNING on replicas (suppresses duplicate distributed noise).
+    logger.setLevel(logging.INFO if training_args.should_log else logging.WARNING)
     datasets.utils.logging.set_verbosity(hf_level)
     transformers.utils.logging.set_verbosity(hf_level)
     transformers.utils.logging.enable_default_handler()
