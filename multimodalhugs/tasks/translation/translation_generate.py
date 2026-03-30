@@ -153,13 +153,13 @@ def main():
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    _HF_LEVEL = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR}
-    hf_level = _HF_LEVEL.get((extra_args.hf_verbosity or "warning").lower(), logging.WARNING)
+    _LOG_LEVEL = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR}
+    verbosity = _LOG_LEVEL.get((extra_args.verbosity_level or "warning").lower(), logging.WARNING)
 
-    # Our own logger: INFO on main process, WARNING on replicas (suppresses duplicate distributed noise).
-    logger.setLevel(logging.INFO if training_args.should_log else logging.WARNING)
-    datasets.utils.logging.set_verbosity(hf_level)
-    transformers.utils.logging.set_verbosity(hf_level)
+    # Apply unified verbosity to our logger (main process only) and HF libraries.
+    logger.setLevel(verbosity if training_args.should_log else logging.WARNING)
+    datasets.utils.logging.set_verbosity(verbosity)
+    transformers.utils.logging.set_verbosity(verbosity)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
