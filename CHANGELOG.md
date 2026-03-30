@@ -119,6 +119,11 @@ Both formats are handled by two new utility functions in `training_setup/setup_u
 - **`tests/test_data/test_processor_signwriting.py`** — extended with `TestSignwritingModalityProcessorValidation`: verifies that `SignwritingModalityProcessor` raises `ValueError` immediately when `custom_preprocessor_path` is `None` or absent.
 - **Golden file regression tests** — extended to cover `MultimodalMetaProcessor(slots=[...])` pipelines, verifying output is identical to the legacy wrappers.
 
+#### CLI Verbosity Control
+
+- **`--verbosity_level`** argument added to `multimodalhugs-train` and `multimodalhugs-generate`. Accepts `debug`, `info`, `warning` (default), `error`. Controls both the multimodalhugs package loggers and HuggingFace library loggers (transformers, datasets) with a single setting. At `warning` (default), the `[INFO|configuration_utils.py:...]` / `[INFO|modeling_utils.py:...]` clusters emitted during model and tokenizer loading are suppressed. At `info`, full HF verbosity is restored. `FutureWarning` messages from transformers are also suppressed at `warning` and above.
+- The model architecture and parameter summary table are printed unconditionally via `print()` regardless of `verbosity_level`, preserving the pre-training architecture sanity check.
+
 ### Changed
 
 - **`DataCollatorMultimodalSeq2Seq`** now detects whether its processor is a `MultimodalMetaProcessor` and, if so, delegates all processing (including label creation) to the processor's slots. The collator only adds `decoder_input_ids` from labels (via the model's `prepare_decoder_input_ids_from_labels`) when applicable. The legacy collation path (`_legacy_collate`) is retained for task-specific processors.
@@ -150,6 +155,8 @@ The following six task-specific processor classes are deprecated in favour of `M
 - Fixed a tokenizer cache double-extension bug in `build_processor_from_config`: a previous implementation cached the already-extended tokenizer and injected it into `TextModalityProcessor.__init__`, which then called `extend_tokenizer` a second time, producing an empty `new_tokens` list and corrupting the `pretrained_tokenizer` reference used for model construction. The cache now stores only the base (unextended) tokenizer.
 - Fixed channel-count validation in `ImageModalityProcessor._load_from_path`: raises `ValueError` when the number of channels in the loaded image does not match the length of the `mean`/`std` normalization vectors.
 - Fixed `_serialize_slot` in `MultimodalMetaProcessor` to include `custom_preprocessor` in its `_SKIP` set, preventing a spurious warning that the attribute "will be missing after `from_pretrained`". The attribute is correctly reconstructed from `custom_preprocessor_path` during loading.
+- Fixed `print()` calls in `tokenizer_utils.add_new_special_tokens_from_vocab_file` replaced with `logger.info()`, so token-addition messages (added tokens, skipped tokens, save path) are routed through the logging system and suppressed at the default verbosity level.
+- Fixed `MultimodalMetaProcessor.from_pretrained` to avoid redundant `AutoTokenizer.from_pretrained` + `extend_tokenizer` calls when multiple `TextModalityProcessor` slots share the same `(tokenizer_path, new_vocabulary)`. The tokenizer saved alongside the processor is pre-seeded into a cache keyed by `(tokenizer_path, new_vocabulary)`; subsequent slots with a matching key reuse the already-extended tokenizer and skip re-extension. See issue #78 for the related edge case where slots with different `tokenizer_path` values and no `new_vocabulary` silently receive the saved tokenizer.
 
 ## [0.4.1]
 
