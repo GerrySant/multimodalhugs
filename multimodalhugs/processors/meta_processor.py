@@ -244,6 +244,21 @@ class MultimodalMetaProcessor(ProcessorMixin):
             )
             tokenizer = None
 
+        # Tokenizer cache: the tokenizer saved alongside this processor is
+        # already fully extended.  Pre-seed the cache with it, keyed by the
+        # (tokenizer_path, new_vocabulary) of the first text slot, so that all
+        # subsequent text slots with the same key can skip the redundant
+        # AutoTokenizer.from_pretrained + extend_tokenizer calls that would
+        # otherwise run once per slot.
+        _tok_cache: Dict[tuple, Any] = {}
+        if tokenizer is not None:
+            for _sd in config["slots"]:
+                _pkw = _sd.get("processor_kwargs", {})
+                if "tokenizer_path" in _pkw:
+                    _key = (_pkw.get("tokenizer_path"), _pkw.get("new_vocabulary"))
+                    _tok_cache[_key] = tokenizer
+                    break
+
         def _reconstruct_slot(slot_dict: Dict[str, Any]) -> ProcessorSlot:
             class_name = slot_dict["processor_class"]
             if processor_registry and class_name in processor_registry:
@@ -258,10 +273,25 @@ class MultimodalMetaProcessor(ProcessorMixin):
                         "subclass, pass it via processor_registry="
                         f"{{''{class_name}'': YourClass}}."
                     )
-            proc_kwargs = slot_dict["processor_kwargs"]
+            proc_kwargs = dict(slot_dict["processor_kwargs"])
             sig = inspect.signature(proc_cls.__init__)
             if "tokenizer" in sig.parameters:
-                proc = proc_cls(tokenizer=tokenizer, **proc_kwargs)
+                tok_path = proc_kwargs.get("tokenizer_path")
+                new_vocab = proc_kwargs.get("new_vocabulary")
+                cache_key = (tok_path, new_vocab)
+                if cache_key in _tok_cache:
+                    # Inject the already-extended tokenizer and skip re-extension.
+                    # new_vocabulary is omitted from the constructor call so that
+                    # TextModalityProcessor.__init__ does not call extend_tokenizer
+                    # again; it is restored on the instance afterwards so that
+                    # re-serialization with save_pretrained produces the correct JSON.
+                    kwargs_no_vocab = {k: v for k, v in proc_kwargs.items() if k != "new_vocabulary"}
+                    proc = proc_cls(tokenizer=_tok_cache[cache_key], **kwargs_no_vocab)
+                    proc.new_vocabulary = new_vocab
+                else:
+                    proc = proc_cls(tokenizer=tokenizer, **proc_kwargs)
+                    if tok_path is not None:
+                        _tok_cache[cache_key] = proc.tokenizer
             else:
                 proc = proc_cls(**proc_kwargs)
             return ProcessorSlot(
