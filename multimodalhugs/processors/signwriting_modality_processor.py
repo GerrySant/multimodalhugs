@@ -34,6 +34,22 @@ class SignwritingModalityProcessor(ModalityProcessor):
         channels: int = 3,
         invert_frame: bool = True,
     ):
+        """
+        Args:
+            custom_preprocessor_path: HuggingFace model ID or local path to an
+                image preprocessor (e.g. ``"openai/clip-vit-base-patch32"``).
+                Applied to each rendered sign image to produce the final tensor.
+                Required — raises ``ValueError`` immediately if None.
+            width: Target canvas width in pixels for each rendered sign symbol.
+                Default: 224.
+            height: Target canvas height in pixels for each rendered sign symbol.
+                Default: 224.
+            channels: Number of colour channels in the output tensor (e.g. 3
+                for RGB). Default: 3.
+            invert_frame: If True, inverts pixel values of each rendered sign
+                image (black symbols on white → white symbols on black).
+                Default: True.
+        """
         if custom_preprocessor_path is None:
             raise ValueError(
                 "SignwritingModalityProcessor requires a 'custom_preprocessor_path' "

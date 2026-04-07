@@ -26,6 +26,15 @@ class PoseModalityProcessor(ModalityProcessor):
         reduce_holistic_poses: bool = True,
         skip_frames_stride: Optional[int] = None,
     ):
+        """
+        Args:
+            reduce_holistic_poses: If True, applies ``reduce_holistic`` from
+                pose_format to collapse the full MediaPipe Holistic landmark set
+                into a smaller, sign-language-relevant subset. Default: True.
+            skip_frames_stride: If set, keeps only every N-th frame along the
+                temporal axis after loading (e.g. 2 → halve frame rate).
+                None disables downsampling. Default: None.
+        """
         self.reduce_holistic_poses = reduce_holistic_poses
         self.skip_frames_stride = skip_frames_stride
 

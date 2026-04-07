@@ -30,6 +30,19 @@ class FeaturesModalityProcessor(ModalityProcessor):
         temporal_dimension_position: int = 0,
         use_cache: bool = True,
     ):
+        """
+        Args:
+            skip_frames_stride: If set, keeps only every N-th frame along the
+                temporal axis after loading (e.g. 2 → halve frame rate).
+                None disables downsampling. Default: None.
+            temporal_dimension_position: Index of the temporal axis in the
+                raw .npy array. When non-zero, the axis is moved to position 0
+                via ``torch.movedim`` so that the output is always [T, D].
+                Default: 0 (no permutation needed).
+            use_cache: If True, wraps ``_load_from_disk`` with an LRU cache
+                whose size is derived from available system (or SLURM) memory,
+                assuming ~0.7 MB per cached feature file. Default: True.
+        """
         self.skip_frames_stride = skip_frames_stride
         self.temporal_dimension_position = temporal_dimension_position
         self.use_cache = use_cache

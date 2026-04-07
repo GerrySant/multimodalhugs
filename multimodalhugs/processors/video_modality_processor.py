@@ -36,6 +36,28 @@ class VideoModalityProcessor(ModalityProcessor):
         use_cache: bool = False,
         io_max_retries: int = 3,
     ):
+        """
+        Args:
+            custom_preprocessor_path: HuggingFace model ID or local path to an
+                image preprocessor (e.g. ``"openai/clip-vit-base-patch32"``).
+                When provided, frames are decoded with OpenCV and passed through
+                the preprocessor (e.g. CLIPImageProcessor). When None, frames
+                are read with torchvision and returned as raw float tensors.
+            skip_frames_stride: If set, keeps only every N-th frame along the
+                temporal axis after loading (e.g. 2 → halve frame rate).
+                None disables downsampling. Default: None.
+            join_chw: If True, merges the channel, height, and width dimensions
+                into a single feature dimension, producing shape [B, T, C*H*W]
+                instead of [B, T, C, H, W]. Default: False.
+            use_cache: If True, wraps ``_load_video`` with an LRU cache whose
+                size is derived from available system (or SLURM) memory,
+                assuming ~50 MB per cached video. Useful when the same video
+                clips are repeated across epochs. Default: False.
+            io_max_retries: Maximum number of attempts when opening a video
+                file fails with an I/O error. Retries use exponential backoff
+                (1 s, 2 s, 4 s, …) to tolerate transient NFS slowness on
+                shared clusters. Default: 3.
+        """
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw

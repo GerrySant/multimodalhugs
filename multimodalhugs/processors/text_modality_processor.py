@@ -55,6 +55,25 @@ class TextModalityProcessor(ModalityProcessor):
         new_vocabulary: Optional[str] = None,
         role: Union[TextRole, str] = TextRole.INPUT,
     ):
+        """
+        Args:
+            tokenizer: A pre-built HuggingFace tokenizer instance. When
+                provided, ``tokenizer_path`` is ignored for loading but is
+                still stored for serialisation. Default: None.
+            tokenizer_path: HuggingFace model ID or local path from which the
+                tokenizer is loaded via ``AutoTokenizer.from_pretrained`` when
+                ``tokenizer`` is None. Default: None.
+            new_vocabulary: Path to a vocabulary file (one token per line) or
+                a comma-separated string of tokens to add as special tokens to
+                the tokenizer. After extension, the added tokens are available
+                as ``self.new_tokens`` and the original unextended tokenizer is
+                preserved as ``self.pretrained_tokenizer``. Default: None.
+            role: Processing role — either ``TextRole.INPUT`` (tokenise input
+                strings; returns ids + attention mask) or ``TextRole.TARGET``
+                (build labels from target_prefix + target + EOS, padded with
+                -100; returns ids only). Accepts the string values ``"input"``
+                and ``"target"`` as well as the enum. Default: TextRole.INPUT.
+        """
         if isinstance(role, str):
             valid = [r.value for r in TextRole]
             if role not in valid:

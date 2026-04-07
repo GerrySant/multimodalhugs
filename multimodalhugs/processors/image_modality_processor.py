@@ -38,6 +38,25 @@ class ImageModalityProcessor(ModalityProcessor):
         mean: Optional[Union[str, List[float]]] = None,
         std: Optional[Union[str, List[float]]] = None,
     ):
+        """
+        Args:
+            font_path: Path to a TrueType font file used when rendering plain
+                text strings as typographic images. Only required when the
+                input signal is a text string with no matching file on disk.
+                Default: None.
+            width: Target width in pixels for text-rendered images. Ignored
+                when loading from file. Default: None (uses get_images default).
+            height: Target height in pixels for text-rendered images. Ignored
+                when loading from file. Default: None (uses get_images default).
+            normalize_image: If True, normalises pixel values using ``mean``
+                and ``std``. Requires both to be provided. Default: True.
+            mean: Per-channel mean for normalisation, as a list of floats or a
+                comma-separated string (e.g. ``"0.485,0.456,0.406"``).
+                Required when ``normalize_image=True``.
+            std: Per-channel standard deviation for normalisation, as a list of
+                floats or a comma-separated string.
+                Required when ``normalize_image=True``.
+        """
         if normalize_image and (mean is None or std is None):
             raise ValueError(
                 "Normalization is enabled (normalize_image=True), but 'mean' and/or 'std' "
