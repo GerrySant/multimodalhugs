@@ -7,7 +7,6 @@ from typing import Optional, Dict, Any, Tuple, Union
 
 # Third-Party Imports
 import torch
-from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
 from transformers import (
     M2M100ForConditionalGeneration,
