@@ -20,6 +20,7 @@ class MultimodalDataConfig(BuilderConfig):
     validation_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the validation dataset metadata file."})
     test_metadata_file: Union[str, Path, Dict] = field(default=None, metadata={"help": "Path to the test dataset metadata file."})
     dataset_dir: Optional[str] = field(default=None, metadata={"help": "Path to the data directory if the dataset actor instance has already been created"})
+    dataset_type: Optional[str] = field(default=None, metadata={"help": "Dataset type identifier used by the general setup path (e.g. 'pose2text', 'video2text'). Stored here so it is recognised as a known field and does not propagate to BuilderConfig.__init__."})
     shuffle: bool = field(default=True, metadata={"help": "If True, shuffles the dataset samples."})
     remove_unused_columns: bool = field(default=True, metadata={"help": "If True, removes unused columns from the dataset for efficiency."})
 

@@ -4,15 +4,20 @@ import numpy as np
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.video2text_preprocessor import (
+from multimodalhugs.processors.legacy.video2text_preprocessor import (
     Video2TextTranslationProcessor,
 )
+
+
+def _modality_proc(processor):
+    """Return the underlying VideoModalityProcessor from the wrapper."""
+    return processor.slots[0].processor
 
 
 class TestVideoFileToTensor:
     def test_reads_video_file(self, tokenizer, dummy_video_file):
         processor = Video2TextTranslationProcessor(tokenizer=tokenizer)
-        tensor = processor._video_file_to_tensor(dummy_video_file)
+        tensor = _modality_proc(processor).process_sample(dummy_video_file)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.ndim == 4  # (T, C, H, W)
         assert tensor.shape[0] > 0  # should have some frames
@@ -21,14 +26,14 @@ class TestVideoFileToTensor:
         """If input is already a tensor, it should be returned as-is."""
         processor = Video2TextTranslationProcessor(tokenizer=tokenizer)
         t = torch.randn(10, 3, 64, 64)
-        result = processor._video_file_to_tensor(t)
+        result = _modality_proc(processor).process_sample(t)
         assert torch.equal(result, t)
 
     def test_ndarray_to_tensor(self, tokenizer):
         """If input is an ndarray, it should be converted to tensor."""
         processor = Video2TextTranslationProcessor(tokenizer=tokenizer)
         arr = np.random.rand(10, 3, 64, 64).astype(np.float32)
-        result = processor._video_file_to_tensor(arr)
+        result = _modality_proc(processor).process_sample(arr)
         assert isinstance(result, torch.Tensor)
         assert result.shape == (10, 3, 64, 64)
 
@@ -38,8 +43,8 @@ class TestVideoFileToTensor:
         processor_skip = Video2TextTranslationProcessor(
             tokenizer=tokenizer, skip_frames_stride=2
         )
-        tensor_full = processor_no_skip._video_file_to_tensor(dummy_video_file)
-        tensor_skip = processor_skip._video_file_to_tensor(dummy_video_file)
+        tensor_full = _modality_proc(processor_no_skip).process_sample(dummy_video_file)
+        tensor_skip = _modality_proc(processor_skip).process_sample(dummy_video_file)
         assert tensor_skip.shape[0] < tensor_full.shape[0]
 
 
@@ -56,7 +61,7 @@ class TestVideoObtainMultimodalInputAndMasks:
                 "output": "test",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert "input_frames" in result
         assert "attention_mask" in result
 
@@ -73,7 +78,7 @@ class TestVideoObtainMultimodalInputAndMasks:
                 "output": "test",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         # With join_chw, shape should be [B, T, C*H*W]
         assert result["input_frames"].ndim == 3
 

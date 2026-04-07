@@ -1,3 +1,4 @@
+import logging
 import os
 import copy
 import json
@@ -5,6 +6,8 @@ from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.pre_tokenizers import Whitespace
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
+
+logger = logging.getLogger(__name__)
 
 def load_tokenizer_from_vocab_file(vocab_file, special_tokens_dict=None, output_dir=None):
     vocab = {}
@@ -94,18 +97,18 @@ def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=Non
             {'additional_special_tokens': added_tokens},
             replace_additional_special_tokens=False
         )
-        print(f"Added tokens: {added_tokens}")
+        logger.info("Added tokens: %s", added_tokens)
     else:
-        print("No new tokens to add.")
+        logger.info("No new tokens to add.")
 
     if skipped_tokens:
-        print(f"Skipped tokens (already present): {skipped_tokens}")
+        logger.info("Skipped tokens (already present): %s", skipped_tokens)
 
     if output_dir is not None:
         tokenizer_output_dir = os.path.join(output_dir, "tokenizer")
         os.makedirs(tokenizer_output_dir, exist_ok=True)
         tokenizer.save_pretrained(tokenizer_output_dir)
-        print(f"Tokenizer saved to {tokenizer_output_dir}")
+        logger.info("Tokenizer saved to %s", tokenizer_output_dir)
 
     return tokenizer, added_tokens
 

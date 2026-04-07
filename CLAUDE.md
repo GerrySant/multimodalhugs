@@ -4,7 +4,7 @@
 
 MultiModalHugs is a modular framework built on Hugging Face for training, evaluating, and deploying multimodal AI models. Primary focus: sign language translation and multimodal machine translation. Supports input modalities: pose sequences, video, images, SignWriting, precomputed features, and text.
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **License:** MIT
 **Python package:** `multimodalhugs`
 
@@ -72,7 +72,7 @@ multimodalhugs/
 - **Auto-registration:** `models/__init__.py` registers with HF's `AutoConfig`/`AutoModelForSeq2SeqLM`
 - **Composition:** Model composes feature extractor, mapper, and backbone
 - **HF-native:** Extends `PreTrainedModel`, `Seq2SeqTrainer`, `GeneratorBasedBuilder`
-- **Modality-specific processors:** Each modality (pose, video, image, signwriting, features, text) has its own processor subclass of `MultimodalSequence2SequenceProcessor`
+- **Slot-based processors:** `MultimodalMetaProcessor` composes `ModalityProcessor` instances via `ProcessorSlot` objects; legacy task-specific wrappers live in `processors/legacy/`
 
 ## Dataset Format
 
@@ -89,14 +89,14 @@ multimodalhugs/
 
 ## Supported Modalities
 
-| Modality     | Dataset Class              | Processor Class                      |
-|-------------|---------------------------|--------------------------------------|
-| Pose        | Pose2TextDataset          | Pose2TextTranslationProcessor        |
-| Video       | Video2TextDataset         | Video2TextTranslationProcessor       |
-| Image       | BilingualImage2TextDataset| Image2TextTranslationProcessor       |
-| SignWriting | SignWritingDataset        | SignwritingProcessor                 |
-| Features    | Features2TextDataset      | Features2TextTranslationProcessor    |
-| Text        | BilingualText2TextDataset | Text2TextTranslationProcessor        |
+| Modality     | Dataset Class              | ModalityProcessor                    | Legacy wrapper (processors/legacy/)      |
+|-------------|---------------------------|--------------------------------------|------------------------------------------|
+| Pose        | Pose2TextDataset          | PoseModalityProcessor                | Pose2TextTranslationProcessor            |
+| Video       | Video2TextDataset         | VideoModalityProcessor               | Video2TextTranslationProcessor           |
+| Image       | BilingualImage2TextDataset| ImageModalityProcessor               | Image2TextTranslationProcessor           |
+| SignWriting | SignWritingDataset        | SignwritingModalityProcessor         | SignwritingProcessor                     |
+| Features    | Features2TextDataset      | FeaturesModalityProcessor            | Features2TextTranslationProcessor        |
+| Text        | BilingualText2TextDataset | TextModalityProcessor                | Text2TextTranslationProcessor            |
 
 ## Style & Conventions
 
@@ -131,3 +131,15 @@ TF 2.20+ uses protobuf 6.x, which conflicts with PyArrow (built against protobuf
 
 **Fix:** Use Python 3.11 with `mediapipe<0.10.30`. This combination avoids the crash.
 See: https://github.com/tensorflow/tensorflow/issues/98563
+
+## Test Assets
+
+Some tests rely on committed binary assets in `tests/assets/` (pose files, videos, `.npy` files).
+The TSV metadata files for path-dependent modalities (video, pose, features) are **not committed**
+because they contain absolute paths. After cloning, regenerate them once:
+
+```bash
+python tests/assets/generate_assets.py
+```
+
+Text and image TSVs are committed directly and do not need regeneration.

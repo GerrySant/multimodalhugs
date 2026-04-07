@@ -42,10 +42,10 @@ Below is an example of how your metadata file should be structured. Each row rep
 
 | **signal**                                         | **signal_start** | **signal_end** | **encoder_prompt**         | **decoder_prompt** | **output**                                                                   |
 |-----------------------------------------------------------|------------------|----------------|---------------------------|-----------------------|-----------------------------------------------------------------------------------|
-| `/path/to/pose1.pose`               | `0`                | `0`              | `__slt__ __asl__`     |           `__en__`            | `Hi!`                                                                               |
-| `/path/to/pose2.pose`               | `24`             | `385`              | `__slt__ __asl__`     |              `__en__`           | `The aileron is controlled by lateral movement of the stick.`                       |
-| `/path/to/pose2.pose`               | `404`                | `514`              | `__slt__ __asl__`    |             `__en__`            | `By moving the stick, the angle of attack is adjusted for that wing.`                |
-| `/path/to/pose3.pose`               | `63`                | `88`            | `__slt__ __asl__`    |           `__en__`              | `The elevator adjusts the airplane's angle of attack.`                             |
+| `/path/to/pose1.pose`               | `0`                | `0`              | `__asl__`     |           `__en__`            | `Hi!`                                                                               |
+| `/path/to/pose2.pose`               | `24`             | `385`              | `__asl__`     |              `__en__`           | `The aileron is controlled by lateral movement of the stick.`                       |
+| `/path/to/pose2.pose`               | `404`                | `514`              | `__asl__`    |             `__en__`            | `By moving the stick, the angle of attack is adjusted for that wing.`                |
+| `/path/to/pose3.pose`               | `63`                | `88`            | `__asl__`    |           `__en__`              | `The elevator adjusts the airplane's angle of attack.`                             |
 
 
 
@@ -172,12 +172,13 @@ This evaluation process enables you to assess the quality of your model's transl
 ## Directory Overview
 ```kotlin
 pose2text_translation
-├── README.md                  # Current documentation
-├── configs
-│   └── example_config.yaml    # Example config template
-└── example_scripts
-    ├── how2sign_dataset_preprocessing_script.py
-    └── how2sign_training_pipeline.sh
+└── how2sign
+    ├── README.md                  # Current documentation
+    ├── configs
+    │   └── example_config.yaml    # Example config template
+    └── example_scripts
+        ├── how2sign_dataset_preprocessing_script.py
+        └── how2sign_training_pipeline.sh
 ```
 - `configs`: Contains YAML config files (e.g., model / data / training hyperparameters).
 - `example_scripts`: Contains sample Python and bash scripts for preprocessing, setting up training, and launching experiments.

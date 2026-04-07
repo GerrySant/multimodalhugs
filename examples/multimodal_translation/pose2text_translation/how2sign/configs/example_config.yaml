@@ -4,6 +4,7 @@
 
 data:
   # Dataset and preprocessing settings:
+  dataset_type: "pose2text"                                                                                                    # Dataset class to use for the general setup path (multimodalhugs-setup without --modality).
   train_metadata_file: "/path/to/train/metadata_file.tsv"                                                                       # Path to the training metadata file (e.g., TSV format).
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"                                                             # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"                                                                         # Path to the test metadata file.
@@ -20,10 +21,48 @@ model:
   pretrained_backbone: "<pretrained-backbone-weights>"    # Weights or checkpoint identifier for the pretrained backbone.
   feat_dim: 534                                           # Dimention of the Feature Extractor output. If features are extracted off-line, the dimentionality of features.
 
-processor:                                             # Image preprocessing settings.
-  reduce_holistic_poses: true
-  text_tokenizer_path: "<pretrained-tokenizer>"
-  new_vocabulary: "__asl__"                          # Comma-separated list of new tokens that will be added to the tokenizer. It can also be a Path to the file containing the new tokens that will be added to the tokenizer.
+processor:
+  slots:
+    - processor_class: PoseModalityProcessor
+      processor_kwargs:
+        reduce_holistic_poses: true
+      output_data_key: input_frames
+      output_mask_key: attention_mask
+      column_map:
+        signal: signal
+        signal_start: signal_start
+        signal_end: signal_end
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: "<pretrained-tokenizer>"      # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
+        new_vocabulary: "__asl__"                     # Comma-separated list of new tokens (or path to a file). Added to all text slots for consistent vocabulary.
+        role: target
+      output_data_key: labels
+      is_label: true
+      column_map:
+        decoder_prompt: target_prefix
+        output: target
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: "<pretrained-tokenizer>"
+        new_vocabulary: "__asl__"
+        role: input
+      output_data_key: encoder_prompt
+      output_mask_key: encoder_prompt_length_padding_mask
+      column_map:
+        encoder_prompt: signal
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: "<pretrained-tokenizer>"
+        new_vocabulary: "__asl__"
+        role: input
+      output_data_key: decoder_input_ids
+      output_mask_key: decoder_attention_mask
+      column_map:
+        decoder_prompt: signal
 
 setup:
   output_dir: "</path/to/your/output_directory>"   # Base directory for saving setup artifacts

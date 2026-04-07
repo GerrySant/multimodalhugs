@@ -44,6 +44,7 @@ training:
 
 data:
   # Dataset and preprocessing settings:
+  dataset_type: "pose2text"                                                                                                    # Dataset class to use for the general setup path (multimodalhugs-setup without --modality).
   train_metadata_file: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/preprocessed/rwth_phoenix2014_t.train.tsv                            # Path to the training metadata file (e.g., TSV format).
   validation_metadata_file: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/preprocessed/rwth_phoenix2014_t.validation.tsv                  # Path to the validation metadata file.
   test_metadata_file: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/data/preprocessed/rwth_phoenix2014_t.test.tsv                              # Path to the test metadata file.
@@ -51,6 +52,44 @@ data:
   max_frames: 300                                                                                                               # Maximum number of frames to consider in video samples; samples exceeding this are filtered.
 
 processor:
-  reduce_holistic_poses: True   # reduce the face mesh points of Mediapipe holistic poses (leading to fewer dimensions overall)
-  text_tokenizer_path: facebook/m2m100_418M       # Path or identifier for the pretrained text tokenizer (e.g., "facebook/m2m100_418M").
-  new_vocabulary: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/configs/phoenix/new_vocabulary.txt                 # Comma-separated list of new tokens that will be added to the tokenizer. It can also be a Path to the file containing the new tokens that will be added to the tokenizer.
+  slots:
+    - processor_class: PoseModalityProcessor
+      processor_kwargs:
+        reduce_holistic_poses: true                   # Reduce face mesh points of Mediapipe holistic poses (fewer dimensions overall).
+      output_data_key: input_frames
+      output_mask_key: attention_mask
+      column_map:
+        signal: signal
+        signal_start: signal_start
+        signal_end: signal_end
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: facebook/m2m100_418M
+        new_vocabulary: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/configs/phoenix/new_vocabulary.txt  # Path to file with new tokens. Added to all text slots for consistent vocabulary.
+        role: target
+      output_data_key: labels
+      is_label: true
+      column_map:
+        decoder_prompt: target_prefix
+        output: target
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: facebook/m2m100_418M
+        new_vocabulary: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/configs/phoenix/new_vocabulary.txt
+        role: input
+      output_data_key: encoder_prompt
+      output_mask_key: encoder_prompt_length_padding_mask
+      column_map:
+        encoder_prompt: signal
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: facebook/m2m100_418M
+        new_vocabulary: /shares/sigma.ebling.cl.uzh/mathmu/multimodalhugs-examples/configs/phoenix/new_vocabulary.txt
+        role: input
+      output_data_key: decoder_input_ids
+      output_mask_key: decoder_attention_mask
+      column_map:
+        decoder_prompt: signal

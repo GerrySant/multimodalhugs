@@ -103,6 +103,16 @@ class ExtraArguments:
         default=None,
         metadata={"help": "Path to the setup directory containing actors_paths.yaml, used only if model_name_or_path, processor_name_or_path, or dataset_dir are not provided via commandline or config file. In train, if not provided, the path is inferred from training_args.output_dir/setup."}
     )
+    verbosity_level: str = field(
+        default="warning",
+        metadata={
+            "help": (
+                "Verbosity level for both multimodalhugs and HuggingFace libraries (transformers, datasets). "
+                "Choices: debug, info, warning, error. Default: warning (reduced output). "
+                "The model architecture and summary table are always printed regardless of this setting."
+            )
+        },
+    )
 
 @dataclass
 class GenerateArguments:

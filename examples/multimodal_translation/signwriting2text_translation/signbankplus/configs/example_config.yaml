@@ -3,6 +3,7 @@
 # training hyperparameters, and dataset/data loading options.
 
 data:
+  dataset_type: "signwriting2text"                                  # Dataset class to use for the general setup path (multimodalhugs-setup without --modality).
   train_metadata_file: "/path/to/train/metadata_file.tsv"        # Path to the training metadata file.
   validation_metadata_file: "/path/to/validation/metadata_file.tsv"  # Path to the validation metadata file.
   test_metadata_file: "/path/to/test/metadata_file.tsv"          # Path to the test metadata file.
@@ -22,13 +23,47 @@ model:
   feature_extractor_config:                              # Configuration for modifying the feature extractor architecture.
     feature_extractor_arguments: "<config-arguments>"  # Arguments to adjust the internal configuration of the feature extractor.
 
-processor:                                           # Image preprocessing settings.
-  width: 224                                         # Input image width in pixels.
-  height: 224                                        # Input image height in pixels.
-  channels: 3                                        # Number of image channels (e.g., 3 for RGB).
-  custom_preprocessor_path: openai/clip-vit-base-patch32 
-  text_tokenizer_path: "<pretrained-tokenizer>"         # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
-  new_vocabulary: "/examples/multimodal_translation/image2text_translation/other/new_languages_hebrew.txt"  # Path to the file containing the new tokens that will be added to the tokenizer.
+processor:
+  slots:
+    - processor_class: SignwritingModalityProcessor
+      processor_kwargs:
+        custom_preprocessor_path: openai/clip-vit-base-patch32
+        width: 224                                    # Input image width in pixels.
+        height: 224                                   # Input image height in pixels.
+        channels: 3                                   # Number of image channels (e.g., 3 for RGB).
+      output_data_key: input_frames
+      output_mask_key: attention_mask
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: "<pretrained-tokenizer>"      # Pretrained text tokenizer identifier (e.g., "facebook/m2m100_418M").
+        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/signbankplus/other/new_languages_sign_bank_plus.txt"  # Path to file with new tokens. Added to all text slots for consistent vocabulary.
+        role: target
+      output_data_key: labels
+      is_label: true
+      column_map:
+        decoder_prompt: target_prefix
+        output: target
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: "<pretrained-tokenizer>"
+        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/signbankplus/other/new_languages_sign_bank_plus.txt"
+        role: input
+      output_data_key: encoder_prompt
+      output_mask_key: encoder_prompt_length_padding_mask
+      column_map:
+        encoder_prompt: signal
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: "<pretrained-tokenizer>"
+        new_vocabulary: "/examples/multimodal_translation/signwriting2text_translation/signbankplus/other/new_languages_sign_bank_plus.txt"
+        role: input
+      output_data_key: decoder_input_ids
+      output_mask_key: decoder_attention_mask
+      column_map:
+        decoder_prompt: signal
 
 setup:
   output_dir: "</path/to/your/output_directory>"   # Base directory for saving setup artifacts

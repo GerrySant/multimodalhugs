@@ -4,9 +4,14 @@ import numpy as np
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.features2text_preprocessor import (
+from multimodalhugs.processors.legacy.features2text_preprocessor import (
     Features2TextTranslationProcessor,
 )
+
+
+def _modality_proc(processor):
+    """Return the underlying FeaturesModalityProcessor from the wrapper."""
+    return processor.slots[0].processor
 
 
 class TestFeaturesFileToTensor:
@@ -14,7 +19,7 @@ class TestFeaturesFileToTensor:
         processor = Features2TextTranslationProcessor(
             tokenizer=tokenizer, use_cache=False
         )
-        tensor = processor._features_file_to_tensor(dummy_npy_file)
+        tensor = _modality_proc(processor).process_sample(dummy_npy_file)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.shape == (10, 64)
 
@@ -23,7 +28,7 @@ class TestFeaturesFileToTensor:
             tokenizer=tokenizer, use_cache=False
         )
         arr = np.random.rand(8, 32).astype(np.float32)
-        tensor = processor._features_file_to_tensor(arr)
+        tensor = _modality_proc(processor).process_sample(arr)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.shape == (8, 32)
 
@@ -32,7 +37,7 @@ class TestFeaturesFileToTensor:
             tokenizer=tokenizer, use_cache=False
         )
         t = torch.randn(5, 16)
-        result = processor._features_file_to_tensor(t)
+        result = _modality_proc(processor).process_sample(t)
         assert torch.equal(result, t)
 
     def test_from_nested_list(self, tokenizer):
@@ -40,7 +45,7 @@ class TestFeaturesFileToTensor:
             tokenizer=tokenizer, use_cache=False
         )
         data = [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
-        tensor = processor._features_file_to_tensor(data)
+        tensor = _modality_proc(processor).process_sample(data)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.shape == (3, 2)
 
@@ -49,19 +54,19 @@ class TestFeaturesFileToTensor:
         processor = Features2TextTranslationProcessor(
             tokenizer=tokenizer, use_cache=False, skip_frames_stride=3
         )
-        tensor = processor._features_file_to_tensor(dummy_npy_file)
+        tensor = _modality_proc(processor).process_sample(dummy_npy_file)
         # Original has 10 frames, stride 3 → ceil(10/3) = 4 frames
         assert tensor.shape[0] == 4
 
     def test_temporal_dimension_position(self, tokenizer, tmp_path):
-        """temporal_dimention_position moves correct axis to position 0."""
+        """temporal_dimension_position moves correct axis to position 0."""
         path = str(tmp_path / "transposed.npy")
         # Shape (64, 10) where temporal dim is at position 1
         np.save(path, np.random.rand(64, 10).astype(np.float32))
         processor = Features2TextTranslationProcessor(
-            tokenizer=tokenizer, use_cache=False, temporal_dimention_position=1
+            tokenizer=tokenizer, use_cache=False, temporal_dimension_position=1
         )
-        tensor = processor._features_file_to_tensor(path)
+        tensor = _modality_proc(processor).process_sample(path)
         # After movedim(1, 0), shape should be (10, 64)
         assert tensor.shape == (10, 64)
 
@@ -79,7 +84,7 @@ class TestFeaturesObtainMultimodalInputAndMasks:
                 "output": "test",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert "input_frames" in result
         assert "attention_mask" in result
 
@@ -106,7 +111,7 @@ class TestFeaturesObtainMultimodalInputAndMasks:
                 "output": "b",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert result["input_frames"].shape == (2, 10, 16)
         assert result["attention_mask"].shape == (2, 10)
         # First sample: 5 real, 5 padded
@@ -129,13 +134,13 @@ class TestFeaturesTransformGetItemsOutput:
 
 class TestFeaturesCacheBehavior:
     def test_cache_enabled(self, tokenizer, dummy_npy_file):
-        """With use_cache=True, processor should initialize cache."""
+        """With use_cache=True, the underlying processor should initialize cache."""
         processor = Features2TextTranslationProcessor(
             tokenizer=tokenizer, use_cache=True
         )
-        assert hasattr(processor, "_cache_size")
+        assert hasattr(_modality_proc(processor), "_cache_size")
         # Should still work to load files
-        tensor = processor._features_file_to_tensor(dummy_npy_file)
+        tensor = _modality_proc(processor).process_sample(dummy_npy_file)
         assert isinstance(tensor, torch.Tensor)
 
 

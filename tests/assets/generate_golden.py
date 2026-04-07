@@ -117,7 +117,7 @@ def save(name: str, data: dict):
 # ---------------------------------------------------------------------------
 
 def generate_pose():
-    from multimodalhugs.processors.pose2text_preprocessor import Pose2TextTranslationProcessor
+    from multimodalhugs.processors.legacy.pose2text_preprocessor import Pose2TextTranslationProcessor
     pose_dir = os.path.join(ASSETS_DIR, "pose")
     batch = [
         {"signal": os.path.join(pose_dir, "sample_01.pose"), "signal_start": 0, "signal_end": 0,
@@ -133,7 +133,7 @@ def generate_video():
     # Uses a local CLIPImageProcessor (saved by generate_assets.py) to resize
     # all frames to 224×224 before batching, so both samples can be collated
     # together regardless of their original resolution.
-    from multimodalhugs.processors.video2text_preprocessor import Video2TextTranslationProcessor
+    from multimodalhugs.processors.legacy.video2text_preprocessor import Video2TextTranslationProcessor
     clip_processor_path = os.path.join(ASSETS_DIR, "processors", "clip_image_processor")
     if not os.path.exists(clip_processor_path):
         print("  CLIP processor not found — run generate_assets.py first.  Skipping video.")
@@ -157,7 +157,7 @@ def generate_video():
 
 
 def generate_features():
-    from multimodalhugs.processors.features2text_preprocessor import Features2TextTranslationProcessor
+    from multimodalhugs.processors.legacy.features2text_preprocessor import Features2TextTranslationProcessor
     features_dir = os.path.join(ASSETS_DIR, "features")
     batch = [
         {"signal": os.path.join(features_dir, "sample_01.npy"), "signal_start": 0, "signal_end": 0,
@@ -170,7 +170,7 @@ def generate_features():
 
 
 def generate_text():
-    from multimodalhugs.processors.text2text_preprocessor import Text2TextTranslationProcessor
+    from multimodalhugs.processors.legacy.text2text_preprocessor import Text2TextTranslationProcessor
     batch = [
         {"signal": "Let's open Access.", "encoder_prompt": "__en__",
          "decoder_prompt": "__fr__", "output": "Ouvrons Access."},
@@ -209,7 +209,7 @@ def generate_labels():
 
 
 def generate_image():
-    from multimodalhugs.processors.image2text_preprocessor import Image2TextTranslationProcessor
+    from multimodalhugs.processors.legacy.image2text_preprocessor import Image2TextTranslationProcessor
     batch = [
         {"signal": "Let's open Access.", "encoder_prompt": "lowercase: ",
          "decoder_prompt": "__en__", "output": "let's open access."},

@@ -3,9 +3,14 @@
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
-from multimodalhugs.processors.pose2text_preprocessor import (
+from multimodalhugs.processors.legacy.pose2text_preprocessor import (
     Pose2TextTranslationProcessor,
 )
+
+
+def _modality_proc(processor):
+    """Return the underlying PoseModalityProcessor from the wrapper."""
+    return processor.slots[0].processor
 
 
 class TestPoseFileToTensor:
@@ -14,7 +19,7 @@ class TestPoseFileToTensor:
             tokenizer=tokenizer,
             reduce_holistic_poses=True,
         )
-        tensor = processor._pose_file_to_tensor(dummy_pose_file)
+        tensor = _modality_proc(processor).process_sample(dummy_pose_file)
         assert isinstance(tensor, torch.Tensor)
         assert tensor.ndim == 2  # (frames, features)
         assert tensor.shape[0] > 0  # should have some frames
@@ -23,7 +28,7 @@ class TestPoseFileToTensor:
         """If input is already a tensor, it should be returned as-is."""
         processor = Pose2TextTranslationProcessor(tokenizer=tokenizer)
         t = torch.randn(10, 64)
-        result = processor._pose_file_to_tensor(t)
+        result = _modality_proc(processor).process_sample(t)
         assert torch.equal(result, t)
 
     def test_skip_frames_stride(self, tokenizer, dummy_pose_file):
@@ -37,8 +42,8 @@ class TestPoseFileToTensor:
             reduce_holistic_poses=True,
             skip_frames_stride=2,
         )
-        tensor_full = processor_no_skip._pose_file_to_tensor(dummy_pose_file)
-        tensor_skip = processor_skip._pose_file_to_tensor(dummy_pose_file)
+        tensor_full = _modality_proc(processor_no_skip).process_sample(dummy_pose_file)
+        tensor_skip = _modality_proc(processor_skip).process_sample(dummy_pose_file)
         # Skipped version should have roughly half the frames
         assert tensor_skip.shape[0] <= (tensor_full.shape[0] + 1) // 2 + 1
         assert tensor_skip.shape[0] < tensor_full.shape[0]
@@ -53,8 +58,8 @@ class TestPoseFileToTensor:
             tokenizer=tokenizer,
             reduce_holistic_poses=False,
         )
-        tensor_reduced = processor_reduced._pose_file_to_tensor(dummy_pose_file)
-        tensor_full = processor_full._pose_file_to_tensor(dummy_pose_file)
+        tensor_reduced = _modality_proc(processor_reduced).process_sample(dummy_pose_file)
+        tensor_full = _modality_proc(processor_full).process_sample(dummy_pose_file)
         # Full should have more features per frame than reduced
         assert tensor_full.shape[1] > tensor_reduced.shape[1]
 
@@ -75,7 +80,7 @@ class TestPoseObtainMultimodalInputAndMasks:
                 "output": "test",
             },
         ]
-        result, _ = processor._obtain_multimodal_input_and_masks(batch)
+        result = processor(batch=batch)
         assert "input_frames" in result
         assert "attention_mask" in result
         assert result["input_frames"].ndim == 3  # (batch, frames, features)

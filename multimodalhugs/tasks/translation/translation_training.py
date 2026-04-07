@@ -16,41 +16,16 @@ from transformers import (
     EarlyStoppingCallback,
 )
 
-from multimodalhugs.processors import (
-    SignwritingProcessor,
-    Pose2TextTranslationProcessor,
-    Video2TextTranslationProcessor,
-    Image2TextTranslationProcessor,
-    Text2TextTranslationProcessor,
-    Features2TextTranslationProcessor
-)
-
+import multimodalhugs.processors  # triggers AutoProcessor registration for all processor classes
 import multimodalhugs.models
 from multimodalhugs import MultiLingualSeq2SeqTrainer
-
-Pose2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("pose2text_translation_processor", Pose2TextTranslationProcessor)
-
-Video2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("video2text_translation_processor", Video2TextTranslationProcessor)
-
-Features2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("features2text_translation_processor", Features2TextTranslationProcessor)
-
-SignwritingProcessor.register_for_auto_class()
-AutoProcessor.register("signwritting_processor", SignwritingProcessor)
-
-Image2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("image2text_translation_processor", Image2TextTranslationProcessor)
-
-Text2TextTranslationProcessor.register_for_auto_class()
-AutoProcessor.register("text2text_translation_processor", Text2TextTranslationProcessor)
 
 
 import logging
 import os
 import sys
 import argparse
+import warnings
 
 import datasets
 import evaluate
@@ -113,16 +88,20 @@ def main():
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    if training_args.should_log:
-        # The default of training_args.log_level is passive, so we set log level at info here to have that default.
-        transformers.utils.logging.set_verbosity_info()
+    _LOG_LEVEL = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR}
+    verbosity = _LOG_LEVEL.get((extra_args.verbosity_level or "warning").lower(), logging.WARNING)
 
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.set_verbosity(log_level)
+    # Apply unified verbosity to all multimodalhugs loggers (main process only) and HF libraries.
+    pkg_level = verbosity if training_args.should_log else logging.WARNING
+    logger.setLevel(pkg_level)
+    logging.getLogger("multimodalhugs").setLevel(pkg_level)
+    datasets.utils.logging.set_verbosity(verbosity)
+    transformers.utils.logging.set_verbosity(verbosity)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
+
+    if verbosity > logging.INFO:
+        warnings.filterwarnings("ignore", category=FutureWarning, module="transformers")
 
     # Log on each process the small summary:
     logger.warning(
@@ -354,8 +333,8 @@ def main():
         callbacks=callbacks_list
     )
 
-    logger.info(f"\n{model}\n")
-    logger.info(f"\n{print_module_details(model)}\n")
+    print(f"\n{model}\n")
+    print(f"\n{print_module_details(model)}\n")
 
     # Training
     if training_args.do_train:

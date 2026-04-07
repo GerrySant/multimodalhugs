@@ -1,13 +1,19 @@
 from dataclasses import dataclass, field
-from typing import Optional, Literal
+from typing import Optional
 
 @dataclass
 class SetupArguments:
-    modality: Literal["pose2text","signwriting2text","image2text","text2text","features2text","video2text"] = field(
-        metadata={"help": "Training setup modality."}
-    )
     config_path: str = field(
         metadata={"help": "Path to YAML configuration file"}
+    )
+    modality: Optional[str] = field(
+        default=None,
+        metadata={"help": (
+            "Training setup modality (legacy). "
+            "When omitted, data.dataset_type in the config is used to select the dataset. "
+            "Valid legacy values: pose2text, video2text, features2text, "
+            "signwriting2text, image2text, text2text."
+        )}
     )
     do_dataset: bool = field(
         default=False, metadata={"help": "Prepare the dataset."}

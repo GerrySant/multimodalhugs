@@ -1,16 +1,18 @@
-import os
-import argparse
-from omegaconf import OmegaConf
+"""
+Backward-compatible entry point for the text-to-text setup path.
+
+Delegates entirely to general_training_setup.main with
+default_dataset_type="text2text" so that configs that predate the
+data.dataset_type field continue to work when --modality text2text is given.
+
+For new projects, use multimodalhugs-setup without --modality and add
+  data:
+    dataset_type: text2text
+to your config file instead.
+"""
 from typing import Optional
+from multimodalhugs.training_setup.general_training_setup import main as _general_main
 
-from .setup_utils import (
-    load_config, prepare_dataset, load_tokenizers,
-    save_processor, build_and_save_model, update_configs, save_actor_paths,
-    resolve_setup_paths, resolve_update_choice, print_artifact_summary
-)
-
-from multimodalhugs.data.datasets.bilingual_text2text import BilingualText2TextDataset, BilingualText2textMTDataConfig
-from multimodalhugs.processors import Text2TextTranslationProcessor
 
 def main(
     config_path: str,
@@ -21,108 +23,13 @@ def main(
     update_config: Optional[bool] = None,
     rebuild_dataset_from_scratch: bool = False,
 ):
-    """
-    Run setup steps for dataset preparation, processor instantiation, and model building.
-
-    Args:
-        config_path (str): Path to the OmegaConf YAML configuration file.
-        do_dataset (bool): If True, prepare the dataset (download and save).
-        do_processor (bool): If True, create and save the processing pipeline.
-        do_model (bool): If True, build the model and save the weights.
-        output_dir (str|None): Optional --output_dir from CLI (required if not in cfg.setup).
-        update_config (bool|None): Optional --update_config from CLI. If True, write created
-            artifact paths back into the config; otherwise print a summary. If not provided,
-            falls back to cfg.setup.update_config; default is False.
-        rebuild_dataset_from_scratch (bool): If True, ignore HF cache and rebuild the dataset
-            from zero (i.e. force re-download / re-processing).
-
-    Behavior:
-        - If none of do_dataset, do_processor, do_model are True, all three steps are performed.
-        - Tokenizers are loaded as needed for both processor and model steps.
-        - After each chosen step, the corresponding path is captured.
-        - output_dir/run_name are resolved via resolve_setup_paths() from CLI or cfg.setup.
-        - Whether to modify the YAML is controlled by resolve_update_choice().
-    """
-    cfg = load_config(config_path)
-
-    # Resolve setup paths (required/optional + final folder creation logic)
-    final_output_dir = resolve_setup_paths(cfg, output_dir)
-
-    # 1) Dataset setup
-    data_path = None
-    if do_dataset:
-        print("\nSetting Up Dataset:\n")
-        # Instantiate and prepare dataset, then save to disk
-        data_cfg = BilingualText2textMTDataConfig(cfg)
-        data_path = prepare_dataset(
-            BilingualText2TextDataset,
-            data_cfg,
-            final_output_dir,
-            rebuild_from_scratch=rebuild_dataset_from_scratch, 
-        )
-
-    # 2) Processor setup
-    proc_path = None
-    if do_processor:
-        print("\nSetting Up Processor:\n")
-        processor_cfg = getattr(cfg, "processor", None)
-
-        text_tokenizer_path  = getattr(processor_cfg, "text_tokenizer_path", None) if processor_cfg else None
-        new_vocabulary       = getattr(processor_cfg, "new_vocabulary", None) if processor_cfg else None
-
-        processor_output_dir = final_output_dir
-        
-        # Load tokenizers (needed for both processor and model)
-        tok, pre_tok, new = load_tokenizers(
-            text_tokenizer_path,
-            new_vocabulary,
-        )
-
-        # Instantiate processor with modality-specific args
-        proc = Text2TextTranslationProcessor(
-            tokenizer=tok
-        )
-        proc_path = save_processor(proc, processor_output_dir)
-
-    # 3) Model setup
-    model_path = None
-    if do_model:
-        print("\nSetting Up Model:\n")
-        # Ensure tokenizers are loaded if only building model
-        try:
-            tok, pre_tok, new
-        except NameError:
-            processor_cfg = getattr(cfg, "processor", None)
-            tok, pre_tok, new = load_tokenizers(
-                getattr(processor_cfg, "text_tokenizer_path", None) if processor_cfg else None,
-                getattr(processor_cfg, "new_vocabulary", None) if processor_cfg else None,
-            )
-
-        # Convert OmegaConf to primitive dict for model constructor
-        model_cfg = OmegaConf.to_container(cfg.model, resolve=True)
-        mtype = cfg.model.get("type")
-        model_path = build_and_save_model(
-            model_type=mtype,
-            config_path=config_path,
-            tokenizer=tok,
-            pretrained_tokenizer=pre_tok,
-            new_tokens=new,
-            model_cfg=model_cfg,
-            output_dir=final_output_dir,
-            modal_name="model"
-        )
-
-    # 4) Update config file or print summary based on the new toggle
-    should_update = resolve_update_choice(cfg, update_config)
-    if should_update:
-        update_configs(
-            config_path,
-            processor_path=proc_path,
-            data_path=data_path,
-            model_path=model_path
-        )
-    else:
-        print_artifact_summary(proc_path, model_path, data_path)
-
-    # 5) Always save YAML with normalized paths
-    save_actor_paths(final_output_dir, proc_path, data_path, model_path)
+    _general_main(
+        config_path=config_path,
+        do_dataset=do_dataset,
+        do_processor=do_processor,
+        do_model=do_model,
+        output_dir=output_dir,
+        update_config=update_config,
+        rebuild_dataset_from_scratch=rebuild_dataset_from_scratch,
+        default_dataset_type="text2text",
+    )

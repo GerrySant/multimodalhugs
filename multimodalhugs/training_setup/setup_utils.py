@@ -3,7 +3,7 @@ multimodalhugs/utils/training_setup.py
 
 Common utilities to initialize dataset, processor, and model for all modalities.
 '''
-import os, tempfile
+import os
 import yaml
 import logging
 from pathlib import Path
@@ -16,6 +16,289 @@ from multimodalhugs.utils.utils import add_argument_to_the_config, reformat_yaml
 from multimodalhugs.utils.tokenizer_utils import extend_tokenizer
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline shorthand — preset definitions
+# ---------------------------------------------------------------------------
+
+# Mapping from pipeline name to the default template for the *modality slot*
+# (first slot in the generated list).  The three standard text output slots
+# are always appended afterwards (see _TEXT_SLOTS_TEMPLATE below).
+#
+# Each entry is a plain dict with the following keys:
+#   processor_class  (str)  — name of the ModalityProcessor subclass
+#   output_data_key  (str)  — key under which the slot writes its tensor
+#   output_mask_key  (str)  — key for the padding mask tensor
+#   column_map       (dict) — mapping from TSV column names to processor params
+#   _needs_text_kwargs (bool, optional) — internal flag: when True the
+#       expansion injects tokenizer_path, new_vocabulary, and role=input into
+#       processor_kwargs (used for the text2text source slot).
+_PIPELINE_PRESETS: dict = {
+    # --- Temporal / sequence modalities (have start/end offsets in the TSV) ---
+    "pose2text": {
+        "processor_class": "PoseModalityProcessor",
+        "output_data_key": "input_frames",
+        "output_mask_key": "attention_mask",
+        "column_map": {
+            "signal": "signal",
+            "signal_start": "signal_start",
+            "signal_end": "signal_end",
+        },
+    },
+    "video2text": {
+        "processor_class": "VideoModalityProcessor",
+        "output_data_key": "input_frames",
+        "output_mask_key": "attention_mask",
+        "column_map": {
+            "signal": "signal",
+            "signal_start": "signal_start",
+            "signal_end": "signal_end",
+        },
+    },
+    # TODO (issue #76): FeaturesModalityProcessor currently only supports one
+    # .npy file per sample. signal_start / signal_end are intentionally absent
+    # here because the processor has no dict-handling branch and no temporal
+    # clipping logic. When issue #76 is resolved (adding row-index slicing),
+    # add a 3-key column_map matching pose2text/video2text. Note that the unit
+    # for features would be row indices, not milliseconds — document the
+    # difference when that work lands.
+    "features2text": {
+        "processor_class": "FeaturesModalityProcessor",
+        "output_data_key": "input_frames",
+        "output_mask_key": "attention_mask",
+        "column_map": {"signal": "signal"},
+    },
+    # --- Frame / image modalities (no temporal offsets) ---
+    "image2text": {
+        "processor_class": "ImageModalityProcessor",
+        "output_data_key": "input_frames",
+        "output_mask_key": "attention_mask",
+        "column_map": {"signal": "signal"},
+    },
+    "signwriting2text": {
+        "processor_class": "SignwritingModalityProcessor",
+        "output_data_key": "input_frames",
+        "output_mask_key": "attention_mask",
+        "column_map": {"signal": "signal"},
+    },
+    # --- Text source modality ---
+    # The source text is processed by a TextModalityProcessor (role=input),
+    # so it also needs tokenizer_path / new_vocabulary injected at expansion
+    # time (signalled by _needs_text_kwargs=True).
+    "text2text": {
+        "processor_class": "TextModalityProcessor",
+        "output_data_key": "input_frames",
+        "output_mask_key": "attention_mask",
+        "column_map": {"signal": "signal"},
+        "_needs_text_kwargs": True,
+    },
+}
+
+# Three standard text output slots appended to every pipeline expansion.
+# They handle encoder prompt, decoder prompt (input side), and target labels.
+# tokenizer_path, new_vocabulary, and role are filled in at expansion time.
+# Private keys prefixed with "_" are stripped before the slot dict is used.
+_TEXT_SLOTS_TEMPLATE: list = [
+    # 1. Target labels slot — reads (decoder_prompt, output) → (target_prefix, target)
+    #    The internal param names differ from the TSV column names; the
+    #    column_map absorbs the rename so the TSV schema is unchanged.
+    {
+        "processor_class": "TextModalityProcessor",
+        "output_data_key": "labels",
+        "is_label": True,
+        "column_map": {"decoder_prompt": "target_prefix", "output": "target"},
+        "_role": "target",
+    },
+    # 2. Encoder prompt slot — reads encoder_prompt TSV column as plain input text
+    {
+        "processor_class": "TextModalityProcessor",
+        "output_data_key": "encoder_prompt",
+        "output_mask_key": "encoder_prompt_length_padding_mask",
+        "column_map": {"encoder_prompt": "signal"},
+        "_role": "input",
+    },
+    # 3. Decoder input slot — reads decoder_prompt TSV column as decoder context
+    {
+        "processor_class": "TextModalityProcessor",
+        "output_data_key": "decoder_input_ids",
+        "output_mask_key": "decoder_attention_mask",
+        "column_map": {"decoder_prompt": "signal"},
+        "_role": "input",
+    },
+]
+
+
+def expand_pipeline_shorthand(processor_cfg):
+    """
+    Normalize a compact ``pipeline:`` processor config into a full ``slots:`` list.
+
+    This is a *pure normalization step* — it does not instantiate any processor
+    objects.  Call it before ``build_processor_from_config``, which remains
+    unaware of the shorthand format and only ever sees ``slots:``.
+
+    Three config levels are supported transparently:
+
+    1. **Shorthand** (``pipeline:`` key present)
+       A compact, human-friendly declaration.  This function expands it into
+       the full ``slots:`` representation on the fly.
+
+    2. **Full slots** (``slots:`` key present, no ``pipeline:`` key)
+       Passed through unchanged — this function is a no-op.
+
+    3. **Legacy / neither key**
+       Also passed through unchanged so the caller can fall back to its
+       existing hardcoded construction path.
+
+    Shorthand YAML format
+    ---------------------
+    ::
+
+        processor:
+          pipeline: video2text            # required — one of the six supported values
+          tokenizer_path: facebook/m2m100_418M  # required — shared by all text slots
+          new_vocabulary: "__asl__"       # optional — comma-separated tokens or path
+          modality_kwargs:                # optional — forwarded to the modality slot's
+            skip_frames_stride: 2        #   processor_kwargs unchanged
+
+    Supported ``pipeline`` values: ``pose2text``, ``video2text``,
+    ``image2text``, ``features2text``, ``signwriting2text``, ``text2text``.
+
+    The modality slot is always placed first; the three standard text output
+    slots (``labels``, ``encoder_prompt``, ``decoder_input_ids``) follow in
+    that order.
+
+    When the standard layout is not enough (different column names, extra
+    slots, non-text labels, etc.) use the full ``slots:`` format instead::
+
+        processor:
+          slots:
+            - processor_class: VideoModalityProcessor
+              output_data_key: input_frames
+              ...
+
+    Args:
+        processor_cfg: An OmegaConf DictConfig or plain dict representing
+            ``cfg.processor``.  When ``pipeline:`` is present, the function
+            returns a new config of the same type with ``slots:`` populated
+            and the shorthand keys removed.  When the input has neither
+            ``pipeline:`` nor ``slots:``, it is returned unchanged.
+
+    Returns:
+        The (possibly expanded) config.  When ``pipeline:`` was present the
+        return value contains ``slots:`` and no longer contains ``pipeline:``
+        or ``modality_kwargs:``.
+
+    Raises:
+        ValueError: If ``pipeline`` names an unsupported value.
+        ValueError: If ``tokenizer_path`` is absent when ``pipeline:`` is used.
+    """
+    # ------------------------------------------------------------------
+    # 1. Normalise to a plain Python dict for uniform handling.
+    # ------------------------------------------------------------------
+    is_omegaconf = OmegaConf.is_config(processor_cfg)
+    if is_omegaconf:
+        cfg_dict = OmegaConf.to_container(processor_cfg, resolve=True)
+    elif processor_cfg is None:
+        return processor_cfg
+    else:
+        cfg_dict = dict(processor_cfg)
+
+    # ------------------------------------------------------------------
+    # 2. Passthrough cases — nothing to expand.
+    # ------------------------------------------------------------------
+    if "pipeline" not in cfg_dict:
+        # Either full slots:, legacy config, or None — caller handles it.
+        return processor_cfg
+
+    # ------------------------------------------------------------------
+    # 3. Validate required shorthand fields.
+    # ------------------------------------------------------------------
+    pipeline = cfg_dict["pipeline"]
+    if pipeline not in _PIPELINE_PRESETS:
+        raise ValueError(
+            f"Unknown pipeline '{pipeline}'. "
+            f"Supported values: {sorted(_PIPELINE_PRESETS)}."
+        )
+
+    tokenizer_path = cfg_dict.get("tokenizer_path")
+    if not tokenizer_path:
+        raise ValueError(
+            "'tokenizer_path' is required when using the 'pipeline' shorthand."
+        )
+
+    # Optional top-level shorthand fields.
+    new_vocabulary = cfg_dict.get("new_vocabulary")       # str | None
+    modality_kwargs = dict(cfg_dict.get("modality_kwargs") or {})
+
+    # ------------------------------------------------------------------
+    # 4. Build the modality slot (always first in the generated list).
+    # ------------------------------------------------------------------
+    preset = dict(_PIPELINE_PRESETS[pipeline])  # shallow copy — do not mutate global
+    needs_text_kwargs = preset.pop("_needs_text_kwargs", False)
+
+    # Start from the modality_kwargs provided by the user and, for the
+    # text2text pipeline, also inject the shared tokenizer settings and
+    # role so that the source TextModalityProcessor is fully configured.
+    modality_proc_kwargs = dict(modality_kwargs)
+    if needs_text_kwargs:
+        modality_proc_kwargs["tokenizer_path"] = tokenizer_path
+        if new_vocabulary:
+            modality_proc_kwargs["new_vocabulary"] = new_vocabulary
+        # role=input distinguishes the source slot from target (label) slots.
+        modality_proc_kwargs["role"] = "input"
+
+    modality_slot: dict = {
+        "processor_class": preset["processor_class"],
+        "output_data_key": preset["output_data_key"],
+        "output_mask_key": preset["output_mask_key"],
+        "column_map": dict(preset["column_map"]),
+    }
+    if modality_proc_kwargs:
+        modality_slot["processor_kwargs"] = modality_proc_kwargs
+
+    # ------------------------------------------------------------------
+    # 5. Build the three standard text output slots.
+    # ------------------------------------------------------------------
+    slots: list = [modality_slot]
+
+    for tmpl in _TEXT_SLOTS_TEMPLATE:
+        # Strip internal bookkeeping keys (prefixed with "_") before use.
+        role = tmpl["_role"]
+
+        text_proc_kwargs: dict = {"tokenizer_path": tokenizer_path, "role": role}
+        if new_vocabulary:
+            text_proc_kwargs["new_vocabulary"] = new_vocabulary
+
+        slot: dict = {
+            "processor_class": tmpl["processor_class"],
+            "output_data_key": tmpl["output_data_key"],
+            "column_map": dict(tmpl["column_map"]),
+            "processor_kwargs": text_proc_kwargs,
+        }
+        # Carry over optional fields only when they are present in the template.
+        if "output_mask_key" in tmpl:
+            slot["output_mask_key"] = tmpl["output_mask_key"]
+        if tmpl.get("is_label"):
+            slot["is_label"] = True
+
+        slots.append(slot)
+
+    # ------------------------------------------------------------------
+    # 6. Assemble the expanded config.
+    # ------------------------------------------------------------------
+    # Copy all processor-level keys that are not shorthand-specific, then
+    # replace them with the expanded slots list.  This preserves any extra
+    # processor-level fields the user may have added (e.g. a future
+    # ``save_directory:`` key) without the shorthand keys leaking through.
+    _SHORTHAND_KEYS = {"pipeline", "tokenizer_path", "new_vocabulary", "modality_kwargs"}
+    expanded = {k: v for k, v in cfg_dict.items() if k not in _SHORTHAND_KEYS}
+    expanded["slots"] = slots
+
+    # Return the same config type as the input so callers are not surprised.
+    if is_omegaconf:
+        return OmegaConf.create(expanded)
+    return expanded
 
 
 def load_config(config_path: str):
@@ -131,6 +414,191 @@ def load_tokenizers(tokenizer_path, new_vocabulary, output_dir: Optional[str] = 
     return tokenizer, pretrained, new_tokens
 
 
+def build_processor_from_config(processor_cfg):
+    """
+    Build a MultimodalMetaProcessor declaratively from a YAML processor config.
+
+    This function accepts either the **shorthand** ``pipeline:`` format or the
+    **full** ``slots:`` format.  When the shorthand is present,
+    ``expand_pipeline_shorthand`` is called first to normalise the config into
+    the full slots representation; ``build_processor_from_config`` itself only
+    ever operates on the ``slots:`` key.
+
+    Full-slots format
+    -----------------
+    ``processor_cfg.slots`` must be a list of slot dicts.  Each slot dict
+    must have:
+
+      - ``processor_class`` (str): name of a ``ModalityProcessor`` subclass
+        exported from ``multimodalhugs.processors``
+      - ``output_data_key`` (str)
+      - ``output_mask_key`` (str, optional)
+      - ``column_map`` (dict, optional; defaults to ``{"signal": "signal"}``)
+      - ``is_label`` (bool, optional; defaults to False)
+      - ``processor_kwargs`` (dict, optional): extra kwargs forwarded to the
+        processor constructor.  For ``TextModalityProcessor``, include
+        ``tokenizer_path`` here — the processor loads it internally.
+
+    Shorthand format
+    ----------------
+    See ``expand_pipeline_shorthand`` for the compact ``pipeline:`` syntax.
+    Example::
+
+        processor:
+          pipeline: pose2text
+          tokenizer_path: facebook/m2m100_418M
+          new_vocabulary: "__asl__"
+
+    The tokenizer is NOT injected at this level.  Each processor class owns
+    its own constructor arguments.  ``MultimodalMetaProcessor.tokenizer`` is
+    auto-derived from the first text slot for HF ProcessorMixin compatibility.
+
+    Returns ``None`` if ``processor_cfg`` has neither a ``pipeline:`` key (after
+    expansion) nor a ``slots:`` key, so the caller can fall back to its existing
+    hardcoded construction path.
+    """
+    import multimodalhugs.processors as proc_module
+    from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+
+    # Normalise the shorthand pipeline: format → full slots: format.
+    # This is a no-op when slots: is already present or when neither key exists.
+    processor_cfg = expand_pipeline_shorthand(processor_cfg)
+
+    if processor_cfg is None:
+        return None
+
+    # Support both OmegaConf DictConfig and plain dicts (the latter can be
+    # returned by expand_pipeline_shorthand when given a plain-dict input).
+    if isinstance(processor_cfg, dict):
+        slot_cfgs = processor_cfg.get("slots")
+    else:
+        slot_cfgs = getattr(processor_cfg, "slots", None)
+
+    if not slot_cfgs:
+        return None
+
+    # Normalise slot_cfgs to a plain Python list regardless of origin.
+    if OmegaConf.is_config(slot_cfgs):
+        slot_cfgs = OmegaConf.to_container(slot_cfgs, resolve=True)
+
+    # Tokenizer cache: keyed by tokenizer_path.  Caches only the BASE
+    # (unextended) tokenizer returned by AutoTokenizer.from_pretrained.
+    #
+    # Why only the base tokenizer and not the extended one?
+    # extend_tokenizer() always calls AutoTokenizer.from_pretrained()
+    # internally, so it is not possible to skip re-extension by injecting a
+    # pre-extended object without modifying TextModalityProcessor itself.
+    # Caching the base tokenizer saves the redundant from_pretrained call at
+    # the top of TextModalityProcessor.__init__; vocabulary extension still
+    # runs once per text slot (reading the vocab file + add_special_tokens).
+    #
+    # tokenizer_path is intentionally NOT popped from proc_kwargs so that
+    # self.tokenizer_path is correctly set on every TextModalityProcessor
+    # instance (needed for serialization and for from_pretrained round-trips).
+    import inspect
+    from transformers import AutoTokenizer
+    _tok_cache: dict = {}
+
+    # Warn when two slots share tokenizer_path but use different new_vocabulary
+    # values.  Each slot will still get its own independently-extended tokenizer
+    # (extend_tokenizer loads from disk), so the processor works correctly, but
+    # the resulting vocabulary sizes will differ.  A model embedding matrix has a
+    # fixed size, so mixing differently-extended tokenizers in one pipeline will
+    # almost certainly cause a shape mismatch at training time.
+    _path_to_vocab: dict = {}
+    for _sc in slot_cfgs:
+        _kw = dict(_sc.get("processor_kwargs") or {})
+        _tp = _kw.get("tokenizer_path")
+        _nv = _kw.get("new_vocabulary")
+        if _tp is not None:
+            if _tp in _path_to_vocab and _path_to_vocab[_tp] != _nv:
+                logger.warning(
+                    "Two processor slots share tokenizer_path='%s' but have "
+                    "different new_vocabulary values ('%s' vs '%s'). Each slot "
+                    "will produce an independently-extended tokenizer with a "
+                    "different vocabulary size. This is unlikely to work with a "
+                    "single model embedding matrix.",
+                    _tp, _path_to_vocab[_tp], _nv,
+                )
+            else:
+                _path_to_vocab[_tp] = _nv
+
+    slots = []
+    for slot_cfg in slot_cfgs:
+        proc_cls = getattr(proc_module, slot_cfg["processor_class"])
+        proc_kwargs = dict(slot_cfg.get("processor_kwargs") or {})
+
+        # Inject the pre-loaded base tokenizer so TextModalityProcessor can
+        # skip its own AutoTokenizer.from_pretrained call.
+        if "tokenizer" in inspect.signature(proc_cls.__init__).parameters:
+            tok_path = proc_kwargs.get("tokenizer_path")
+            if tok_path is not None and tok_path not in _tok_cache:
+                _tok_cache[tok_path] = AutoTokenizer.from_pretrained(tok_path)
+            if tok_path is not None:
+                proc_kwargs["tokenizer"] = _tok_cache[tok_path]
+
+        proc = proc_cls(**proc_kwargs)
+        slots.append(ProcessorSlot(
+            processor=proc,
+            output_data_key=slot_cfg["output_data_key"],
+            output_mask_key=slot_cfg.get("output_mask_key"),
+            column_map=slot_cfg.get("column_map", {"signal": "signal"}),
+            is_label=slot_cfg.get("is_label", False),
+        ))
+    return MultimodalMetaProcessor(slots=slots)
+
+
+def extract_tokenizer_info_from_processor_config(processor_cfg):
+    """
+    Extract ``(tokenizer_path, new_vocabulary)`` from a processor config without
+    instantiating any processors.
+
+    Used by the general setup path when ``do_model=True`` but ``do_processor=False``:
+    the processor was not built in this run, so the tokenizer must be reconstructed
+    from the YAML config alone.
+
+    Probes three config formats in order:
+
+    1. **Pipeline shorthand** (``pipeline:`` key present):
+       ``tokenizer_path`` and ``new_vocabulary`` are top-level keys in the
+       processor section.
+
+    2. **Full slots** (``slots:`` key present):
+       Searches for the first slot whose ``processor_kwargs`` contains
+       ``tokenizer_path`` (typically a ``TextModalityProcessor`` slot).
+
+    3. **Legacy flat format** (neither key present):
+       Reads ``text_tokenizer_path`` and ``new_vocabulary`` directly from the
+       processor section (the old pre-redesign config format).
+
+    Args:
+        processor_cfg: OmegaConf DictConfig or plain dict for ``cfg.processor``.
+
+    Returns:
+        ``(tokenizer_path, new_vocabulary)`` — either value may be ``None``.
+    """
+    if processor_cfg is None:
+        return None, None
+
+    if OmegaConf.is_config(processor_cfg):
+        cfg_dict = OmegaConf.to_container(processor_cfg, resolve=True)
+    else:
+        cfg_dict = dict(processor_cfg)
+
+    # 1. Pipeline shorthand — tokenizer_path is at the processor root level.
+    if "pipeline" in cfg_dict:
+        return cfg_dict.get("tokenizer_path"), cfg_dict.get("new_vocabulary")
+
+    # 2. Full slots — find the first text slot with tokenizer_path in its kwargs.
+    for slot in cfg_dict.get("slots") or []:
+        pkw = slot.get("processor_kwargs") or {}
+        if "tokenizer_path" in pkw:
+            return pkw["tokenizer_path"], pkw.get("new_vocabulary")
+
+    # 3. Legacy flat format.
+    return cfg_dict.get("text_tokenizer_path"), cfg_dict.get("new_vocabulary")
+
+
 def save_processor(processor, output_dir: str):
     path = os.path.join(output_dir, processor.name)
     processor.save_pretrained(save_directory=path, push_to_hub=False)
@@ -231,7 +699,7 @@ def save_actor_paths(final_output_dir: Union[str, Path],
                      proc_path: Union[str, Path, None] = None,
                      data_path: Union[str, Path, None] = None,
                      model_path: Union[str, Path, None] = None) -> Path:
-    """Guarda los paths en final_output_dir/actors_paths.yaml con las claves requeridas."""
+    """Save artifact paths to final_output_dir/actors_paths.yaml."""
     final_dir = Path(final_output_dir).expanduser().resolve()
     final_dir.mkdir(parents=True, exist_ok=True)
     out_file = final_dir / "actors_paths.yaml"
