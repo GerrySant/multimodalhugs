@@ -78,6 +78,22 @@ class ImageModalityProcessor(ModalityProcessor):
     # ------------------------------------------------------------------
 
     def _load_from_path(self, path: str) -> torch.Tensor:
+        """
+        Load an image from disk and optionally normalise it.
+
+        Args:
+            path: Path to an image file. Supported extensions: ``.npy``,
+                ``.jpg``, ``.jpeg``, ``.png``, ``.bmp``, ``.tiff``, ``.tif``.
+
+        Returns:
+            Float tensor with the same shape as the loaded image (H, W) or
+            (H, W, C), normalised if ``normalize_image=True``.
+
+        Raises:
+            ValueError: If the extension is unsupported, the file cannot be
+                read, or the number of image channels does not match the length
+                of the ``mean``/``std`` vectors.
+        """
         _, ext = os.path.splitext(path)
         ext = ext.lower()
         if ext == ".npy":
@@ -98,6 +114,17 @@ class ImageModalityProcessor(ModalityProcessor):
         return torch.from_numpy(image)
 
     def _render_text(self, text: str) -> torch.Tensor:
+        """
+        Render a plain text string as a typographic image.
+
+        Args:
+            text: The text string to render using the configured font.
+
+        Returns:
+            Float tensor of shape (H, W, C) or (H, W), optionally normalised,
+            rendered using the font at ``font_path`` and the configured
+            ``width`` / ``height``.
+        """
         image = get_images(
             src_text=text,
             font_path=self.font_path,
@@ -118,6 +145,27 @@ class ImageModalityProcessor(ModalityProcessor):
         values: Union[Any, Dict[str, Any]],
         **kwargs,
     ) -> torch.Tensor:
+        """
+        Load and preprocess a single image sample. Called at dataset-transform time.
+
+        Args:
+            values: One of:
+                - torch.Tensor — returned unchanged.
+                - np.ndarray — converted to a tensor unchanged.
+                - str (existing file path) — loaded from disk via
+                  ``_load_from_path``.
+                - str (no matching file) — rendered as a typographic image via
+                  ``_render_text``.
+                - pyarrow.lib.StringScalar — unwrapped to str and handled as
+                  above.
+
+        Returns:
+            Float tensor representing the image, shape (H, W) or (H, W, C),
+            optionally normalised.
+
+        Raises:
+            TypeError: If ``values`` is of an unsupported type.
+        """
         if isinstance(values, torch.Tensor):
             return values
         if isinstance(values, np.ndarray):
@@ -143,6 +191,19 @@ class ImageModalityProcessor(ModalityProcessor):
         samples: List[torch.Tensor],
         **kwargs,
     ) -> ProcessBatchOutput:
-        """Pad tensors along the first dimension and return a mask."""
+        """
+        Pad a batch of image tensors to a common shape. Called at collation time.
+
+        Args:
+            samples: List of B tensors, each of shape (H, W) or (H, W, C),
+                as returned by ``process_sample``.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Float tensor of shape [B, H_max, W_max, C] (or
+                  [B, H_max, W_max]), zero-padded along the first spatial
+                  dimension.
+                - mask: Bool tensor of shape [B, H_max], True for valid rows.
+        """
         padded, mask = pad_and_create_mask(samples)
         return ProcessBatchOutput(data=padded, mask=mask)

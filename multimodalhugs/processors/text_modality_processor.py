@@ -115,7 +115,18 @@ class TextModalityProcessor(ModalityProcessor):
         values: Union[Any, Dict[str, Any]],
         **kwargs,
     ) -> Any:
-        """Text needs no per-sample preprocessing — pass through as-is."""
+        """
+        Pass a text sample through unchanged. Called at dataset-transform time.
+
+        Text requires no per-sample preprocessing; tokenisation happens at
+        collation time in ``process_batch``.
+
+        Args:
+            values: Any value from the dataset column (typically a str or dict).
+
+        Returns:
+            ``values`` unchanged.
+        """
         return values
 
     def process_batch(
@@ -123,6 +134,25 @@ class TextModalityProcessor(ModalityProcessor):
         samples: List[Any],
         **kwargs,
     ) -> ProcessBatchOutput:
+        """
+        Tokenise and batch text samples. Called at collation time.
+
+        Dispatches to ``_process_prompt_batch`` for ``TextRole.INPUT`` or
+        ``_process_label_batch`` for ``TextRole.TARGET``.
+
+        Args:
+            samples: For ``TextRole.INPUT``: list of B strings to tokenise.
+                For ``TextRole.TARGET``: list of B dicts, each with keys
+                ``"target_prefix"`` (str) and ``"target"`` (str or None).
+
+        Returns:
+            ProcessBatchOutput where:
+                - ``TextRole.INPUT``: data is token ids [B, L] (int64),
+                  mask is attention mask [B, L] (int64).
+                - ``TextRole.TARGET``: data is label ids [B, L] (int64)
+                  padded with -100, mask is None.
+                  Returns (None, None) if any sample has ``target=None``.
+        """
         if self.role == TextRole.INPUT:
             return self._process_prompt_batch(samples)
         elif self.role == TextRole.TARGET:
@@ -138,6 +168,18 @@ class TextModalityProcessor(ModalityProcessor):
         self,
         texts: List[str],
     ) -> ProcessBatchOutput:
+        """
+        Tokenise a batch of input strings.
+
+        Args:
+            texts: List of B plain text strings.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Token id tensor of shape [B, L] (int64), padded.
+                - mask: Attention mask tensor of shape [B, L] (int64),
+                  1 for real tokens and 0 for padding.
+        """
         tokenized = self.tokenizer(
             texts,
             add_special_tokens=False,
@@ -154,6 +196,29 @@ class TextModalityProcessor(ModalityProcessor):
         self,
         samples: List[Dict[str, Any]],
     ) -> ProcessBatchOutput:
+        """
+        Build seq2seq labels from a batch of target samples.
+
+        Concatenates ``target_prefix`` + ``target`` + EOS token for each
+        sample, then pads sequences to the longest with -100 (the standard
+        ``CrossEntropyLoss`` ignore index in HuggingFace Transformers).
+
+        Args:
+            samples: List of B dicts, each containing:
+                ``"target_prefix"`` (str): language or task prefix token(s).
+                ``"target"`` (str or None): the target translation string.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Label id tensor of shape [B, L] (int64), padded with
+                  -100. Returns None if any sample has ``target=None``.
+                - mask: Always None (labels do not require an attention mask).
+
+        Raises:
+            KeyError: If a sample dict is missing ``"target_prefix"`` or
+                ``"target"`` keys, with an actionable message pointing to the
+                slot's ``column_map``.
+        """
         # TODO: label construction is currently hardcoded as
         # target_prefix + target + EOS, padded with -100. Customizable label
         # creation strategies (e.g. target-only without prefix, different

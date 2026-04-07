@@ -48,6 +48,23 @@ class PoseModalityProcessor(ModalityProcessor):
         signal_start: int = 0,
         signal_end: int = 0,
     ) -> torch.Tensor:
+        """
+        Load a .pose file and apply the full preprocessing pipeline.
+
+        Reads the pose sequence from disk, hides leg landmarks, optionally
+        reduces the holistic landmark set, normalises, and flattens landmarks
+        into a feature vector per frame.
+
+        Args:
+            pose_file: Path to a binary .pose file.
+            signal_start: Clip start time in milliseconds. 0 means start of file.
+            signal_end: Clip end time in milliseconds. 0 means end of file.
+
+        Returns:
+            Float tensor of shape [T, D] where T is the number of frames
+            (after optional downsampling) and D is the flattened landmark
+            feature dimension.
+        """
         with open(pose_file, "rb") as f:
             pose = Pose.read(
                 f,
@@ -74,8 +91,19 @@ class PoseModalityProcessor(ModalityProcessor):
         **kwargs,
     ) -> torch.Tensor:
         """
-        values — file path (str/Path) or pre-loaded tensor, or a dict:
-                   {"signal": path, "signal_start": int, "signal_end": int}
+        Load and preprocess a single pose sample. Called at dataset-transform time.
+
+        Args:
+            values: One of:
+                - str or Path — path to a .pose file; loaded and preprocessed.
+                - torch.Tensor — returned unchanged (already preprocessed).
+                - dict — mapping with keys:
+                    ``"signal"`` (str/Path, required): path to the .pose file.
+                    ``"signal_start"`` (int, optional): clip start in ms. Default 0.
+                    ``"signal_end"`` (int, optional): clip end in ms. Default 0.
+
+        Returns:
+            Float tensor of shape [T, D].
         """
         if isinstance(values, dict):
             signal = values["signal"]
@@ -97,7 +125,16 @@ class PoseModalityProcessor(ModalityProcessor):
         **kwargs,
     ) -> ProcessBatchOutput:
         """
-        Pad [T_i, D] tensors to [B, T_max, D] and return a [B, T_max] mask.
+        Pad a batch of pose tensors to a common length. Called at collation time.
+
+        Args:
+            samples: List of B tensors, each of shape [T_i, D], as returned
+                by ``process_sample``.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Float tensor of shape [B, T_max, D], zero-padded.
+                - mask: Bool tensor of shape [B, T_max], True for valid frames.
         """
         padded, mask = pad_and_create_mask(samples)
         return ProcessBatchOutput(data=padded, mask=mask)

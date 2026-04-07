@@ -83,6 +83,31 @@ class VideoModalityProcessor(ModalityProcessor):
         signal_start: float = 0.0,
         signal_end: float = 0.0,
     ) -> torch.Tensor:
+        """
+        Load a video clip from disk and apply the preprocessing pipeline.
+
+        When ``custom_preprocessor`` is set, frames are decoded with OpenCV
+        and passed through the image preprocessor (e.g. CLIPImageProcessor).
+        Otherwise, torchvision's ``read_video`` is used and frames are returned
+        as raw float tensors. Retries up to ``io_max_retries`` times with
+        exponential backoff on transient I/O failures.
+
+        Args:
+            video_path: Path to a video file (any format supported by OpenCV
+                or torchvision).
+            signal_start: Clip start time in milliseconds. 0.0 means start of
+                file.
+            signal_end: Clip end time in milliseconds. 0.0 means end of file.
+
+        Returns:
+            Float tensor of shape [T, C, H, W] (or [T, C*H*W] when
+            ``join_chw=True``) where T is the number of frames after optional
+            downsampling.
+
+        Raises:
+            IOError: If the video cannot be opened after ``io_max_retries``
+                attempts.
+        """
         last_exc: Exception = IOError(f"Cannot open video {video_path}")
         for attempt in range(max(1, self.io_max_retries)):
             try:
@@ -148,8 +173,20 @@ class VideoModalityProcessor(ModalityProcessor):
         **kwargs,
     ) -> torch.Tensor:
         """
-        values — file path, ndarray, or pre-loaded tensor, or a dict:
-                   {"signal": path, "signal_start": float, "signal_end": float}
+        Load and preprocess a single video sample. Called at dataset-transform time.
+
+        Args:
+            values: One of:
+                - str or Path — path to a video file; loaded and preprocessed.
+                - torch.Tensor — returned unchanged (already preprocessed).
+                - np.ndarray — converted to a float tensor unchanged.
+                - dict — mapping with keys:
+                    ``"signal"`` (str/Path, required): path to the video file.
+                    ``"signal_start"`` (float, optional): clip start in ms. Default 0.0.
+                    ``"signal_end"`` (float, optional): clip end in ms. Default 0.0.
+
+        Returns:
+            Float tensor of shape [T, C, H, W].
         """
         if isinstance(values, dict):
             signal = values["signal"]
@@ -173,7 +210,18 @@ class VideoModalityProcessor(ModalityProcessor):
         **kwargs,
     ) -> ProcessBatchOutput:
         """
-        Pad [T_i, ...] tensors to [B, T_max, ...] and return a [B, T_max] mask.
+        Pad a batch of video tensors to a common length. Called at collation time.
+
+        Args:
+            samples: List of B tensors, each of shape [T_i, C, H, W] (or
+                [T_i, C*H*W] when ``join_chw=True``), as returned by
+                ``process_sample``.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Float tensor of shape [B, T_max, C, H, W] (or
+                  [B, T_max, C*H*W] when ``join_chw=True``), zero-padded.
+                - mask: Bool tensor of shape [B, T_max], True for valid frames.
         """
         padded, mask = pad_and_create_mask(samples)
         if self.join_chw:

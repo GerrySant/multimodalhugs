@@ -56,7 +56,17 @@ class FeaturesModalityProcessor(ModalityProcessor):
     # ------------------------------------------------------------------
 
     def _load_from_disk(self, path: str) -> torch.Tensor:
-        """Load a .npy feature file from disk and apply transforms."""
+        """
+        Load a .npy feature file from disk and apply transforms.
+
+        Args:
+            path: Path to a .npy file containing a precomputed feature array.
+
+        Returns:
+            Float tensor of shape [T, D] where T is the temporal dimension
+            (after optional axis permutation and frame downsampling) and D is
+            the feature dimension.
+        """
         features = torch.from_numpy(np.load(path))
         if self.temporal_dimension_position != 0:
             features = torch.movedim(features, self.temporal_dimension_position, 0)
@@ -74,7 +84,22 @@ class FeaturesModalityProcessor(ModalityProcessor):
         **kwargs,
     ) -> torch.Tensor:
         """
-        values — file path (str/Path), numpy array, nested list, or pre-loaded tensor.
+        Load and preprocess a single feature sample. Called at dataset-transform time.
+
+        Args:
+            values: One of:
+                - str or Path — path to a .npy file; loaded via ``_load_from_disk``.
+                - torch.Tensor — returned unchanged (already preprocessed).
+                - np.ndarray — converted to a float tensor; frame downsampling
+                  applied if ``skip_frames_stride`` is set.
+                - list of lists — converted to a float tensor via
+                  ``torch.tensor``; frame downsampling applied if set.
+
+        Returns:
+            Float tensor of shape [T, D].
+
+        Raises:
+            ValueError: If ``values`` is of an unsupported type.
         """
         if isinstance(values, torch.Tensor):
             return values
@@ -97,6 +122,17 @@ class FeaturesModalityProcessor(ModalityProcessor):
         samples: List[torch.Tensor],
         **kwargs,
     ) -> ProcessBatchOutput:
-        """Pad [T_i, D] tensors to [B, T_max, D] and return a [B, T_max] mask."""
+        """
+        Pad a batch of feature tensors to a common length. Called at collation time.
+
+        Args:
+            samples: List of B tensors, each of shape [T_i, D], as returned
+                by ``process_sample``.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Float tensor of shape [B, T_max, D], zero-padded.
+                - mask: Bool tensor of shape [B, T_max], True for valid frames.
+        """
         padded, mask = pad_and_create_mask(samples)
         return ProcessBatchOutput(data=padded, mask=mask)

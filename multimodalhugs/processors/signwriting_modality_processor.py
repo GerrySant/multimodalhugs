@@ -69,6 +69,21 @@ class SignwritingModalityProcessor(ModalityProcessor):
     # ------------------------------------------------------------------
 
     def _ascii_to_tensor(self, sign: str) -> torch.Tensor:
+        """
+        Convert an ASCII SignWriting string to a sequence of image tensors.
+
+        Normalises the input string, splits it into individual sign symbols,
+        renders each symbol as an image, optionally inverts colours, and
+        applies the ``custom_preprocessor`` to each frame.
+
+        Args:
+            sign: An ASCII SignWriting string (FSW format), potentially
+                containing multiple sign symbols.
+
+        Returns:
+            Float tensor of shape [N_signs, C, H, W] where N_signs is the
+            number of individual sign symbols in the input string.
+        """
         sign_arrays = []
         for ascii_sign in normalize_signwriting(sign).split():
             _sign = signwriting_to_image(ascii_sign, trust_box=False)
@@ -92,7 +107,18 @@ class SignwritingModalityProcessor(ModalityProcessor):
         values: Union[Any, Dict[str, Any]],
         **kwargs,
     ) -> torch.Tensor:
-        """values — ASCII SignWriting string or a pre-loaded tensor."""
+        """
+        Convert a single SignWriting sample to a tensor. Called at dataset-transform time.
+
+        Args:
+            values: One of:
+                - str — ASCII SignWriting string (FSW format); rendered to a
+                  sequence of sign images via ``_ascii_to_tensor``.
+                - torch.Tensor — returned unchanged (already preprocessed).
+
+        Returns:
+            Float tensor of shape [N_signs, C, H, W].
+        """
         if isinstance(values, torch.Tensor):
             return values
         return self._ascii_to_tensor(values)
@@ -102,6 +128,17 @@ class SignwritingModalityProcessor(ModalityProcessor):
         samples: List[torch.Tensor],
         **kwargs,
     ) -> ProcessBatchOutput:
-        """Pad [N_i, C, H, W] tensors to [B, N_max, C, H, W] and return a [B, N_max] mask."""
+        """
+        Pad a batch of SignWriting tensors to a common length. Called at collation time.
+
+        Args:
+            samples: List of B tensors, each of shape [N_i, C, H, W], as
+                returned by ``process_sample``.
+
+        Returns:
+            ProcessBatchOutput where:
+                - data: Float tensor of shape [B, N_max, C, H, W], zero-padded.
+                - mask: Bool tensor of shape [B, N_max], True for valid signs.
+        """
         padded, mask = pad_and_create_mask(samples)
         return ProcessBatchOutput(data=padded, mask=mask)
