@@ -41,7 +41,6 @@ from datasets import load_from_disk
 
 import transformers
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import send_example_telemetry
 
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
@@ -144,9 +143,6 @@ def main():
 
     resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
-
-    # Send telemetry for usage tracking (optional).
-    send_example_telemetry("run_translation", model_args, data_args)
 
     # --- Logging configuration ---
     logging.basicConfig(

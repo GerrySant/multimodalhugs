@@ -33,7 +33,6 @@ from datasets import load_from_disk
 
 import transformers
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import send_example_telemetry
 
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
@@ -75,10 +74,6 @@ def main():
 
     # set remove_unused_columns to false
     setattr(training_args, "remove_unused_columns", False)
-
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_translation", model_args, data_args)
 
     # Setup logging
     logging.basicConfig(
