@@ -41,7 +41,7 @@ def load_tokenizer_from_vocab_file(vocab_file, special_tokens_dict=None, output_
     tokenizer.save(tokenizer_path)
 
     # Load the tokenizer with HuggingFace transformers
-    fast_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer, additional_special_tokens=list(vocab.keys()))
+    fast_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer, extra_special_tokens=list(vocab.keys()))
     fast_tokenizer.add_special_tokens({
         'bos_token': '<s>',
         'eos_token': '</s>',
@@ -94,8 +94,7 @@ def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=Non
 
     if added_tokens:
         tokenizer.add_special_tokens(
-            {'additional_special_tokens': added_tokens},
-            replace_additional_special_tokens=False
+            {'extra_special_tokens': added_tokens},
         )
         logger.info("Added tokens: %s", added_tokens)
     else:

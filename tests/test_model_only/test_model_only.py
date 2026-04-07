@@ -39,7 +39,7 @@ def model_setup(request):
         "src_tokenizer": src_tokenizer,
         "tgt_tokenizer": tgt_tokenizer,
         "config_path": config_path,
-        "new_vocab_tokens": src_tokenizer.additional_special_tokens
+        "new_vocab_tokens": src_tokenizer.extra_special_tokens
     })
 
     model = MultiModalEmbedderModel.build_model(**model_kwargs).to(DEVICE)
