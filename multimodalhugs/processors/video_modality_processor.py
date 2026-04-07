@@ -1,4 +1,5 @@
 import logging
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -33,11 +34,13 @@ class VideoModalityProcessor(ModalityProcessor):
         skip_frames_stride: Optional[int] = None,
         join_chw: bool = False,
         use_cache: bool = False,
+        io_max_retries: int = 3,
     ):
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw
         self.use_cache = use_cache
+        self.io_max_retries = io_max_retries
         self.custom_preprocessor = (
             AutoProcessor.from_pretrained(custom_preprocessor_path)
             if custom_preprocessor_path is not None
@@ -58,42 +61,60 @@ class VideoModalityProcessor(ModalityProcessor):
         signal_start: float = 0.0,
         signal_end: float = 0.0,
     ) -> torch.Tensor:
-        if self.custom_preprocessor is not None:
-            cap = cv2.VideoCapture(str(video_path))
-            if not cap.isOpened():
-                raise IOError(f"Cannot open video {video_path}")
+        last_exc: Exception = IOError(f"Cannot open video {video_path}")
+        for attempt in range(max(1, self.io_max_retries)):
+            try:
+                if self.custom_preprocessor is not None:
+                    cap = cv2.VideoCapture(str(video_path))
+                    if not cap.isOpened():
+                        cap.release()
+                        raise IOError(f"Cannot open video {video_path}")
 
-            full_signal = (signal_start == signal_end) or (signal_start is None) or (signal_end is None)
-            if not full_signal:
-                cap.set(cv2.CAP_PROP_POS_MSEC, signal_start)
+                    full_signal = (signal_start == signal_end) or (signal_start is None) or (signal_end is None)
+                    if not full_signal:
+                        cap.set(cv2.CAP_PROP_POS_MSEC, signal_start)
 
-            frames = []
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                if not full_signal and cap.get(cv2.CAP_PROP_POS_MSEC) > signal_end:
-                    break
-                frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
-            cap.release()
+                    frames = []
+                    while True:
+                        ret, frame = cap.read()
+                        if not ret:
+                            break
+                        if not full_signal and cap.get(cv2.CAP_PROP_POS_MSEC) > signal_end:
+                            break
+                        frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+                    cap.release()
 
-            result = self.custom_preprocessor(images=frames, return_tensors="pt")["pixel_values"]
-            result = result.squeeze(0) if result.ndim == 5 else result
-        else:
-            start_sec = (signal_start or 0) / 1000.0
-            end_sec = (signal_end / 1000.0) if signal_end else None
-            result, _, _ = read_video(
-                str(video_path),
-                start_pts=start_sec,
-                end_pts=end_sec,
-                pts_unit="sec",
-                output_format="TCHW",
-            )
-            result = result.to(torch.float32)
+                    result = self.custom_preprocessor(images=frames, return_tensors="pt")["pixel_values"]
+                    result = result.squeeze(0) if result.ndim == 5 else result
+                else:
+                    start_sec = (signal_start or 0) / 1000.0
+                    end_sec = (signal_end / 1000.0) if signal_end else None
+                    result, _, _ = read_video(
+                        str(video_path),
+                        start_pts=start_sec,
+                        end_pts=end_sec,
+                        pts_unit="sec",
+                        output_format="TCHW",
+                    )
+                    result = result.to(torch.float32)
 
-        if self.skip_frames_stride is not None:
-            result = frame_skipping(x=result, t_dim=0, stride=self.skip_frames_stride)
-        return result
+                if self.skip_frames_stride is not None:
+                    result = frame_skipping(x=result, t_dim=0, stride=self.skip_frames_stride)
+                return result
+
+            except (IOError, OSError, RuntimeError) as exc:
+                last_exc = exc
+                if attempt < self.io_max_retries - 1:
+                    delay = 2 ** attempt
+                    logger.warning(
+                        "Failed to load video '%s' (attempt %d/%d): %s. Retrying in %ds.",
+                        video_path, attempt + 1, self.io_max_retries, exc, delay,
+                    )
+                    time.sleep(delay)
+
+        raise IOError(
+            f"Cannot open video '{video_path}' after {self.io_max_retries} attempts."
+        ) from last_exc
 
     # ------------------------------------------------------------------
     # ModalityProcessor interface
