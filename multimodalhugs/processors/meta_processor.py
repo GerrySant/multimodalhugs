@@ -233,8 +233,10 @@ class MultimodalMetaProcessor(ProcessorMixin):
 
         try:
             tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
-        except OSError:
+        except (OSError, ValueError):
             # No tokenizer files present in the directory — valid for non-text pipelines.
+            # OSError: raised by transformers 4.x when no tokenizer files found.
+            # ValueError: raised by transformers 5.x in the same situation.
             logger.debug(
                 "No tokenizer found in '%s'; setting tokenizer=None. "
                 "This is expected for processors with no text slots.",
