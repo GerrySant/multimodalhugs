@@ -6,10 +6,9 @@ import torch.nn as nn
 import numpy as np
 
 from jiwer import wer
-from transformers import PreTrainedTokenizerFast
-from multimodalhugs.utils.tokenizer_utils import load_tokenizer_from_vocab_file
 from multimodalhugs.models.multimodal_embedder.modeling_multimodal_embedder import MultiModalEmbedderModel
 from omegaconf import OmegaConf
+from multimodalhugs.training_setup.setup_utils import build_processor_from_config
 from .global_variables import DEVICE, INPUTS, LABELS, SAMPLES
 
 
@@ -31,22 +30,22 @@ def model_setup(request):
         torch.backends.cudnn.benchmark = False
 
     cfg = OmegaConf.load(config_path)
-    src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.processor.new_vocabulary)
-    tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(cfg.processor.text_tokenizer_path)
+    processor = build_processor_from_config(cfg.processor)
+    tokenizer = processor.tokenizer
 
     model_kwargs = OmegaConf.to_container(cfg.model, resolve=True)
     model_kwargs.update({
-        "src_tokenizer": src_tokenizer,
-        "tgt_tokenizer": tgt_tokenizer,
+        "src_tokenizer": tokenizer,
+        "tgt_tokenizer": tokenizer,
         "config_path": config_path,
-        "new_vocab_tokens": src_tokenizer.extra_special_tokens
+        "new_vocab_tokens": tokenizer.extra_special_tokens,
     })
 
     model = MultiModalEmbedderModel.build_model(**model_kwargs).to(DEVICE)
 
     print("model_setup id:", id(model))
 
-    return (model, src_tokenizer, tgt_tokenizer), params
+    return (model, tokenizer, tokenizer), params
 
 
 def _train_model(model):

@@ -839,6 +839,8 @@ Regression tests comparing processor output against golden files in `tests/asset
 
 ### `test_model_only.py`
 
+The `model_setup` fixture builds the model via `build_processor_from_config(cfg.processor)` (0.0.5 slot-based format) and passes `processor.tokenizer` to `MultiModalEmbedderModel.build_model`. Config: `tests/test_model_only/configs/test_model_only.yaml`.
+
 | Test | What it checks |
 |---|---|
 | `test_backbone_shared_weights_are_tied` | After `build_model` + vocab extension, `encoder.embed_tokens`, `decoder.embed_tokens`, and `lm_head` all share the same underlying storage as `model.shared` (same `data_ptr`) |
