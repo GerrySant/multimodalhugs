@@ -210,8 +210,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
             self.backbone_config = AutoConfig.from_pretrained(self.pretrained_backbone)
 
         if self.backbone_config is not None:
-            self.tie_encoder_decoder = self.backbone_config.tie_encoder_decoder
-            self.tie_word_embeddings = self.backbone_config.tie_word_embeddings
+            # tie_encoder_decoder was removed from all seq2seq model configs in
+            # transformers 5.x and is no longer a supported attribute.
+            self.tie_word_embeddings = getattr(self.backbone_config, "tie_word_embeddings", False)
 
         if self.use_backbone_max_length:
             if self.backbone_config is None:
