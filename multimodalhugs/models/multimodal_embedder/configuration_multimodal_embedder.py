@@ -15,7 +15,6 @@ from transformers import (
     AutoConfig,
 )
 from transformers.modeling_outputs import Seq2SeqLMOutput
-from accelerate.utils import find_tied_parameters
 from ruamel.yaml import YAML
 
 # Local Application Imports
@@ -213,3 +212,23 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         self.adapter_ksize = eval(self.adapter_ksize) if isinstance(self.adapter_ksize, str) else self.adapter_ksize
         self.adapter_stride = eval(self.adapter_stride) if isinstance(self.adapter_stride, str) else self.adapter_stride
         self.bos_token_id = self.bos_token_id if self.bos_token_id is not None else self.decoder_start_token_id
+
+    def __getattr__(self, name: str):
+        """Delegate unknown attribute lookups to backbone_config.
+
+        GenerationMixin and DynamicCache in transformers 5.x access several
+        attributes (e.g. vocab_size, num_hidden_layers, hidden_size) directly on
+        self.config.  MultiModalEmbedderConfig is a composite config that wraps a
+        backbone config; delegating here lets the generation machinery find those
+        attributes without needing to enumerate them explicitly.
+
+        Standard Python __getattr__ is only called when the attribute is NOT found
+        through normal lookup, so own attributes always take precedence.
+        """
+        # Guard against infinite recursion during __init__ before backbone_config is set.
+        backbone_config = self.__dict__.get("backbone_config")
+        if backbone_config is not None and hasattr(backbone_config, name):
+            return getattr(backbone_config, name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )

@@ -125,5 +125,14 @@ class FeatureExtractor(nn.Module):
             B, T, _, _, _, = x.shape
             x = torch.flatten(x, start_dim=0, end_dim=1) # [B, T, C, H, W] -> [(B x T), C, H, W]
             x = self.feature_extractor.get_image_features(pixel_values=x)
+            # In transformers 5.x, get_image_features returns a ModelOutput rather than a
+            # plain tensor. Extract the primary feature tensor in a model-agnostic way:
+            # prefer pooler_output (projected/pooled representation) when available,
+            # fall back to last_hidden_state for models without a pooling head.
+            if not isinstance(x, torch.Tensor):
+                if hasattr(x, "pooler_output") and x.pooler_output is not None:
+                    x = x.pooler_output
+                else:
+                    x = x.last_hidden_state
             x = torch.unflatten(x, 0, (B, T)) # [(B x T), E] -> [B, T, E]
         return x

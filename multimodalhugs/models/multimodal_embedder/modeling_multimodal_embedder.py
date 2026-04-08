@@ -14,8 +14,8 @@ from transformers import (
     PretrainedConfig,
     AutoConfig,
 )
+from transformers.generation import GenerationMixin
 from transformers.modeling_outputs import Seq2SeqLMOutput
-from accelerate.utils import find_tied_parameters
 from ruamel.yaml import YAML
 
 # Local Application Imports
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Define the custom model class
 @register_model("multimodal_embedder")
-class MultiModalEmbedderModel(PreTrainedModel):
+class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
     """
     **MultiModalEmbedderModel: A Transformer-based multimodal model.**
 
@@ -81,8 +81,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         if self.feature_extractor is not None:
             self.is_parallelizable = self.is_parallelizable and getattr(self.feature_extractor, "is_parallelizable", True)
-            self._no_split_modules = self._no_split_modules + (getattr(self.feature_extractor, "_no_split_modules", []) or [])
-            self._keep_in_fp32_modules = self._keep_in_fp32_modules + (getattr(self.feature_extractor, "_keep_in_fp32_modules", []) or [])
+            self._no_split_modules = self._no_split_modules + list(getattr(self.feature_extractor, "_no_split_modules", []) or [])
+            self._keep_in_fp32_modules = self._keep_in_fp32_modules + list(getattr(self.feature_extractor, "_keep_in_fp32_modules", []) or [])
 
     def _init_multimodal_mapper(self, config):
         """
@@ -121,9 +121,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         else:
             self.backbone = BackboneModelClass.from_pretrained(config.pretrained_backbone)
         
-        if isinstance(config.backbone_tied_weights_keys, list):
-            self.backbone._tied_weights_keys = config.backbone_tied_weights_keys
-
         set_module_parameters(self.backbone, freeze=config.freeze_backbone)
         set_module_parameters(self.get_backbone_encoder.embed_tokens, freeze=config.freeze_encoder_embed_tokens)
         set_module_parameters(self.get_backbone_decoder.embed_tokens, freeze=config.freeze_decoder_embed_tokens)
@@ -136,8 +133,8 @@ class MultiModalEmbedderModel(PreTrainedModel):
         )
         set_module_parameters(self.get_shared, freeze=freeze_shared, verbose=False)
         self.is_parallelizable = self.is_parallelizable and getattr(self.backbone, "is_parallelizable", True)
-        self._no_split_modules = self._no_split_modules + (getattr(self.backbone, "_no_split_modules", []) or [])
-        self._keep_in_fp32_modules = self._keep_in_fp32_modules + (getattr(self.backbone, "_keep_in_fp32_modules", []) or [])
+        self._no_split_modules = self._no_split_modules + list(getattr(self.backbone, "_no_split_modules", []) or [])
+        self._keep_in_fp32_modules = self._keep_in_fp32_modules + list(getattr(self.backbone, "_keep_in_fp32_modules", []) or [])
 
     def get_input_embeddings(self):
         """
@@ -290,8 +287,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         
         cfg.d_model = cfg.d_model or cfg.backbone_config.d_model
         cfg.decoder_start_token_id = cfg.decoder_start_token_id or cfg.backbone_config.decoder_start_token_id
-        cfg.backbone_tied_weights_keys = cfg.backbone_tied_weights_keys or find_tied_parameters(backbone)[0]
-        backbone._tied_weights_keys = cfg.backbone_tied_weights_keys
 
         # Determine EOS and PAD token indices
         pad_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
@@ -312,6 +307,13 @@ class MultiModalEmbedderModel(PreTrainedModel):
 
         # Copy the weights from the backbone instance to the model.backbone
         model.backbone.load_state_dict(backbone.state_dict())
+
+        # Re-establish tied weight references after load_state_dict.
+        # load_state_dict copies values but does not restore Python object identity
+        # between tied parameters.  tie_weights() reconnects them via the backbone's
+        # _tied_weights_keys mapping (a dict in transformers 5.x).
+        if hasattr(model.backbone, "tie_weights"):
+            model.backbone.tie_weights()
 
         # Converts all tensors in the model to contiguous
         for param in model.parameters():
@@ -727,20 +729,28 @@ class MultiModalEmbedderModel(PreTrainedModel):
         """
         **Reorders the past key-value cache for beam search decoding.**
 
-        During beam search, this method reorders `past_key_values` based on the 
-        surviving beams (`beam_idx`), ensuring that cached values remain aligned 
-        with the correct sequences.
+        In transformers 5.x the new Cache classes (DynamicCache, etc.) expose a
+        reorder_cache() method and GenerationMixin calls it directly on the cache
+        object.  This fallback is kept for compatibility with any code path that
+        still calls _reorder_cache on the model; it delegates to the cache object
+        when possible, and falls back to tuple-style reordering otherwise.
 
         ### **Args:**
-        - `past_key_values` (Tuple[Tuple[torch.FloatTensor]]):  
-        Cached self-attention and cross-attention key-value pairs from previous decoding steps.
-        - `beam_idx` (torch.LongTensor, shape `(num_beams,)`):  
+        - `past_key_values`: Cache object or legacy tuple of key-value tensors.
+        - `beam_idx` (torch.LongTensor, shape `(num_beams,)`):
         The indices of the beams that survived the last decoding step.
 
         ### **Returns:**
-        - `Tuple[Tuple[torch.FloatTensor]]`: The reordered past key-value states.
+        - The reordered cache in the same format as the input.
         """
-        return self.backbone._reorder_cache(past_key_values, beam_idx)
+        if hasattr(past_key_values, "reorder_cache"):
+            past_key_values.reorder_cache(beam_idx)
+            return past_key_values
+        # Legacy tuple format: reorder each layer's key-value tensors.
+        return tuple(
+            tuple(kv.index_select(0, beam_idx.to(kv.device)) for kv in layer)
+            for layer in past_key_values
+        )
 
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor) -> torch.Tensor:
         """

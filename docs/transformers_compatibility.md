@@ -91,3 +91,57 @@ Tracking breaking changes found when updating multimodalhugs from `transformers<
 - `tokenizer_utils.py` line 44: `additional_special_tokens=` kwarg → `extra_special_tokens=`
 - `tokenizer_utils.py` line 97: `{'additional_special_tokens': ...}` dict key → `{'extra_special_tokens': ...}`
 - `test_model_only.py` line 42: `src_tokenizer.additional_special_tokens` → `src_tokenizer.extra_special_tokens`
+
+---
+
+### 10. `_tied_weights_keys` changed from list to dict; `find_tied_parameters` override removed
+**Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
+
+**Change:** In transformers 5.x, `_tied_weights_keys` on `PreTrainedModel` subclasses changed from a `list` of tied parameter names to a `dict` mapping each tied parameter to its source (e.g. `{"lm_head.weight": "model.shared.weight"}`). The old code used `find_tied_parameters()` (from `accelerate`) to auto-detect tied weights and store the result as a list, then assigned it to `backbone._tied_weights_keys`. This overrode the backbone's correct 5.x dict with a list, causing `get_expanded_tied_weights_keys()` to fail with `AttributeError: 'list' object has no attribute 'keys'`.
+
+**Fix:** Removed the `find_tied_parameters` usage and the `backbone._tied_weights_keys` override entirely from both `build_model` and `_init_backbone`. The backbone model's built-in `_tied_weights_keys` dict is correct and sufficient. Added an explicit `backbone.tie_weights()` call (guarded with `hasattr`) after `load_state_dict` in `build_model` to ensure tied weight references are restored after weight copying.
+
+---
+
+### 11. `_no_split_modules` and `_keep_in_fp32_modules` changed from list to set
+**Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
+
+**Change:** In transformers 5.x, `_no_split_modules` and `_keep_in_fp32_modules` on `PreTrainedModel` subclasses are sets, not lists. The code concatenated these with `+` (list concatenation), causing `TypeError: can only concatenate list (not "set") to list`.
+
+**Fix:** Wrapped all `getattr(module, "_no_split_modules", [])` and `getattr(module, "_keep_in_fp32_modules", [])` reads with `list()` before concatenation.
+
+---
+
+### 12. `get_image_features()` returns `ModelOutput` instead of tensor
+**Files affected:** `multimodalhugs/modules/feature_extractor.py`
+
+**Change:** In transformers 5.x, `CLIPModel.get_image_features()` returns `BaseModelOutputWithPooling` instead of a plain tensor.
+
+**Fix:** After calling `get_image_features()`, check if the result is already a tensor. If not, extract the primary feature tensor in a model-agnostic way: prefer `pooler_output` (projected/pooled representation) when available, fall back to `last_hidden_state` for models without a pooling head.
+
+---
+
+### 13. `GenerationMixin` no longer inherited through `PreTrainedModel`
+**Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
+
+**Change:** In transformers 5.x, `PreTrainedModel` no longer inherits from `GenerationMixin`. All generative models must explicitly declare `GenerationMixin` in their inheritance. This matches the pattern used by all transformers 5.x generative models (e.g. `M2M100ForConditionalGeneration(M2M100PreTrainedModel, GenerationMixin)`).
+
+**Fix:** Changed `class MultiModalEmbedderModel(PreTrainedModel)` to `class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin)`.
+
+---
+
+### 14. `MultiModalEmbedderConfig` missing generation-machinery attributes; `__getattr__` delegation added
+**Files affected:** `multimodalhugs/models/multimodal_embedder/configuration_multimodal_embedder.py`
+
+**Change:** `GenerationMixin` and `DynamicCache` in transformers 5.x access generation-relevant attributes (e.g. `num_hidden_layers`, `vocab_size`) directly on `self.config`. `MultiModalEmbedderConfig` is a composite config that wraps a backbone config; these attributes live on `backbone_config`, not on the outer config.
+
+**Fix:** Added `__getattr__` to `MultiModalEmbedderConfig` that delegates unknown attribute lookups to `backbone_config`. Standard Python `__getattr__` is only called when the attribute is not found through normal lookup, so own attributes always take precedence.
+
+---
+
+### 15. `_reorder_cache` removed from backbone models
+**Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
+
+**Change:** `_reorder_cache` was removed from M2M100 and other backbone models in transformers 5.x. In the new cache system (`DynamicCache`), `GenerationMixin` calls `cache.reorder_cache(beam_idx)` directly on the cache object instead of delegating to the model.
+
+**Fix:** Updated `MultiModalEmbedderModel._reorder_cache` to delegate to `past_key_values.reorder_cache(beam_idx)` when the cache object supports it (5.x path), and fall back to tuple-style reordering for legacy tuple-format caches (4.x compatibility).

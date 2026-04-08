@@ -86,6 +86,45 @@ def _train_model(model):
     ],
     indirect=True,
 )
+def test_backbone_shared_weights_are_tied(model_setup):
+    """
+    Verify that after build_model (which extends the vocabulary), the backbone's
+    shared weight tensors are properly tied — i.e. encoder embed_tokens, decoder
+    embed_tokens, and lm_head all share the same underlying storage.
+
+    In transformers 5.x, _tied_weights_keys is a dict and tie_weights() is called
+    explicitly after load_state_dict.  This test guards against regressions where
+    vocab extension breaks weight tying.
+    """
+    (model, _, _), _ = model_setup
+    backbone = model.backbone
+
+    shared = backbone.model.shared.weight
+    enc_embed = backbone.model.encoder.embed_tokens.weight
+    dec_embed = backbone.model.decoder.embed_tokens.weight
+    lm_head = backbone.lm_head.weight
+
+    assert shared.data_ptr() == enc_embed.data_ptr(), (
+        "encoder embed_tokens.weight is not tied to model.shared.weight"
+    )
+    assert shared.data_ptr() == dec_embed.data_ptr(), (
+        "decoder embed_tokens.weight is not tied to model.shared.weight"
+    )
+    assert shared.data_ptr() == lm_head.data_ptr(), (
+        "lm_head.weight is not tied to model.shared.weight"
+    )
+
+
+@pytest.mark.parametrize(
+    "model_setup",
+    [
+        {
+            "id": "default_setup",
+            "config_path": "tests/test_model_only/configs/test_model_only.yaml",
+        },
+    ],
+    indirect=True,
+)
 def test_training(model_setup):
 
     (model, src_tokenizer, tgt_tokenizer), params = model_setup

@@ -841,6 +841,7 @@ Regression tests comparing processor output against golden files in `tests/asset
 
 | Test | What it checks |
 |---|---|
+| `test_backbone_shared_weights_are_tied` | After `build_model` + vocab extension, `encoder.embed_tokens`, `decoder.embed_tokens`, and `lm_head` all share the same underlying storage as `model.shared` (same `data_ptr`) |
 | `test_training` | Model overfits to a tiny batch: loss drops below `0.11` within 500 epochs |
 | `test_overfitting_accuracy` | WER ≤ 0.125 on test samples after training on the same data |
 
