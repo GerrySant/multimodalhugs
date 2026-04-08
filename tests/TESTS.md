@@ -597,6 +597,8 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 **`TestDataCollatorWithMetaProcessor`** — collator delegates to `MultimodalMetaProcessor`
 
+Processors are constructed as `MultimodalMetaProcessor(slots=[...])` — no `tokenizer=` argument; the tokenizer is derived automatically from the first text slot via `@property`.
+
 | Test | What it checks |
 |---|---|
 | `test_text2text_returns_expected_keys` | All expected output keys present |
@@ -823,7 +825,7 @@ Regression tests comparing processor output against golden files in `tests/asset
 | `TestLabelsRegression` | `create_seq2seq_labels_from_samples` | `labels.json` |
 | `TestImage2TextRegression` | `Image2TextTranslationProcessor` | `image2text.json` |
 
-**New flat-slots classes** — verify that `MultimodalMetaProcessor(slots=[...])` produces identical output to the legacy wrappers (same golden files):
+**New flat-slots classes** — verify that `MultimodalMetaProcessor(slots=[...])` (no `tokenizer=` argument; derived from text slot) produces identical output to the legacy wrappers (same golden files):
 
 | Class | Slot configuration | Golden file |
 |---|---|---|
