@@ -285,7 +285,7 @@ def main():
     # --- Execute evaluation ---
     # Predict is invoked to generate predictions and calculate metrics on the test dataset.
     logger.info("*** Evaluation on the test partition ***")
-    max_length = generate_args.max_length if generate_args.max_length is not None else model.max_length
+    max_length = generate_args.max_length if generate_args.max_length is not None else model.generation_config.max_length
     num_beams = generate_args.num_beams
 
     predict_results = trainer.predict(test_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams)

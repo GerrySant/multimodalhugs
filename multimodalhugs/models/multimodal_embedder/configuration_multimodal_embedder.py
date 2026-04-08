@@ -102,12 +102,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         Beginning-of-stream token ID.
     eos_token_id : int, optional
         End-of-stream token ID.
-    max_length : int
-        Maximum length used by generation.
-    use_backbone_max_length : bool
-        Whether to use the maximum length of the backbone as the generation length. Overrides `max_length`.
-        Defaults to `False`. Can only be used if a backbone is specified.
-
     ```python
     >>> from multimodalhugs.models.multimodal_embedder.configuration_multimodal_embedder import MultiModalEmbedderConfig
     >>> config = MultiModalEmbedderConfig(d_model=1024, backbone_type="m2m_100")
@@ -149,8 +143,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         pad_token_id: Optional[int] = None,
         bos_token_id: Optional[int] = None,
         eos_token_id: Optional[int] = None,
-        max_length: int = 200,
-        use_backbone_max_length: bool = False,
         **kwargs):
 
         # Pass remaining arguments to the parent (e.g. name, hashes, revisions)
@@ -191,9 +183,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
 
-        self.max_length = max_length
-        self.use_backbone_max_length = use_backbone_max_length
-
         # additional changes
 
         self.is_encoder_decoder = True
@@ -213,13 +202,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
             # tie_encoder_decoder was removed from all seq2seq model configs in
             # transformers 5.x and is no longer a supported attribute.
             self.tie_word_embeddings = getattr(self.backbone_config, "tie_word_embeddings", False)
-
-        if self.use_backbone_max_length:
-            if self.backbone_config is None:
-                raise ValueError("Cannot use backbone max length (`use_backbone_max_length`) "
-                                                      "without a backbone config.")
-
-            self.max_length = self.backbone_config.max_length
 
         if self.feature_extractor_type is not None:
             feature_xtractor_config_class = get_feature_extractor_class(self.feature_extractor_type)[1]

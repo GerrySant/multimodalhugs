@@ -55,7 +55,34 @@ Tracking breaking changes found when updating multimodalhugs from `transformers<
 
 ---
 
-### 6. `additional_special_tokens` renamed to `extra_special_tokens`
+### 6. `AutoTokenizer.from_pretrained` raises `ValueError` (not `OSError`) when no tokenizer files exist
+**Files affected:** `multimodalhugs/processors/meta_processor.py`
+
+**Change:** In transformers 4.x, calling `AutoTokenizer.from_pretrained` on a directory without tokenizer files raises `OSError`. In transformers 5.x, the same situation raises `ValueError`.
+
+**Fix:** Changed `except OSError:` to `except (OSError, ValueError):` in `MultimodalMetaProcessor.from_pretrained` so that non-text pipelines (processors saved without a tokenizer) continue to work across both versions.
+
+---
+
+### 7. `tie_encoder_decoder` removed from all seq2seq model configs
+**Files affected:** `multimodalhugs/models/multimodal_embedder/configuration_multimodal_embedder.py`
+
+**Change:** `tie_encoder_decoder` was a boolean attribute on `M2M100Config`, `MarianConfig`, and other seq2seq configs in transformers 4.x. It was removed entirely in 5.x — it is no longer a supported attribute on any `PretrainedConfig` subclass.
+
+**Fix:** Removed the line `self.tie_encoder_decoder = self.backbone_config.tie_encoder_decoder` from `MultiModalEmbedderConfig.__init__`. Used `getattr(self.backbone_config, "tie_word_embeddings", False)` for the remaining `tie_word_embeddings` read.
+
+---
+
+### 8. `max_length` removed from model configs — moved to `GenerationConfig`
+**Files affected:** `multimodalhugs/models/multimodal_embedder/configuration_multimodal_embedder.py`, `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`, `multimodalhugs/tasks/translation/translation_training.py`, `multimodalhugs/tasks/translation/translation_generate.py`
+
+**Change:** In transformers 5.x, `max_length` was removed from all model configs (`M2M100Config`, `MarianConfig`, etc.) and moved to `GenerationConfig`. Accessing `backbone_config.max_length` raises `AttributeError` in 5.x.
+
+**Fix:** Removed `max_length` and `use_backbone_max_length` from `MultiModalEmbedderConfig` entirely — following the same design decision HuggingFace applied to all their model configs. Removed `self.max_length = config.max_length` from `MultiModalEmbedderModel`. Generation length is now managed via `model.generation_config.max_length` (the standard HF 5.x pattern). Updated `translation_training.py` and `translation_generate.py` to use `model.generation_config.max_length` instead of `model.max_length`.
+
+---
+
+### 9. `additional_special_tokens` renamed to `extra_special_tokens`
 **Files affected:** `multimodalhugs/utils/tokenizer_utils.py`, `tests/test_model_only/test_model_only.py`
 
 **Change:** In transformers 5.x, `PreTrainedTokenizerFast` is now `TokenizersBackend`. The `.additional_special_tokens` attribute no longer exists; it is replaced by `.extra_special_tokens`. The same rename applies to dict keys passed to `add_special_tokens()` and constructor kwargs (though those retain backward-compat shims that auto-convert the old name).

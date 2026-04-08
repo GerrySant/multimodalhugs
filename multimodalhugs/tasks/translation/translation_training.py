@@ -382,7 +382,7 @@ def main():
         max_length = (
             generate_args.max_length
             if generate_args.max_length is not None
-            else model.max_length
+            else model.generation_config.max_length
         )
         num_beams = generate_args.num_beams if generate_args.num_beams is not None else training_args.generation_num_beams
 

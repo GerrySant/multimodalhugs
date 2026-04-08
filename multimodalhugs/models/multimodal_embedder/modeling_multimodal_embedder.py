@@ -60,7 +60,6 @@ class MultiModalEmbedderModel(PreTrainedModel):
         self.eos_token_id = config.eos_token_id
         self.bos_token_id = config.bos_token_id if config.bos_token_id is not None else config.decoder_start_token_id
         self._init_backbone(config)
-        self.max_length = config.max_length
         self.post_init()
 
     def _init_feature_extractor(self, config):

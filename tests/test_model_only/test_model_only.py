@@ -80,32 +80,6 @@ def _train_model(model):
     "model_setup",
     [
         {
-            "id": "default_max_length",
-            "config_path": "tests/test_model_only/configs/test_default_max_length.yaml",
-            "expected_max_length": 200,
-        },
-        {
-            "id": "nondefault_max_length",
-            "config_path": "tests/test_model_only/configs/test_nondefault_max_length.yaml",
-            "expected_max_length": 15,
-        },
-        {
-            "id": "use_backbone_max_length",
-            "config_path": "tests/test_model_only/configs/test_use_backbone_max_length.yaml",
-            "expected_max_length": 20,
-        },
-    ],
-    indirect=True,
-)
-def test_model_maxlength_is_correct(model_setup):
-    (model, src_tokenizer, tgt_tokenizer), params = model_setup
-    assert model.max_length == params["expected_max_length"], "Model max length is not correct"
-
-
-@pytest.mark.parametrize(
-    "model_setup",
-    [
-        {
             "id": "default_setup",
             "config_path": "tests/test_model_only/configs/test_model_only.yaml",
         },

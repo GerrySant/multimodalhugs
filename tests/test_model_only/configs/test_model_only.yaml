@@ -19,7 +19,6 @@ model:
     decoder_attention_heads: 1
     decoder_ffn_dim: 64
     encoder_ffn_dim: 64
-    max_length: 20
   pretrained_backbone:
   d_model: 32
   feat_dim: 32

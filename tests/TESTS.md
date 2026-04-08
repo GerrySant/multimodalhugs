@@ -8,12 +8,9 @@ This document catalogs every test in the suite, organized by file. Each entry de
 
 ### `test_multimodal_embedder_config.py`
 
-| Test | What it checks |
-|---|---|
-| `test_config_max_length_default` | `MultiModalEmbedderConfig` has default `max_length=200` |
-| `test_config_max_length_nondefault` | Custom `max_length` can be set at construction |
-| `test_config_use_backbone_max_length_true` | `use_backbone_max_length=True` sets `max_length` to the backbone's value (512) |
-| `test_config_use_backbone_max_length_fails_without_backbone_config` | `use_backbone_max_length=True` without a backbone config raises `ValueError` |
+> **Note (transformers 5.x update):** `max_length` and `use_backbone_max_length` were removed from `MultiModalEmbedderConfig` as part of the transformers 5.x compatibility update (see `docs/transformers_compatibility.md` §8). Generation length is now managed via `model.generation_config.max_length`. The four tests that previously covered these config-level parameters were removed along with the parameters themselves.
+
+_(No active tests in this file.)_
 
 ---
 
@@ -842,13 +839,12 @@ Regression tests comparing processor output against golden files in `tests/asset
 
 ### `test_model_only.py`
 
-Parametrized over three model configurations (default `max_length`, backbone-derived `max_length`, explicit `max_length`).
-
 | Test | What it checks |
 |---|---|
-| `test_model_maxlength_is_correct` | Model `max_length` matches expected value for each config (200, 15, or 20) |
 | `test_training` | Model overfits to a tiny batch: loss drops below `0.11` within 500 epochs |
 | `test_overfitting_accuracy` | WER ≤ 0.125 on test samples after training on the same data |
+
+> **Note (transformers 5.x update):** `test_model_maxlength_is_correct` and its three associated config files (`test_default_max_length.yaml`, `test_nondefault_max_length.yaml`, `test_use_backbone_max_length.yaml`) were removed. `max_length` was removed from `MultiModalEmbedderConfig` and `model.max_length` was removed from `MultiModalEmbedderModel` as part of the transformers 5.x compatibility update (see `docs/transformers_compatibility.md` §8). Generation length is now managed via `model.generation_config.max_length`.
 
 ---
 
