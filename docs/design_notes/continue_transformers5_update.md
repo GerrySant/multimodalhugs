@@ -88,15 +88,8 @@ conda run -n mmhugs python -m pytest tests/ --ignore=tests/e2e_overfitting -q
 | `65e71fb` | `tie_encoder_decoder` removed from all seq2seq model configs |
 | `21fb9be` | `max_length` moved from model configs to `GenerationConfig` — removed from `MultiModalEmbedderConfig` entirely; `model.max_length` → `model.generation_config.max_length` in training/generate scripts |
 | `4c8a4fa` | Six fixes: `_tied_weights_keys` list→dict; `_no_split_modules`/`_keep_in_fp32_modules` list→set; `get_image_features()` returns `ModelOutput` (general extraction helper); `GenerationMixin` must be declared explicitly; `__getattr__` delegation on `MultiModalEmbedderConfig`; `_reorder_cache` removed from backbone — updated to `cache.reorder_cache()` |
-
-Additionally (committed after the main session — check `git log` to confirm):
-- `tests/test_model_only/configs/test_model_only.yaml` — updated from legacy processor format to
-  slot-based format
-- `tests/test_model_only/test_model_only.py` — fixture updated to use `build_processor_from_config`;
-  `test_backbone_shared_weights_are_tied` added; `test_model_maxlength_is_correct` removed
-- `tests/test_config/test_multimodal_embedder_config.py` — all 4 max_length tests removed (the
-  attribute no longer exists)
-- `tests/TESTS.md` — kept in sync throughout
+| `36ce3d7` | `test_model_only` updated: config migrated to slot-based processor format; fixture switched to `build_processor_from_config`; `test_backbone_shared_weights_are_tied` added; `test_model_maxlength_is_correct` removed; `tests/TESTS.md` updated |
+| `15c80d5` | Added `docs/design_notes/multilingual_seq2seq_trainer.md` (trainer analysis) and this handoff document |
 
 ---
 
