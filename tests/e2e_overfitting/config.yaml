@@ -11,7 +11,6 @@ model:
   freeze_decoder_embed_tokens: false
   freeze_encoder_embed_tokens: false
   freeze_lm_head: false
-  max_length: 10
   feature_extractor_config: # Specify args to be changes in the feature extractor arquitecture
     initializer_factor: 1.0
     logit_scale_init_value: 2.6592
