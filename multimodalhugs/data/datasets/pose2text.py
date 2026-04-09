@@ -4,8 +4,12 @@ import torch
 import datasets
 
 from pathlib import Path
-from pose_format import Pose
-from pose_format.pose_body import EmptyPoseBody
+try:
+    from pose_format import Pose
+    from pose_format.pose_body import EmptyPoseBody
+    _POSE_FORMAT_AVAILABLE = True
+except ImportError:
+    _POSE_FORMAT_AVAILABLE = False
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 from dataclasses import dataclass, field
@@ -101,6 +105,11 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
 
         If both are provided, keyword arguments take priority.
         """
+        if not _POSE_FORMAT_AVAILABLE:
+            raise ImportError(
+                "Pose2TextDataset requires 'pose-format'. "
+                "Install it with: pip install pose-format"
+            )
         config, kwargs = resolve_and_update_config(Pose2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Pose2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)
