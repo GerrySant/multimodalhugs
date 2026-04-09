@@ -6,6 +6,30 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
+## [0.5.1]
+
+### Fixed
+
+- **Partial installation now works as expected.** Previously, importing any part of `multimodalhugs` required all modality-specific dependencies (`pose-format`, `opencv-python`, `signwriting`, `av`, `torchvision`) to be installed, even if the user only intended to use a single modality (e.g. text-to-text). This was caused by two issues: (1) eager `from .tasks import *` in `__init__.py` transitively forced `av` and `cv2` to be imported at package load time via `evaluate → transformers.pipelines.video_classification`; and (2) modality processors and datasets imported their optional dependencies unconditionally at module level.
+
+### Changed
+
+- **`pyproject.toml`**: Modality-specific dependencies moved from core `dependencies` to optional extras. Users can now install only what they need:
+  - `pip install "multimodalhugs[full]"` — all modalities (equivalent to the previous default)
+  - `pip install "multimodalhugs[pose]"` — pose sequences (`pose-format`)
+  - `pip install "multimodalhugs[video]"` — video (`av`, `torchvision`, `opencv-python`)
+  - `pip install "multimodalhugs[signwriting]"` — SignWriting (`signwriting`)
+  - `pip install "multimodalhugs[image]"` — images (`opencv-python`)
+  - Multiple extras can be combined: `pip install "multimodalhugs[pose,video]"`
+
+- **`multimodalhugs/__init__.py`**: Removed `from .tasks import *` and `from .multimodalhugs_cli import *`. The CLI entry points (`mmhugs-train`, `mmhugs-generate`, `mmhugs-setup`) are unaffected — they are declared as `console_scripts` in `pyproject.toml` and call their target functions directly. The training entry points remain accessible via explicit import: `from multimodalhugs.tasks import translation_training_main`.
+
+- **Modality processors** (`PoseModalityProcessor`, `VideoModalityProcessor`, `SignwritingModalityProcessor`, `ImageModalityProcessor`): Optional dependency imports are now wrapped in `try/except ImportError`. A clear `ImportError` with a `pip install` hint is raised at instantiation time if the required package is absent, rather than at module import time.
+
+- **Modality datasets** (`Pose2TextDataset`, `SignWritingDataset`, `Video2TextDataset`): Same lazy-import pattern applied — optional dependency imports wrapped in `try/except`, with a descriptive `ImportError` raised in `__init__` if the dependency is missing.
+
+---
+
 ## [0.5.0]
 
 This release introduces a complete redesign of the processor layer, replacing the six monolithic task-specific processors with a modular, composable architecture. The new design separates modality-specific preprocessing from task structure, enables declarative YAML configuration, and provides a unified CLI entry point for all modalities. Full backward compatibility is maintained — existing code, configs, and processor checkpoints continue to work unchanged.
