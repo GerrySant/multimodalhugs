@@ -15,11 +15,9 @@ readme = "README.md"
 dependencies = [
     "datasets",
     "torch<2.6", # Currently, HuggingFace does not support changing the default value of the `weights_only` argument in `torch.load` from `False` to `True` introduced in PyTorch 2.6.
-    "torchvision",
     "torchaudio",
     "transformers<=4.44.2",
     "accelerate",
-    "opencv-python",
     "librosa",
     "numpy",
     "scipy",
@@ -33,14 +31,31 @@ dependencies = [
     "jiwer",
     "Pillow",
     "evaluate",
-    "signwriting @ git+https://github.com/sign-language-processing/signwriting",
-    "pose-format>=0.10.1",
     "ruamel.yaml",
-    "av>=10.0.0",
     "tf-keras",
 ]
 
 [project.optional-dependencies]
+pose = [
+    "pose-format>=0.10.1",
+]
+video = [
+    "av>=10.0.0",
+    "torchvision",
+    "opencv-python",
+]
+signwriting = [
+    "signwriting @ git+https://github.com/sign-language-processing/signwriting",
+]
+image = [
+    "opencv-python",
+]
+full = [
+    "multimodalhugs[pose]",
+    "multimodalhugs[video]",
+    "multimodalhugs[signwriting]",
+    "multimodalhugs[image]",
+]
 dev = [
     "pytest",
     "pylint",
