@@ -164,6 +164,24 @@ Tracking breaking changes found when updating multimodalhugs from `transformers<
 
 **Fix:** Removed `max_length: 10` from the `model:` section of `tests/e2e_overfitting/config.yaml`. `max_length` was already removed from `MultiModalEmbedderConfig` in incompatibility #8; this removes the stale value from the test config that was silently stored as an extra kwarg until `save_pretrained` rejected it.
 
+**How to set max_length going forward:**
+
+Generation length is now controlled separately for each use case:
+
+- **During training (eval/predict steps):** Set `generation_max_length` in the `training:` section of the YAML config. This maps to `Seq2SeqTrainingArguments.generation_max_length`, which the trainer stores in `_gen_kwargs` and passes directly to `model.generate()`.
+  ```yaml
+  training:
+    generation_max_length: 128
+  ```
+
+- **During translation (`mmhugs-generate`):** Set `max_length` in the `generation:` section of the YAML config. This maps to `GenerateArgs.max_length` and is read in `translation_generate.py`.
+  ```yaml
+  generation:
+    max_length: 128
+  ```
+
+- **Default behaviour when neither is set:** `model.generation_config.max_length` is `None` after setup (no value is baked in). `generate()` then applies a hardcoded fallback of **20 new tokens** (output length ≤ 21 including the decoder start token), with a UserWarning recommending `max_new_tokens` be set explicitly.
+
 ---
 
 ### 15. `_reorder_cache` removed from backbone models
