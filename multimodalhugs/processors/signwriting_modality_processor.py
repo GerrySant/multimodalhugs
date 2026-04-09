@@ -5,8 +5,12 @@ import torch
 from PIL import ImageOps
 from transformers import AutoProcessor
 
-from signwriting.tokenizer import normalize_signwriting
-from signwriting.visualizer.visualize import signwriting_to_image
+try:
+    from signwriting.tokenizer import normalize_signwriting
+    from signwriting.visualizer.visualize import signwriting_to_image
+    _SIGNWRITING_AVAILABLE = True
+except ImportError:
+    _SIGNWRITING_AVAILABLE = False
 
 from multimodalhugs.data import pad_and_create_mask, center_image_on_white_background
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
@@ -50,6 +54,11 @@ class SignwritingModalityProcessor(ModalityProcessor):
                 image (black symbols on white → white symbols on black).
                 Default: True.
         """
+        if not _SIGNWRITING_AVAILABLE:
+            raise ImportError(
+                "SignwritingModalityProcessor requires the 'signwriting' package. "
+                "Install it with: pip install signwriting"
+            )
         if custom_preprocessor_path is None:
             raise ValueError(
                 "SignwritingModalityProcessor requires a 'custom_preprocessor_path' "

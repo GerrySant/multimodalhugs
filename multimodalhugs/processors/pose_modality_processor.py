@@ -3,8 +3,12 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from pose_format import Pose
-from pose_format.utils.generic import reduce_holistic, pose_hide_legs
+try:
+    from pose_format import Pose
+    from pose_format.utils.generic import reduce_holistic, pose_hide_legs
+    _POSE_FORMAT_AVAILABLE = True
+except ImportError:
+    _POSE_FORMAT_AVAILABLE = False
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
@@ -35,6 +39,11 @@ class PoseModalityProcessor(ModalityProcessor):
                 temporal axis after loading (e.g. 2 → halve frame rate).
                 None disables downsampling. Default: None.
         """
+        if not _POSE_FORMAT_AVAILABLE:
+            raise ImportError(
+                "PoseModalityProcessor requires 'pose-format'. "
+                "Install it with: pip install pose-format"
+            )
         self.reduce_holistic_poses = reduce_holistic_poses
         self.skip_frames_stride = skip_frames_stride
 

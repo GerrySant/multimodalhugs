@@ -3,9 +3,14 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import cv2
 import numpy as np
 import torch
+
+try:
+    import cv2
+    _CV2_AVAILABLE = True
+except ImportError:
+    _CV2_AVAILABLE = False
 
 from multimodalhugs.data import pad_and_create_mask, get_images, string_to_list
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
@@ -57,6 +62,11 @@ class ImageModalityProcessor(ModalityProcessor):
                 floats or a comma-separated string.
                 Required when ``normalize_image=True``.
         """
+        if not _CV2_AVAILABLE:
+            raise ImportError(
+                "ImageModalityProcessor requires 'opencv-python'. "
+                "Install it with: pip install opencv-python"
+            )
         if normalize_image and (mean is None or std is None):
             raise ValueError(
                 "Normalization is enabled (normalize_image=True), but 'mean' and/or 'std' "
