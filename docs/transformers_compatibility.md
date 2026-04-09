@@ -139,6 +139,33 @@ Tracking breaking changes found when updating multimodalhugs from `transformers<
 
 ---
 
+### 16. `torch<2.6` constraint blocks model loading in transformers 5.x
+**Files affected:** `pyproject.toml`
+
+**Change:** transformers 5.x added `check_torch_load_is_safe()` which hard-blocks `torch.load` when torch < 2.6, raising `ValueError: Due to a serious vulnerability issue in torch.load, we now require torch >= v2.6`. This affects loading any model whose weights are stored in `.bin` format (not safetensors). The original `torch<2.6` cap was added for transformers 4.x where torch 2.6's stricter `weights_only` default caused HF deprecation warnings; in 5.x the constraint has the opposite effect.
+
+**Fix:** Changed `torch<2.6` to `torch>=2.6` in `pyproject.toml`. In CI, also updated the Python version from 3.8 to 3.11, as transformers 5.x requires Python ≥3.9.
+
+---
+
+### 17. `tokenizer.convert_tokens_to_ids(None)` no longer returns `None`
+**Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
+
+**Change:** In transformers 4.x, calling `tokenizer.convert_tokens_to_ids(None)` returned `None` silently. In 5.x it attempts to iterate over the argument and raises `TypeError: 'NoneType' object is not iterable`. This broke `build_model()` for backbones whose tokenizer has no `bos_token` (e.g. T5 sets `bos_token = None`).
+
+**Fix:** Replaced `convert_tokens_to_ids(tokenizer.{pad,bos,eos}_token)` with the direct `tokenizer.{pad,bos,eos}_token_id` properties, which handle `None` correctly and are the idiomatic way to read these values.
+
+---
+
+### 18. `max_length` in model config rejected by `save_pretrained` in 5.x
+**Files affected:** `tests/e2e_overfitting/config.yaml`
+
+**Change:** In transformers 5.x, `PretrainedConfig.save_pretrained()` raises `ValueError` if any generation parameter (including `max_length`) is found in the model config: *"Some generation parameters are set in the model config. These should go into model.generation_config."* The e2e test config still carried `max_length: 10` under the `model:` section, which was a valid field in transformers 4.x.
+
+**Fix:** Removed `max_length: 10` from the `model:` section of `tests/e2e_overfitting/config.yaml`. `max_length` was already removed from `MultiModalEmbedderConfig` in incompatibility #8; this removes the stale value from the test config that was silently stored as an extra kwarg until `save_pretrained` rejected it.
+
+---
+
 ### 15. `_reorder_cache` removed from backbone models
 **Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
 
