@@ -14,8 +14,8 @@ authors = [
 readme = "README.md"
 dependencies = [
     "datasets",
-    "torch>=2.6",
-    "torchaudio",
+    "torch>=2.6,<2.11",  # torchvision 0.26 (torch 2.11) removed read_video — see issue #83
+    "torchaudio>=2.6,<2.11",
     "transformers>=5.5.0,<6.0",
     "accelerate",
     "librosa",
@@ -41,7 +41,7 @@ pose = [
 ]
 video = [
     "av>=10.0.0",
-    "torchvision",
+    "torchvision>=0.21,<0.26",
     "opencv-python",
 ]
 signwriting = [
