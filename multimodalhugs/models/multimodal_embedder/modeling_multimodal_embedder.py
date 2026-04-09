@@ -289,9 +289,9 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         cfg.decoder_start_token_id = cfg.decoder_start_token_id or cfg.backbone_config.decoder_start_token_id
 
         # Determine EOS and PAD token indices
-        pad_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.pad_token)
-        bos_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.bos_token)
-        eos_token_id = src_tokenizer.convert_tokens_to_ids(src_tokenizer.eos_token)
+        pad_token_id = src_tokenizer.pad_token_id
+        bos_token_id = src_tokenizer.bos_token_id
+        eos_token_id = src_tokenizer.eos_token_id
 
         # Update configuration with these values if not already defined
         cfg.pad_token_id = cfg.pad_token_id or pad_token_id
