@@ -262,6 +262,11 @@ def main():
         )
     
     # Load metric(s)
+    # `import evaluate` is deferred here because `evaluate` transitively imports
+    # `transformers.pipelines` (including `video_classification`), which imports
+    # `av`. A top-level import would force `av` to be installed in every
+    # environment even when training without a metric. Deferring keeps the
+    # dependency conditional on `metric_name` actually being set.
     if training_args.metric_name is not None:
         import evaluate
         metric_names = [m.strip() for m in training_args.metric_name.split(",")]

@@ -250,6 +250,15 @@ def main():
         )
 
     # --- Load the evaluation metric ---
+    # `import evaluate` is deferred here rather than placed at the top of the
+    # file. `evaluate` transitively imports `transformers.pipelines` (including
+    # `video_classification`), which in turn imports `av`. A top-level import
+    # would therefore require `av` in every environment just to *load* this
+    # module, even in pose-only or text-only setups that never call this script.
+    # NOTE: `multimodalhugs/__init__.py` no longer does `from .tasks import *`,
+    # so the transitive chain is already broken at that level. This deferred
+    # import is kept as an extra layer of defence in case the import path
+    # changes in the future.
     import evaluate
     metric = evaluate.load(training_args.metric_name, cache_dir=model_args.cache_dir)
     training_args.generation_config = generation_config if generation_config is not None else None
