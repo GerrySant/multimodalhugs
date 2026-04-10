@@ -36,7 +36,6 @@ import argparse
 import warnings
 
 import datasets
-import evaluate
 import numpy as np
 from datasets import load_from_disk
 
@@ -251,6 +250,7 @@ def main():
         )
 
     # --- Load the evaluation metric ---
+    import evaluate
     metric = evaluate.load(training_args.metric_name, cache_dir=model_args.cache_dir)
     training_args.generation_config = generation_config if generation_config is not None else None
 

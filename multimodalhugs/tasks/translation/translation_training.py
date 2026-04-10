@@ -28,7 +28,6 @@ import argparse
 import warnings
 
 import datasets
-import evaluate
 import numpy as np
 from datasets import load_from_disk
 
@@ -264,6 +263,7 @@ def main():
     
     # Load metric(s)
     if training_args.metric_name is not None:
+        import evaluate
         metric_names = [m.strip() for m in training_args.metric_name.split(",")]
         metrics_list = [evaluate.load(name, cache_dir=model_args.cache_dir) for name in metric_names]
 
