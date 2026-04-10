@@ -3,7 +3,12 @@
 import os
 import random
 
-import av
+try:
+    import av
+    _AV_AVAILABLE = True
+except ImportError:
+    _AV_AVAILABLE = False
+
 import numpy as np
 import pytest
 import torch
@@ -76,6 +81,8 @@ def dummy_pose_file(tmp_path):
 @pytest.fixture
 def dummy_video_file(tmp_path):
     """Create a minimal 10-frame 64x64 MPEG4 video."""
+    if not _AV_AVAILABLE:
+        pytest.skip("av not installed")
     path = str(tmp_path / "dummy.mp4")
     container = av.open(path, mode="w")
     stream = container.add_stream("mpeg4", rate=25)
