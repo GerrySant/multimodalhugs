@@ -45,44 +45,63 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Dataset type → (DatasetClass, DataConfigClass) lookup table.
+# Dataset type → lazy import spec.
 #
-# Keys must match the registry keys used by @register_dataset and the value
-# users write in data.dataset_type in their YAML config.
-#
-# Imports are deferred inside the function to avoid circular import issues at
-# module load time.
+# Each entry maps a dataset_type string to a (module_path, class_names) tuple
+# where class_names is (DatasetClassName, DataConfigClassName).  The actual
+# import only happens when the specific dataset_type is requested, so running
+# setup for one modality never imports optional dependencies of another.
 # ---------------------------------------------------------------------------
 
-def _build_dataset_map() -> dict:
-    """Return the mapping from dataset_type string to (DatasetClass, DataConfigClass)."""
-    from multimodalhugs.data.datasets.pose2text import (
-        Pose2TextDataset, Pose2TextDataConfig,
-    )
-    from multimodalhugs.data.datasets.video2text import (
-        Video2TextDataset, Video2TextDataConfig,
-    )
-    from multimodalhugs.data.datasets.features2text import (
-        Features2TextDataset, Features2TextDataConfig,
-    )
-    from multimodalhugs.data.datasets.signwriting import SignWritingDataset
-    from multimodalhugs.data.dataset_configs.multimodal_mt_data_config import MultimodalDataConfig
-    from multimodalhugs.data.datasets.bilingual_image2text import (
-        BilingualImage2TextDataset, BilingualImage2textMTDataConfig,
-    )
-    from multimodalhugs.data.datasets.bilingual_text2text import (
-        BilingualText2TextDataset, BilingualText2textMTDataConfig,
-    )
-
-    return {
-        "pose2text":        (Pose2TextDataset,          Pose2TextDataConfig),
-        "video2text":       (Video2TextDataset,          Video2TextDataConfig),
-        "features2text":    (Features2TextDataset,       Features2TextDataConfig),
+_DATASET_IMPORT_MAP: dict = {
+    "pose2text": (
+        "multimodalhugs.data.datasets.pose2text",
+        ("Pose2TextDataset", "Pose2TextDataConfig"),
+    ),
+    "video2text": (
+        "multimodalhugs.data.datasets.video2text",
+        ("Video2TextDataset", "Video2TextDataConfig"),
+    ),
+    "features2text": (
+        "multimodalhugs.data.datasets.features2text",
+        ("Features2TextDataset", "Features2TextDataConfig"),
+    ),
+    "signwriting2text": (
+        "multimodalhugs.data.datasets.signwriting",
         # SignWritingDataset uses the base MultimodalDataConfig (no subclass needed).
-        "signwriting2text": (SignWritingDataset,         MultimodalDataConfig),
-        "image2text":       (BilingualImage2TextDataset, BilingualImage2textMTDataConfig),
-        "text2text":        (BilingualText2TextDataset,  BilingualText2textMTDataConfig),
-    }
+        ("SignWritingDataset", None),
+    ),
+    "image2text": (
+        "multimodalhugs.data.datasets.bilingual_image2text",
+        ("BilingualImage2TextDataset", "BilingualImage2textMTDataConfig"),
+    ),
+    "text2text": (
+        "multimodalhugs.data.datasets.bilingual_text2text",
+        ("BilingualText2TextDataset", "BilingualText2textMTDataConfig"),
+    ),
+}
+
+
+def _load_dataset_classes(dataset_type: str):
+    """Import and return (DatasetClass, DataConfigClass) for the given dataset_type."""
+    import importlib
+    from multimodalhugs.data.dataset_configs.multimodal_mt_data_config import MultimodalDataConfig
+
+    module_path, (dataset_cls_name, config_cls_name) = _DATASET_IMPORT_MAP[dataset_type]
+    module = importlib.import_module(module_path)
+    DatasetClass = getattr(module, dataset_cls_name)
+    DataConfigClass = getattr(module, config_cls_name) if config_cls_name else MultimodalDataConfig
+    return DatasetClass, DataConfigClass
+
+
+def _build_dataset_map() -> dict:
+    """Return the full mapping from dataset_type string to (DatasetClass, DataConfigClass).
+
+    Imports each dataset module on demand so that optional dependencies for
+    unused modalities are never required.  Kept as a public helper for tests
+    and tooling that need to inspect the complete map at once.
+    """
+    return {dtype: _load_dataset_classes(dtype) for dtype in _DATASET_IMPORT_MAP}
 
 
 def main(
@@ -147,17 +166,16 @@ def main(
             raise ValueError(
                 "data.dataset_type is required for the general setup path. "
                 "Add 'dataset_type: <type>' under the 'data:' section of your config. "
-                f"Supported values: {sorted(_build_dataset_map())}."
+                f"Supported values: {sorted(_DATASET_IMPORT_MAP)}."
             )
 
-        dataset_map = _build_dataset_map()
-        if dataset_type not in dataset_map:
+        if dataset_type not in _DATASET_IMPORT_MAP:
             raise ValueError(
                 f"Unknown data.dataset_type: '{dataset_type}'. "
-                f"Supported values: {sorted(dataset_map)}."
+                f"Supported values: {sorted(_DATASET_IMPORT_MAP)}."
             )
 
-        DatasetClass, DataConfigClass = dataset_map[dataset_type]
+        DatasetClass, DataConfigClass = _load_dataset_classes(dataset_type)
         data_cfg = DataConfigClass(cfg)
         data_path = prepare_dataset(
             DatasetClass,
