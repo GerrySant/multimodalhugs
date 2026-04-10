@@ -12,13 +12,16 @@ from types import SimpleNamespace
 from typing import List, Any, Dict, Type, Optional, Set, Tuple
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 from dataclasses import fields, is_dataclass
-from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
-
 try:
-    from torchvision.transforms import InterpolationMode
-    BICUBIC = InterpolationMode.BICUBIC
+    from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
+    try:
+        from torchvision.transforms import InterpolationMode
+        BICUBIC = InterpolationMode.BICUBIC
+    except ImportError:
+        BICUBIC = Image.BICUBIC
+    _TORCHVISION_AVAILABLE = True
 except ImportError:
-    BICUBIC = Image.BICUBIC
+    _TORCHVISION_AVAILABLE = False
 
 
 def _transform(n_px, mean: List[float] = [0.48145466, 0.4578275, 0.40821073],
