@@ -21,11 +21,19 @@ try:
         BICUBIC = Image.BICUBIC
     _TORCHVISION_AVAILABLE = True
 except ImportError:
+    # Restore the safe fallback so that `BICUBIC` and `_TORCHVISION_AVAILABLE`
+    # are always defined at module level, even without torchvision installed.
+    BICUBIC = Image.BICUBIC
     _TORCHVISION_AVAILABLE = False
 
 
 def _transform(n_px, mean: List[float] = [0.48145466, 0.4578275, 0.40821073],
                std: List[float] = [0.26862954, 0.26130258, 0.27577711]):
+    if not _TORCHVISION_AVAILABLE:
+        raise ImportError(
+            "_transform requires 'torchvision'. "
+            "Install it with: pip install torchvision"
+        )
     mean = tuple(mean)
     std = tuple(std)
     return Compose([
