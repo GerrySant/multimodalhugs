@@ -65,7 +65,7 @@ class ImageModalityProcessor(ModalityProcessor):
         if not _CV2_AVAILABLE:
             raise ImportError(
                 "ImageModalityProcessor requires 'opencv-python'. "
-                "Install it with: pip install opencv-python"
+                'Install it with: pip install opencv-python  or  pip install "multimodalhugs[image]"'
             )
         if normalize_image and (mean is None or std is None):
             raise ValueError(

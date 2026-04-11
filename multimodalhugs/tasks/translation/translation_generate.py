@@ -250,17 +250,17 @@ def main():
         )
 
     # --- Load the evaluation metric ---
-    # `import evaluate` is deferred here rather than placed at the top of the
-    # file. `evaluate` transitively imports `transformers.pipelines` (including
-    # `video_classification`), which in turn imports `av`. A top-level import
-    # would therefore require `av` in every environment just to *load* this
-    # module, even in pose-only or text-only setups that never call this script.
-    # NOTE: `multimodalhugs/__init__.py` no longer does `from .tasks import *`,
-    # so the transitive chain is already broken at that level. This deferred
-    # import is kept as an extra layer of defence in case the import path
-    # changes in the future.
-    import evaluate
-    metric = evaluate.load(training_args.metric_name, cache_dir=model_args.cache_dir)
+    # `import evaluate` is deferred here and made conditional on `metric_name`
+    # being set. `evaluate` transitively imports `transformers.pipelines`
+    # (including `video_classification`), which in turn imports `av`. A
+    # top-level import would therefore require `av` in every environment just
+    # to *load* this module, even in pose-only or text-only setups that never
+    # use a metric. Keeping the import conditional means environments without
+    # `av` can still run generation as long as no metric is requested.
+    metric = None
+    if training_args.metric_name is not None:
+        import evaluate
+        metric = evaluate.load(training_args.metric_name, cache_dir=model_args.cache_dir)
     training_args.generation_config = generation_config if generation_config is not None else None
 
     if generate_args.generate_output_dir is not None: # HOTFIX to ensure the trainer stores all_results.json at generate_output_dir directory
@@ -273,7 +273,7 @@ def main():
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=lambda eval_preds: compute_metrics(eval_preds, tokenizer, metric)
-            if training_args.predict_with_generate else None,
+            if training_args.predict_with_generate and metric is not None else None,
         visualize_prediction_prob=training_args.visualize_prediction_prob
     )
 

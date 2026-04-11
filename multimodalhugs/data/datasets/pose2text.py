@@ -108,7 +108,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
         if not _POSE_FORMAT_AVAILABLE:
             raise ImportError(
                 "Pose2TextDataset requires 'pose-format'. "
-                "Install it with: pip install pose-format"
+                'Install it with: pip install pose-format  or  pip install "multimodalhugs[pose]"'
             )
         config, kwargs = resolve_and_update_config(Pose2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Pose2Text.")

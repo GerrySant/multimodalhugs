@@ -42,7 +42,7 @@ class PoseModalityProcessor(ModalityProcessor):
         if not _POSE_FORMAT_AVAILABLE:
             raise ImportError(
                 "PoseModalityProcessor requires 'pose-format'. "
-                "Install it with: pip install pose-format"
+                'Install it with: pip install pose-format  or  pip install "multimodalhugs[pose]"'
             )
         self.reduce_holistic_poses = reduce_holistic_poses
         self.skip_frames_stride = skip_frames_stride

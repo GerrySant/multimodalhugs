@@ -71,12 +71,12 @@ class VideoModalityProcessor(ModalityProcessor):
         if custom_preprocessor_path is not None and not _CV2_AVAILABLE:
             raise ImportError(
                 "VideoModalityProcessor with a custom_preprocessor_path requires 'opencv-python'. "
-                "Install it with: pip install opencv-python"
+                'Install it with: pip install opencv-python  or  pip install "multimodalhugs[video]"'
             )
         if custom_preprocessor_path is None and not _TORCHVISION_AVAILABLE:
             raise ImportError(
                 "VideoModalityProcessor requires 'torchvision'. "
-                "Install it with: pip install torchvision"
+                'Install it with: pip install torchvision  or  pip install "multimodalhugs[video]"'
             )
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride

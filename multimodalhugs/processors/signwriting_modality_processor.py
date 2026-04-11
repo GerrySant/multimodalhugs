@@ -57,7 +57,7 @@ class SignwritingModalityProcessor(ModalityProcessor):
         if not _SIGNWRITING_AVAILABLE:
             raise ImportError(
                 "SignwritingModalityProcessor requires the 'signwriting' package. "
-                "Install it with: pip install signwriting"
+                'Install it with: pip install signwriting  or  pip install "multimodalhugs[signwriting]"'
             )
         if custom_preprocessor_path is None:
             raise ValueError(

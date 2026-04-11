@@ -56,7 +56,7 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
         if not _SIGNWRITING_AVAILABLE:
             raise ImportError(
                 "SignWritingDataset requires the 'signwriting' package. "
-                "Install it with: pip install signwriting"
+                'Install it with: pip install signwriting  or  pip install "multimodalhugs[signwriting]"'
             )
         config, kwargs = resolve_and_update_config(MultimodalDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Custom dataset for SignWriting")

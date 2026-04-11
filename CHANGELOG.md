@@ -44,6 +44,8 @@ Each version section may have subsections for: _Added_, _Changed_, _Removed_, _D
 
 - **`from multimodalhugs import Pose2TextDataset`** (and other dataset builder classes) no longer works. Dataset builders are internal construction details, not user-facing API — no example, doc, or internal caller relied on the top-level shorthand. Use the fully-qualified form instead: `from multimodalhugs.data import Pose2TextDataset`.
 
+- **`from multimodalhugs.data import *` no longer includes dataset builder classes.** Because the six dataset classes (`Pose2TextDataset`, `Video2TextDataset`, `SignWritingDataset`, `BilingualText2TextDataset`, `BilingualImage2TextDataset`, `Features2TextDataset`) are now lazy-loaded via `__getattr__`, they are excluded from `__all__` and therefore silently absent from a wildcard import. Access them by name: `from multimodalhugs.data import Pose2TextDataset`.
+
 - **`from multimodalhugs import translation_training_main`** (and other `tasks` re-exports) now raises `ImportError`. Removing `from .tasks import *` from `multimodalhugs/__init__.py` broke direct top-level access to task entry points. Use `from multimodalhugs.tasks.translation.translation_training import main` instead.
 
 ---

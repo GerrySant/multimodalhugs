@@ -32,7 +32,7 @@ def _transform(n_px, mean: List[float] = [0.48145466, 0.4578275, 0.40821073],
     if not _TORCHVISION_AVAILABLE:
         raise ImportError(
             "_transform requires 'torchvision'. "
-            "Install it with: pip install torchvision"
+            'Install it with: pip install torchvision  or  pip install "multimodalhugs[video]"'
         )
     mean = tuple(mean)
     std = tuple(std)
