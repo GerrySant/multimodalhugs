@@ -24,7 +24,7 @@ jobs:
         # Use the Python version that matches your development environment
 
     - name: Install dependencies
-      run: pip install .[dev]
+      run: pip install ".[full,dev]"
 
     - name: Run tests
       run: pytest

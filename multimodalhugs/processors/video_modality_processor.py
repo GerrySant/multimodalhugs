@@ -4,12 +4,22 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import cv2
 import numpy as np
 import torch
 from PIL import Image
-from torchvision.io import read_video
 from transformers import AutoProcessor
+
+try:
+    import cv2
+    _CV2_AVAILABLE = True
+except ImportError:
+    _CV2_AVAILABLE = False
+
+try:
+    from torchvision.io import read_video
+    _TORCHVISION_AVAILABLE = True
+except ImportError:
+    _TORCHVISION_AVAILABLE = False
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
@@ -58,6 +68,16 @@ class VideoModalityProcessor(ModalityProcessor):
                 (1 s, 2 s, 4 s, …) to tolerate transient NFS slowness on
                 shared clusters. Default: 3.
         """
+        if custom_preprocessor_path is not None and not _CV2_AVAILABLE:
+            raise ImportError(
+                "VideoModalityProcessor with a custom_preprocessor_path requires 'opencv-python'. "
+                'Install it with: pip install opencv-python  or  pip install "multimodalhugs[video]"'
+            )
+        if custom_preprocessor_path is None and not _TORCHVISION_AVAILABLE:
+            raise ImportError(
+                "VideoModalityProcessor requires 'torchvision'. "
+                'Install it with: pip install torchvision  or  pip install "multimodalhugs[video]"'
+            )
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw

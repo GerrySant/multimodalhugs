@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 
-from signwriting.tokenizer import normalize_signwriting
+try:
+    from signwriting.tokenizer import normalize_signwriting
+    _SIGNWRITING_AVAILABLE = True
+except ImportError:
+    _SIGNWRITING_AVAILABLE = False
 from multimodalhugs.data import (
     MultimodalDataConfig,
     check_columns,
@@ -49,6 +53,11 @@ class SignWritingDataset(datasets.GeneratorBasedBuilder):
 
         If both are provided, keyword arguments take priority.
         """
+        if not _SIGNWRITING_AVAILABLE:
+            raise ImportError(
+                "SignWritingDataset requires the 'signwriting' package. "
+                'Install it with: pip install signwriting  or  pip install "multimodalhugs[signwriting]"'
+            )
         config, kwargs = resolve_and_update_config(MultimodalDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Custom dataset for SignWriting")
         super().__init__(info=dataset_info, *args, **kwargs)

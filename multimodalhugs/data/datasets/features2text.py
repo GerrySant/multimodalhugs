@@ -5,7 +5,6 @@ import datasets
 import numpy as np
 
 from pathlib import Path
-from pose_format import Pose
 from typing import Any, Union, Dict, Optional
 from datasets import load_dataset, Dataset, DatasetInfo, SplitGenerator, Features
 from dataclasses import dataclass, field

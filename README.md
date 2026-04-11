@@ -32,15 +32,23 @@ For more details, refer to the [documentation](docs/README.md).
 
 2. **Navigate and install the package**:
 
-   - **Standard installation**:
+   - **Full installation** (all modalities — recommended for most users):
       ```bash
        cd multimodalhugs
-       pip install .
+       pip install ".[full]"
+      ```
+   - **Modality-specific installation** (install only what you need):
+      ```bash
+       pip install ".[pose]"         # pose sequences (pose-format)
+       pip install ".[video]"        # video (av, torchvision, opencv-python)
+       pip install ".[signwriting]"  # SignWriting (signwriting)
+       pip install ".[image]"        # images (opencv-python)
+       pip install ".[pose,video]"   # combine multiple modalities
       ```
    - **Developer installation**:
       ```bash
        cd multimodalhugs
-       pip install -e .[dev]
+       pip install -e ".[full,dev]"
       ```
 
 ## Usage

@@ -1,5 +1,4 @@
 import os
-import av
 import torch
 import datasets
 from pathlib import Path
@@ -7,7 +6,17 @@ from omegaconf import ListConfig
 from typing import Any, Union, Optional, Dict, Tuple
 from dataclasses import dataclass, field
 
-from torchvision.io import read_video
+try:
+    import av
+    _AV_AVAILABLE = True
+except ImportError:
+    _AV_AVAILABLE = False
+
+try:
+    from torchvision.io import read_video
+    _TORCHVISION_AVAILABLE = True
+except ImportError:
+    _TORCHVISION_AVAILABLE = False
 from datasets import DatasetInfo, SplitGenerator
 from datasets import load_dataset
 
@@ -70,6 +79,12 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
 
         If both are provided, keyword arguments take priority.
         """
+        if not _AV_AVAILABLE or not _TORCHVISION_AVAILABLE:
+            missing = [p for p, ok in [("av", _AV_AVAILABLE), ("torchvision", _TORCHVISION_AVAILABLE)] if not ok]
+            raise ImportError(
+                f"Video2TextDataset requires: {', '.join(missing)}. "
+                f'Install with: pip install {" ".join(missing)}  or  pip install "multimodalhugs[video]"'
+            )
         config, kwargs = resolve_and_update_config(Video2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Video2Text.")
         super().__init__(info=dataset_info, *args, **kwargs)

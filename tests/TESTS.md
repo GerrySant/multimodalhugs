@@ -785,6 +785,32 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 
 ---
 
+### `test_optional_import_guards.py`
+
+Tests that each modality processor and dataset raises a clear `ImportError` (mentioning the missing package) when its optional dependency is absent. Module-level `_*_AVAILABLE` flags are patched via `monkeypatch` to simulate a missing package without uninstalling anything.
+
+**Processors**
+
+| Test | What it checks |
+|---|---|
+| `test_pose_processor_raises_without_pose_format` | `PoseModalityProcessor()` raises `ImportError` mentioning `pose-format` when `_POSE_FORMAT_AVAILABLE=False` |
+| `test_signwriting_processor_raises_without_signwriting` | `SignwritingModalityProcessor()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
+| `test_video_processor_raises_without_cv2_when_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=...)` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
+| `test_video_processor_raises_without_torchvision` | `VideoModalityProcessor()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
+| `test_image_processor_raises_without_cv2` | `ImageModalityProcessor()` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
+
+**Datasets**
+
+| Test | What it checks |
+|---|---|
+| `test_pose2text_dataset_raises_without_pose_format` | `Pose2TextDataset()` raises `ImportError` mentioning `pose-format` when `_POSE_FORMAT_AVAILABLE=False` |
+| `test_signwriting_dataset_raises_without_signwriting` | `SignWritingDataset()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
+| `test_video2text_dataset_raises_without_av` | `Video2TextDataset()` raises `ImportError` mentioning `av` when `_AV_AVAILABLE=False` |
+| `test_video2text_dataset_raises_without_torchvision` | `Video2TextDataset()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
+| `test_video_processor_no_raise_without_cv2_when_no_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=None)` does **not** raise when `_CV2_AVAILABLE=False`; cv2 is only required when a custom preprocessor path is provided |
+
+---
+
 ### `test_processor_regression.py`
 
 Regression tests comparing processor output against golden files in `tests/assets/golden/`. Golden files capture shape, dtype, mean, std, min, max, sum, and first/last 8 values of every output tensor. To regenerate: `python tests/assets/generate_golden.py`.

@@ -6,6 +6,50 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
+## [0.5.1]
+
+### Fixed
+
+- **Partial installation now works as expected.** Previously, importing any part of `multimodalhugs` required all modality-specific dependencies (`pose-format`, `opencv-python`, `signwriting`, `av`, `torchvision`) to be installed, even if the user only intended to use a single modality (e.g. text-to-text). The root causes and their fixes are described below.
+
+- **`multimodalhugs/data/__init__.py`**: Dataset classes (`Pose2TextDataset`, `Video2TextDataset`, etc.) were imported eagerly at package load time, pulling in their optional dependencies immediately. Replaced with PEP 562 `__getattr__` lazy loading — each dataset module is only imported when the class is explicitly accessed.
+
+- **`multimodalhugs/training_setup/general_training_setup.py`**: `_build_dataset_map()` imported all six dataset modules upfront, so running `mmhugs-setup` for any modality (e.g. `features2text`) would also import `pose2text.py`, triggering a `NameError` on the `-> Pose` return annotation when `pose-format` was not installed. Replaced with a `_DATASET_IMPORT_MAP` string table and `_load_dataset_classes(dataset_type)` that only imports the one module actually needed. `_build_dataset_map()` is retained as a public helper (now lazy) for tests and tooling.
+
+- **`multimodalhugs/data/utils.py`**: `from torchvision.transforms import ...` was imported unconditionally at module level, causing `ModuleNotFoundError` for users in pose-only or text-only environments. Wrapped in `try/except ImportError` with a `_TORCHVISION_AVAILABLE` flag.
+
+- **`multimodalhugs/data/datasets/features2text.py`**: Removed a dead `from pose_format import Pose` import that was never used in the file but caused `ModuleNotFoundError` in environments without `pose-format`.
+
+- **`multimodalhugs/__init__.py`**: `from .tasks import *` transitively forced `av` to be imported at package load time via `evaluate → transformers.pipelines.video_classification`. Removed.
+
+- **`multimodalhugs/tasks/translation/translation_training.py`** and **`translation_generate.py`**: `import evaluate` was at module top-level, which transitively imported `transformers.pipelines.video_classification → av`. Moved inside the function body, just before `evaluate.load()` is called. In `translation_training.py` the import is additionally conditional on `metric_name` being set, so environments without a metric configured avoid the `av` dependency entirely.
+
+### Changed
+
+- **`pyproject.toml`**: Modality-specific dependencies moved from core `dependencies` to optional extras. Users can now install only what they need:
+  - `pip install "multimodalhugs[full]"` — all modalities (equivalent to the previous default)
+  - `pip install "multimodalhugs[pose]"` — pose sequences (`pose-format`)
+  - `pip install "multimodalhugs[video]"` — video (`av`, `torchvision`, `opencv-python`)
+  - `pip install "multimodalhugs[signwriting]"` — SignWriting (`signwriting`)
+  - `pip install "multimodalhugs[image]"` — images (`opencv-python`)
+  - Multiple extras can be combined: `pip install "multimodalhugs[pose,video]"`
+
+- **`multimodalhugs/__init__.py`**: Removed `from .tasks import *` and `from .multimodalhugs_cli import *`. The CLI entry points (`mmhugs-train`, `mmhugs-generate`, `mmhugs-setup`) are unaffected — they are declared as `console_scripts` in `pyproject.toml` and call their target functions directly. The training entry points remain accessible via explicit import: `from multimodalhugs.tasks import translation_training_main`.
+
+- **Modality processors** (`PoseModalityProcessor`, `VideoModalityProcessor`, `SignwritingModalityProcessor`, `ImageModalityProcessor`): Optional dependency imports are now wrapped in `try/except ImportError`. A clear `ImportError` with a `pip install` hint is raised at instantiation time if the required package is absent, rather than at module import time.
+
+- **Modality datasets** (`Pose2TextDataset`, `SignWritingDataset`, `Video2TextDataset`): Same lazy-import pattern applied — optional dependency imports wrapped in `try/except`, with a descriptive `ImportError` raised in `__init__` if the dependency is missing.
+
+### Breaking Changes
+
+- **`from multimodalhugs import Pose2TextDataset`** (and other dataset builder classes) no longer works. Dataset builders are internal construction details, not user-facing API — no example, doc, or internal caller relied on the top-level shorthand. Use the fully-qualified form instead: `from multimodalhugs.data import Pose2TextDataset`.
+
+- **`from multimodalhugs.data import *` no longer includes dataset builder classes.** Because the six dataset classes (`Pose2TextDataset`, `Video2TextDataset`, `SignWritingDataset`, `BilingualText2TextDataset`, `BilingualImage2TextDataset`, `Features2TextDataset`) are now lazy-loaded via `__getattr__`, they are excluded from `__all__` and therefore silently absent from a wildcard import. Access them by name: `from multimodalhugs.data import Pose2TextDataset`.
+
+- **`from multimodalhugs import translation_training_main`** (and other `tasks` re-exports) now raises `ImportError`. Removing `from .tasks import *` from `multimodalhugs/__init__.py` broke direct top-level access to task entry points. Use `from multimodalhugs.tasks.translation.translation_training import main` instead.
+
+---
+
 ## [0.5.0]
 
 This release introduces a complete redesign of the processor layer, replacing the six monolithic task-specific processors with a modular, composable architecture. The new design separates modality-specific preprocessing from task structure, enables declarative YAML configuration, and provides a unified CLI entry point for all modalities. Full backward compatibility is maintained — existing code, configs, and processor checkpoints continue to work unchanged.
