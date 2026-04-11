@@ -74,3 +74,16 @@ def test_video2text_dataset_raises_without_av(monkeypatch):
     monkeypatch.setattr(video2text_mod, "_AV_AVAILABLE", False)
     with pytest.raises(ImportError, match="av"):
         video2text_mod.Video2TextDataset()
+
+
+def test_video2text_dataset_raises_without_torchvision(monkeypatch):
+    monkeypatch.setattr(video2text_mod, "_TORCHVISION_AVAILABLE", False)
+    with pytest.raises(ImportError, match="torchvision"):
+        video2text_mod.Video2TextDataset()
+
+
+def test_video_processor_no_raise_without_cv2_when_no_custom_preprocessor(monkeypatch):
+    monkeypatch.setattr(video_mod, "_CV2_AVAILABLE", False)
+    # cv2 is only required when custom_preprocessor_path is set; without it the
+    # processor should instantiate without error even if cv2 is absent.
+    video_mod.VideoModalityProcessor(custom_preprocessor_path=None)
