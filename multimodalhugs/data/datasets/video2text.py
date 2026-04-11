@@ -83,7 +83,7 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
             missing = [p for p, ok in [("av", _AV_AVAILABLE), ("torchvision", _TORCHVISION_AVAILABLE)] if not ok]
             raise ImportError(
                 f"Video2TextDataset requires: {', '.join(missing)}. "
-                "Install them with: pip install av torchvision"
+                f"Install with: pip install {' '.join(missing)}"
             )
         config, kwargs = resolve_and_update_config(Video2TextDataConfig, config, kwargs)
         dataset_info = DatasetInfo(description="Dataset class for Video2Text.")
