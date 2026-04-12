@@ -10,16 +10,29 @@ Each version section may have subsections for: _Added_, _Changed_, _Removed_, _D
 
 ### Added
 
-- **`signal_start_end_unit` parameter on `PoseModalityProcessor` and `VideoModalityProcessor`.**
-  Both processors now accept `signal_start_end_unit: str` (default `"milliseconds"`, preserving the existing behaviour). Setting it to `"frames"` tells the processor to interpret `signal_start` / `signal_end` as frame indices rather than milliseconds:
+- **`signal_start_end_unit` parameter on `PoseModalityProcessor`, `VideoModalityProcessor`, `Pose2TextDataConfig`, and `Video2TextDataConfig`.**
+  Processors and dataset configs now accept `signal_start_end_unit` (default `SignalUnit.MILLISECONDS`, preserving the existing behaviour). Setting it to `SignalUnit.FRAMES` tells the processor to interpret `signal_start` / `signal_end` as frame indices rather than milliseconds. Plain strings `"milliseconds"` and `"frames"` are accepted for backward compatibility.
 
-  - **`PoseModalityProcessor`** — passes `start_frame` / `end_frame` directly to `Pose.read`, which uses a seek-capable `BytesIOReader` internally. Normalisation sees only the requested window, consistent with the milliseconds path. Raises `ValueError` at construction time for any value other than `"milliseconds"` or `"frames"`.
+  - **`PoseModalityProcessor`** — passes `start_frame` / `end_frame` directly to `Pose.read`, which uses a seek-capable `BytesIOReader` internally. Normalisation sees only the requested window, consistent with the milliseconds path. Raises `ValueError` at construction time for unknown unit values.
 
   - **`VideoModalityProcessor`** — for the OpenCV path (`custom_preprocessor_path` set), uses `CAP_PROP_POS_FRAMES` for seeking and position checking. For the torchvision path, reads the full video and slices by index (torchvision does not support frame-index seeking natively). Raises `ValueError` at construction time for unknown unit values.
+
+  - **`Pose2TextDataConfig` / `Video2TextDataConfig`** — expose the same parameter; the dataset duration-filtering logic (`mapping_function`) now respects the chosen unit when computing clip duration for `max_frames` / `min_frames` filtering.
 
   - **Legacy wrappers** (`Pose2TextTranslationProcessor`, `Video2TextTranslationProcessor`) accept and forward the new parameter to their underlying modality processor unchanged.
 
   - The zero/zero convention (`signal_start=0, signal_end=0` → full file) is preserved for both units.
+
+- **`SignalUnit` enum** (`multimodalhugs.processors.SignalUnit`).
+  A `StrEnum`-based enum (Python 3.8+ compatible) that defines the valid values for `signal_start_end_unit`:
+
+  ```python
+  from multimodalhugs.processors import SignalUnit
+
+  processor = PoseModalityProcessor(signal_start_end_unit=SignalUnit.FRAMES)
+  ```
+
+  Instances compare equal to their string values (`SignalUnit.MILLISECONDS == "milliseconds"`) and serialise as plain strings, so existing YAML configs and `save_pretrained`/`from_pretrained` round-trips are unaffected.
 
 ---
 
