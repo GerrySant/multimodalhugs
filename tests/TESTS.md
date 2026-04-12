@@ -845,6 +845,8 @@ The `model_setup` fixture builds the model via `build_processor_from_config(cfg.
 
 | Test | What it checks |
 |---|---|
+| `test_feature_extractor_propagates_no_split_modules` | `FeatureExtractor("clip", config=...)` sets `_no_split_modules` and `_keep_in_fp32_modules` from the inner `CLIPVisionModelWithProjection`; `CLIPEncoderLayer` is present. No fixture — direct instantiation. |
+| `test_model_no_split_modules_contains_all_components` | `MultiModalEmbedderModel._no_split_modules` aggregates class names from both the feature extractor (`CLIPEncoderLayer`) and the backbone (`M2M100EncoderLayer`, `M2M100DecoderLayer`), driving FSDP `TRANSFORMER_BASED_WRAP` policy. |
 | `test_backbone_shared_weights_are_tied` | After `build_model` + vocab extension, `encoder.embed_tokens`, `decoder.embed_tokens`, and `lm_head` all share the same underlying storage as `model.shared` (same `data_ptr`) |
 | `test_training` | Model overfits to a tiny batch: loss drops below `0.11` within 500 epochs |
 | `test_overfitting_accuracy` | WER ≤ 0.125 on test samples after training on the same data |

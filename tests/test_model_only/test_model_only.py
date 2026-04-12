@@ -6,7 +6,9 @@ import torch.nn as nn
 import numpy as np
 
 from jiwer import wer
+from transformers import CLIPVisionConfig
 from multimodalhugs.models.multimodal_embedder.modeling_multimodal_embedder import MultiModalEmbedderModel
+from multimodalhugs.modules.feature_extractor import FeatureExtractor
 from omegaconf import OmegaConf
 from multimodalhugs.training_setup.setup_utils import build_processor_from_config
 from .global_variables import DEVICE, INPUTS, LABELS, SAMPLES
@@ -73,6 +75,62 @@ def _train_model(model):
         print(f"Epoch {epoch} - Loss: {loss}")
 
     return model, losses
+
+
+def test_feature_extractor_propagates_no_split_modules():
+    """
+    FeatureExtractor must expose _no_split_modules and _keep_in_fp32_modules
+    from its inner pretrained model so that MultiModalEmbedderModel can build
+    correct FSDP parallelism metadata.  Without the fix, both attributes
+    returned [] for the vision encoder branch.
+    """
+    vision_config = CLIPVisionConfig(
+        hidden_size=32,
+        num_hidden_layers=1,
+        num_attention_heads=1,
+        intermediate_size=64,
+        projection_dim=32,
+        image_size=32,
+    )
+    fe = FeatureExtractor("clip", config=vision_config)
+
+    assert hasattr(fe, "_no_split_modules"), (
+        "FeatureExtractor must set _no_split_modules after __init__"
+    )
+    assert hasattr(fe, "_keep_in_fp32_modules"), (
+        "FeatureExtractor must set _keep_in_fp32_modules after __init__"
+    )
+    assert "CLIPEncoderLayer" in fe._no_split_modules, (
+        f"Expected 'CLIPEncoderLayer' in FeatureExtractor._no_split_modules, "
+        f"got {fe._no_split_modules}"
+    )
+
+
+@pytest.mark.parametrize(
+    "model_setup",
+    [
+        {
+            "id": "default_setup",
+            "config_path": "tests/test_model_only/configs/test_model_only.yaml",
+        },
+    ],
+    indirect=True,
+)
+def test_model_no_split_modules_contains_all_components(model_setup):
+    """
+    MultiModalEmbedderModel._no_split_modules must aggregate the split-boundary
+    class names from both the feature extractor (CLIPEncoderLayer) and the
+    backbone (M2M100EncoderLayer, M2M100DecoderLayer).  This drives FSDP wrap
+    policy when TRANSFORMER_BASED_WRAP is used.
+    """
+    (model, _, _), _ = model_setup
+    no_split = model._no_split_modules
+
+    for expected in ("CLIPEncoderLayer", "M2M100EncoderLayer", "M2M100DecoderLayer"):
+        assert expected in no_split, (
+            f"Expected '{expected}' in MultiModalEmbedderModel._no_split_modules, "
+            f"got {no_split}"
+        )
 
 
 @pytest.mark.parametrize(
