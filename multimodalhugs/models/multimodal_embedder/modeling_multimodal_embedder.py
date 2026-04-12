@@ -44,6 +44,13 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
     is_parallelizable = True
     _keep_in_fp32_modules = []
     _no_split_modules = []
+    # The primary encoder input is visual frames, not token ids.
+    # GenerationMixin._prepare_model_inputs uses main_input_name to locate the
+    # encoder input in kwargs; in transformers 5.x this is a hard check —
+    # if main_input_name is not found, generate() raises before reaching the
+    # encoder.  Setting it here is the standard HF pattern (e.g. CLIPModel sets
+    # main_input_name = "pixel_values").
+    main_input_name = "input_frames"
 
     def __init__(self, config):
         """
