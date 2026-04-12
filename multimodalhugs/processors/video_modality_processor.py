@@ -23,7 +23,7 @@ except ImportError:
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
-from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size
+from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size, SignalUnit
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class VideoModalityProcessor(ModalityProcessor):
         join_chw: bool = False,
         use_cache: bool = False,
         io_max_retries: int = 3,
+        signal_start_end_unit: SignalUnit = SignalUnit.MILLISECONDS,
     ):
         """
         Args:
@@ -67,6 +68,15 @@ class VideoModalityProcessor(ModalityProcessor):
                 file fails with an I/O error. Retries use exponential backoff
                 (1 s, 2 s, 4 s, …) to tolerate transient NFS slowness on
                 shared clusters. Default: 3.
+            signal_start_end_unit: Unit for ``signal_start`` / ``signal_end``
+                values in the dataset.  Either ``SignalUnit.MILLISECONDS``
+                (default, current behaviour — for the OpenCV path values are
+                used with ``CAP_PROP_POS_MSEC``; for the torchvision path values
+                are converted to seconds) or ``SignalUnit.FRAMES`` (values are
+                used as frame indices: ``CAP_PROP_POS_FRAMES`` for the OpenCV
+                path, direct tensor slicing for the torchvision path).
+                When ``signal_start=0`` and ``signal_end=0`` the full file is
+                always loaded regardless of this setting.
         """
         if custom_preprocessor_path is not None and not _CV2_AVAILABLE:
             raise ImportError(
@@ -78,11 +88,19 @@ class VideoModalityProcessor(ModalityProcessor):
                 "VideoModalityProcessor requires 'torchvision'. "
                 'Install it with: pip install torchvision  or  pip install "multimodalhugs[video]"'
             )
+        try:
+            signal_start_end_unit = SignalUnit(signal_start_end_unit)
+        except ValueError:
+            raise ValueError(
+                f"Invalid signal_start_end_unit '{signal_start_end_unit}'. "
+                f"Must be one of: {[u.value for u in SignalUnit]}."
+            )
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw
         self.use_cache = use_cache
         self.io_max_retries = io_max_retries
+        self.signal_start_end_unit = signal_start_end_unit
         self.custom_preprocessor = (
             AutoProcessor.from_pretrained(custom_preprocessor_path)
             if custom_preprocessor_path is not None
@@ -115,9 +133,11 @@ class VideoModalityProcessor(ModalityProcessor):
         Args:
             video_path: Path to a video file (any format supported by OpenCV
                 or torchvision).
-            signal_start: Clip start time in milliseconds. 0.0 means start of
-                file.
-            signal_end: Clip end time in milliseconds. 0.0 means end of file.
+            signal_start: Clip start value. When ``signal_start_end_unit`` is
+                ``"milliseconds"`` this is a time in ms; when ``"frames"`` it
+                is a frame index. 0.0 means start of file in both units.
+            signal_end: Clip end value. Same unit logic as ``signal_start``.
+                0.0 means end of file in both units.
 
         Returns:
             Float tensor of shape [T, C, H, W] (or [T, C*H*W] when
@@ -139,31 +159,59 @@ class VideoModalityProcessor(ModalityProcessor):
 
                     full_signal = (signal_start == signal_end) or (signal_start is None) or (signal_end is None)
                     if not full_signal:
-                        cap.set(cv2.CAP_PROP_POS_MSEC, signal_start)
+                        if self.signal_start_end_unit == "frames":
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, signal_start)
+                        else:
+                            cap.set(cv2.CAP_PROP_POS_MSEC, signal_start)
 
                     frames = []
                     while True:
                         ret, frame = cap.read()
                         if not ret:
                             break
-                        if not full_signal and cap.get(cv2.CAP_PROP_POS_MSEC) > signal_end:
-                            break
+                        if not full_signal:
+                            if self.signal_start_end_unit == "frames":
+                                if cap.get(cv2.CAP_PROP_POS_FRAMES) > signal_end:
+                                    break
+                            else:
+                                if cap.get(cv2.CAP_PROP_POS_MSEC) > signal_end:
+                                    break
                         frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
                     cap.release()
 
                     result = self.custom_preprocessor(images=frames, return_tensors="pt")["pixel_values"]
                     result = result.squeeze(0) if result.ndim == 5 else result
                 else:
-                    start_sec = (signal_start or 0) / 1000.0
-                    end_sec = (signal_end / 1000.0) if signal_end else None
-                    result, _, _ = read_video(
-                        str(video_path),
-                        start_pts=start_sec,
-                        end_pts=end_sec,
-                        pts_unit="sec",
-                        output_format="TCHW",
-                    )
-                    result = result.to(torch.float32)
+                    if self.signal_start_end_unit == "frames":
+                        # torchvision's read_video does not support frame-index
+                        # seeking, so we load the full video and slice by index.
+                        # When use_cache=True the LRU cache key is
+                        # (video_path, signal_start, signal_end), so each
+                        # distinct clip range is a separate cache entry. On a
+                        # cache miss the full video is read from disk before
+                        # slicing; the sliced tensor is what gets stored.
+                        # The avg_item_size_bytes=50 MB estimate used to size
+                        # the cache was calibrated for full videos, not clips —
+                        # actual cached items may be much smaller.
+                        result, _, _ = read_video(
+                            str(video_path),
+                            pts_unit="sec",
+                            output_format="TCHW",
+                        )
+                        start_frame = int(signal_start) if signal_start else None
+                        end_frame = int(signal_end) if signal_end else None
+                        result = result[start_frame:end_frame].to(torch.float32)
+                    else:
+                        start_sec = (signal_start or 0) / 1000.0
+                        end_sec = (signal_end / 1000.0) if signal_end else None
+                        result, _, _ = read_video(
+                            str(video_path),
+                            start_pts=start_sec,
+                            end_pts=end_sec,
+                            pts_unit="sec",
+                            output_format="TCHW",
+                        )
+                        result = result.to(torch.float32)
 
                 if self.skip_frames_stride is not None:
                     result = frame_skipping(x=result, t_dim=0, stride=self.skip_frames_stride)
@@ -202,8 +250,10 @@ class VideoModalityProcessor(ModalityProcessor):
                 - np.ndarray — converted to a float tensor unchanged.
                 - dict — mapping with keys:
                     ``"signal"`` (str/Path, required): path to the video file.
-                    ``"signal_start"`` (float, optional): clip start in ms. Default 0.0.
-                    ``"signal_end"`` (float, optional): clip end in ms. Default 0.0.
+                    ``"signal_start"`` (float, optional): clip start in the unit
+                    given by ``signal_start_end_unit``. Default 0.0 (start of file).
+                    ``"signal_end"`` (float, optional): clip end in the unit given
+                    by ``signal_start_end_unit``. Default 0.0 (end of file).
 
         Returns:
             Float tensor of shape [T, C, H, W].

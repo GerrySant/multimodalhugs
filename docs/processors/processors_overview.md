@@ -65,8 +65,8 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 
 | Class | Modality | Key parameters |
 |---|---|---|
-| `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride` |
-| `VideoModalityProcessor` | Video files | `skip_frames_stride`, `join_chw`, `use_cache` |
+| `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` |
+| `VideoModalityProcessor` | Video files | `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` |
 | `ImageModalityProcessor` | Image files / text-rendered images | `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` |
 | `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` |
 | `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |

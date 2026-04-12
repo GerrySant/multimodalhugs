@@ -1,12 +1,15 @@
 """Tests for Video2TextTranslationProcessor."""
 
 import numpy as np
+import pytest
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
 from multimodalhugs.processors.legacy.video2text_preprocessor import (
     Video2TextTranslationProcessor,
 )
+from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
+from tests.test_data.conftest import CLIP_PROCESSOR_PATH
 
 
 def _modality_proc(processor):
@@ -130,3 +133,70 @@ class TestVideoProcessorCall:
                 assert val.shape[0] == batch_size, (
                     f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
                 )
+
+
+class TestVideoSignalStartEndUnit:
+    """Tests for the signal_start_end_unit parameter on VideoModalityProcessor."""
+
+    def test_default_unit_is_milliseconds(self):
+        proc = VideoModalityProcessor()
+        assert proc.signal_start_end_unit == "milliseconds"
+
+    def test_frames_unit_accepted(self, dummy_video_file):
+        proc = VideoModalityProcessor(signal_start_end_unit="frames")
+        tensor = proc.process_sample(dummy_video_file)
+        assert isinstance(tensor, torch.Tensor)
+        assert tensor.ndim == 4  # (T, C, H, W)
+
+    def test_invalid_unit_raises(self):
+        with pytest.raises(ValueError, match="signal_start_end_unit"):
+            VideoModalityProcessor(signal_start_end_unit="seconds")
+
+    def test_frames_unit_slices_output(self, dummy_video_file):
+        """Requesting frames 0..5 should yield fewer frames than the full file."""
+        proc = VideoModalityProcessor(signal_start_end_unit="frames")
+        tensor_full = proc.process_sample(dummy_video_file)
+        tensor_sliced = proc.process_sample(
+            {"signal": dummy_video_file, "signal_start": 0, "signal_end": 5}
+        )
+        assert tensor_sliced.shape[0] == 5
+        assert tensor_full.shape[0] > tensor_sliced.shape[0]
+
+    def test_frames_unit_zero_zero_loads_full_file(self, dummy_video_file):
+        """signal_start=0, signal_end=0 with unit='frames' loads the full file."""
+        proc_ms = VideoModalityProcessor(signal_start_end_unit="milliseconds")
+        proc_fr = VideoModalityProcessor(signal_start_end_unit="frames")
+        t_ms = proc_ms.process_sample(
+            {"signal": dummy_video_file, "signal_start": 0, "signal_end": 0}
+        )
+        t_fr = proc_fr.process_sample(
+            {"signal": dummy_video_file, "signal_start": 0, "signal_end": 0}
+        )
+        assert t_ms.shape[0] > 0  # ensure at least some frames were loaded
+        assert t_ms.shape[0] == t_fr.shape[0]
+
+    def test_legacy_wrapper_passes_unit_through(self, tokenizer, dummy_video_file):
+        """Video2TextTranslationProcessor should propagate signal_start_end_unit."""
+        proc = Video2TextTranslationProcessor(
+            tokenizer=tokenizer,
+            signal_start_end_unit="frames",
+        )
+        assert _modality_proc(proc).signal_start_end_unit == "frames"
+
+    def test_opencv_path_frames_unit_slices_output(self, dummy_video_file):
+        """OpenCV path: signal_start_end_unit='frames' should slice by frame index."""
+        proc_full = VideoModalityProcessor(
+            custom_preprocessor_path=CLIP_PROCESSOR_PATH,
+            signal_start_end_unit="frames",
+        )
+        proc_sliced = VideoModalityProcessor(
+            custom_preprocessor_path=CLIP_PROCESSOR_PATH,
+            signal_start_end_unit="frames",
+        )
+        tensor_full = proc_full.process_sample(dummy_video_file)
+        tensor_sliced = proc_sliced.process_sample(
+            {"signal": dummy_video_file, "signal_start": 2, "signal_end": 7}
+        )
+        # dummy_video_file has 10 frames; requesting frames 2..7 should yield fewer
+        assert tensor_sliced.shape[0] < tensor_full.shape[0]
+        assert tensor_sliced.shape[0] <= 5  # at most 5 frames in [2, 7)

@@ -235,14 +235,15 @@ Loads `.pose` files and converts them to `[T, D]` tensors (T = frames, D = keypo
 |---|---|---|---|
 | `reduce_holistic_poses` | bool | `true` | Reduce full holistic pose to a smaller set of landmarks |
 | `skip_frames_stride` | int | `null` | Keep every N-th frame (e.g. `2` = keep every other frame) |
+| `signal_start_end_unit` | str | `"milliseconds"` | Unit for `signal_start` / `signal_end`: `"milliseconds"` or `"frames"`. `0`/`0` always loads the full file regardless of unit. |
 
 **`column_map` processor param names:** `signal`, `signal_start`, `signal_end`
 
 ```yaml
 column_map:
   signal: signal             # TSV column → processor param (required)
-  signal_start: signal_start # start frame offset (optional)
-  signal_end: signal_end     # end frame offset (optional)
+  signal_start: signal_start # clip start in milliseconds by default; see signal_start_end_unit
+  signal_end: signal_end     # clip end in milliseconds by default; see signal_start_end_unit
 ```
 
 ---
@@ -259,14 +260,15 @@ Loads video files and converts them to `[T, C, H, W]` tensors (or `[T, C*H*W]` i
 | `skip_frames_stride` | int | `null` | Keep every N-th frame |
 | `join_chw` | bool | `false` | Flatten channel, height, and width dimensions into one |
 | `use_cache` | bool | `false` | Cache loaded videos in memory (speeds up repeated access) |
+| `signal_start_end_unit` | str | `"milliseconds"` | Unit for `signal_start` / `signal_end`: `"milliseconds"` or `"frames"`. `0`/`0` always loads the full file regardless of unit. |
 
 **`column_map` processor param names:** `signal`, `signal_start`, `signal_end`
 
 ```yaml
 column_map:
   signal: signal
-  signal_start: signal_start # start time in seconds
-  signal_end: signal_end     # end time in seconds
+  signal_start: signal_start # clip start in milliseconds by default; see signal_start_end_unit
+  signal_end: signal_end     # clip end in milliseconds by default; see signal_start_end_unit
 ```
 
 ---
