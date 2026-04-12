@@ -130,6 +130,10 @@ class FeatureExtractor(nn.Module):
                     self.feature_extractor = FeatureExtractorClass.from_pretrained(pretrained_module)
                 else:
                     self.feature_extractor = FeatureExtractorClass(config)
+            # Propagate FSDP parallelism metadata from the inner model so that
+            # MultiModalEmbedderModel._init_feature_extractor can read them transparently.
+            self._no_split_modules = list(getattr(self.feature_extractor, "_no_split_modules", None) or [])
+            self._keep_in_fp32_modules = list(getattr(self.feature_extractor, "_keep_in_fp32_modules", None) or [])
         else:
             self.feature_extractor = None
 
