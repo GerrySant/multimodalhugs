@@ -6,7 +6,7 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
-## [Unreleased]
+## [0.5.2]
 
 ### Added
 
