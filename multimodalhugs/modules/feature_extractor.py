@@ -7,7 +7,8 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 from transformers import (
-    CLIPConfig, CLIPModel, M2M100Config, M2M100Model, 
+    CLIPConfig, CLIPVisionConfig, CLIPVisionModelWithProjection,
+    M2M100Config, M2M100Model,
     PreTrainedModel, PretrainedConfig
 )
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
@@ -106,33 +107,37 @@ class FeatureExtractor(nn.Module):
 
         self.feature_extractor_type = feature_extractor_type
         if self.feature_extractor_type:
-            FeatureExtractorClass, FeatureExtractorConfigClass = get_feature_extractor_class(self.feature_extractor_type)
-            if pretrained_module is not None:
-                self.feature_extractor = FeatureExtractorClass.from_pretrained(pretrained_module)
+            if self.feature_extractor_type == "clip":
+                # Use CLIPVisionModelWithProjection instead of CLIPModel.
+                # CLIPModel nullification (text_model=None, text_projection=None) crashes
+                # in transformers 5.x because initialize_weights() unconditionally accesses
+                # text_projection.weight via _init_weights.  CLIPVisionModelWithProjection
+                # has only the vision encoder and visual_projection — no text branch at all.
+                if pretrained_module is not None:
+                    self.feature_extractor = CLIPVisionModelWithProjection.from_pretrained(pretrained_module)
+                else:
+                    # Extract CLIPVisionConfig from a full CLIPConfig if that's what was passed.
+                    if isinstance(config, CLIPConfig):
+                        vision_config = config.vision_config
+                    elif config is None:
+                        vision_config = CLIPVisionConfig()
+                    else:
+                        vision_config = config  # already a CLIPVisionConfig
+                    self.feature_extractor = CLIPVisionModelWithProjection(vision_config)
             else:
-                self.feature_extractor = FeatureExtractorClass(config)
-            
-            # Special handling for CLIPModel instances
-            if isinstance(self.feature_extractor, CLIPModel):
-                self.feature_extractor.text_model = None
-                self.feature_extractor.text_projection = None
+                FeatureExtractorClass, _ = get_feature_extractor_class(self.feature_extractor_type)
+                if pretrained_module is not None:
+                    self.feature_extractor = FeatureExtractorClass.from_pretrained(pretrained_module)
+                else:
+                    self.feature_extractor = FeatureExtractorClass(config)
         else:
             self.feature_extractor = None
 
     def forward(self, x):
         # Shape of x: [B, T, C, H, W]
         if self.feature_extractor_type == "clip":
-            B, T, _, _, _, = x.shape
-            x = torch.flatten(x, start_dim=0, end_dim=1) # [B, T, C, H, W] -> [(B x T), C, H, W]
-            x = self.feature_extractor.get_image_features(pixel_values=x)
-            # In transformers 5.x, get_image_features returns a ModelOutput rather than a
-            # plain tensor. Extract the primary feature tensor in a model-agnostic way:
-            # prefer pooler_output (projected/pooled representation) when available,
-            # fall back to last_hidden_state for models without a pooling head.
-            if not isinstance(x, torch.Tensor):
-                if hasattr(x, "pooler_output") and x.pooler_output is not None:
-                    x = x.pooler_output
-                else:
-                    x = x.last_hidden_state
-            x = torch.unflatten(x, 0, (B, T)) # [(B x T), E] -> [B, T, E]
+            B, T, _, _, _ = x.shape
+            x = torch.flatten(x, start_dim=0, end_dim=1)  # [B, T, C, H, W] -> [(B x T), C, H, W]
+            x = self.feature_extractor(pixel_values=x).image_embeds  # [(B x T), E]
+            x = torch.unflatten(x, 0, (B, T))  # [(B x T), E] -> [B, T, E]
         return x
