@@ -184,6 +184,11 @@ class VideoModalityProcessor(ModalityProcessor):
                     if self.signal_start_end_unit == "frames":
                         # torchvision's read_video does not support frame-index
                         # seeking, so we load the full video and slice by index.
+                        # Note: when use_cache=True, each unique video_path is
+                        # cached as a full load; clip ranges are not part of the
+                        # cache key, so slicing is applied after the cache hit.
+                        # The cache size was calibrated for whole videos (~50 MB
+                        # each), not individual clips.
                         result, _, _ = read_video(
                             str(video_path),
                             pts_unit="sec",

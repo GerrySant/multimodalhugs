@@ -177,12 +177,12 @@ class TestPoseSignalStartEndUnit:
             reduce_holistic_poses=True,
             signal_start_end_unit="frames",
         )
-        # dummy_pose_file has 10 frames; request first 5
+        # dummy_pose_file is created with fake_pose(num_frames=10) in conftest.py
         tensor_full = proc_full.process_sample(dummy_pose_file)
         tensor_sliced = proc_sliced.process_sample(
-            {"signal": dummy_pose_file, "signal_start": 0, "signal_end": 5}
+            {"signal": dummy_pose_file, "signal_start": 3, "signal_end": 8}
         )
-        assert tensor_sliced.shape[0] == 5
+        assert tensor_sliced.shape[0] == 5  # frames [3, 8)
         assert tensor_full.shape[0] == 10
 
     def test_frames_unit_zero_zero_loads_full_file(self, dummy_pose_file):

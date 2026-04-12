@@ -9,6 +9,7 @@ from multimodalhugs.processors.legacy.video2text_preprocessor import (
     Video2TextTranslationProcessor,
 )
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
+from tests.test_data.conftest import CLIP_PROCESSOR_PATH
 
 
 def _modality_proc(processor):
@@ -180,3 +181,21 @@ class TestVideoSignalStartEndUnit:
             signal_start_end_unit="frames",
         )
         assert _modality_proc(proc).signal_start_end_unit == "frames"
+
+    def test_opencv_path_frames_unit_slices_output(self, dummy_video_file):
+        """OpenCV path: signal_start_end_unit='frames' should slice by frame index."""
+        proc_full = VideoModalityProcessor(
+            custom_preprocessor_path=CLIP_PROCESSOR_PATH,
+            signal_start_end_unit="frames",
+        )
+        proc_sliced = VideoModalityProcessor(
+            custom_preprocessor_path=CLIP_PROCESSOR_PATH,
+            signal_start_end_unit="frames",
+        )
+        tensor_full = proc_full.process_sample(dummy_video_file)
+        tensor_sliced = proc_sliced.process_sample(
+            {"signal": dummy_video_file, "signal_start": 2, "signal_end": 7}
+        )
+        # dummy_video_file has 10 frames; requesting frames 2..7 should yield fewer
+        assert tensor_sliced.shape[0] < tensor_full.shape[0]
+        assert tensor_sliced.shape[0] <= 5  # at most 5 frames in [2, 7)

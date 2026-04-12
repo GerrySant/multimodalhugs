@@ -114,8 +114,11 @@ class PoseModalityProcessor(ModalityProcessor):
         tensor = tensor.contiguous().view(tensor.size(0), -1)
 
         if self.signal_start_end_unit == "frames":
-            start_frame = signal_start if signal_start else None
-            end_frame = signal_end if signal_end else None
+            # Note: normalization above sees the full sequence, which differs from
+            # the milliseconds path where Pose.read clips before normalization.
+            # This is intentional: frame-based slicing avoids re-reading the file.
+            start_frame = int(signal_start) if signal_start else None
+            end_frame = int(signal_end) if signal_end else None
             tensor = tensor[start_frame:end_frame]
 
         if self.skip_frames_stride is not None:
