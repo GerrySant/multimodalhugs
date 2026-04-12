@@ -1,11 +1,13 @@
 """Tests for Pose2TextTranslationProcessor."""
 
+import pytest
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
 from multimodalhugs.processors.legacy.pose2text_preprocessor import (
     Pose2TextTranslationProcessor,
 )
+from multimodalhugs.processors.pose_modality_processor import PoseModalityProcessor
 
 
 def _modality_proc(processor):
@@ -143,3 +145,79 @@ class TestPoseProcessorCall:
                 assert val.shape[0] == batch_size, (
                     f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
                 )
+
+
+class TestPoseSignalStartEndUnit:
+    """Tests for the signal_start_end_unit parameter on PoseModalityProcessor."""
+
+    def test_default_unit_is_milliseconds(self, dummy_pose_file):
+        proc = PoseModalityProcessor(reduce_holistic_poses=True)
+        assert proc.signal_start_end_unit == "milliseconds"
+
+    def test_frames_unit_accepted(self, dummy_pose_file):
+        proc = PoseModalityProcessor(
+            reduce_holistic_poses=True,
+            signal_start_end_unit="frames",
+        )
+        tensor = proc.process_sample(dummy_pose_file)
+        assert isinstance(tensor, torch.Tensor)
+        assert tensor.ndim == 2
+
+    def test_invalid_unit_raises(self):
+        with pytest.raises(ValueError, match="signal_start_end_unit"):
+            PoseModalityProcessor(signal_start_end_unit="seconds")
+
+    def test_frames_unit_slices_output(self, dummy_pose_file):
+        """Requesting frames 0..5 should yield fewer frames than the full file."""
+        proc_full = PoseModalityProcessor(
+            reduce_holistic_poses=True,
+            signal_start_end_unit="frames",
+        )
+        proc_sliced = PoseModalityProcessor(
+            reduce_holistic_poses=True,
+            signal_start_end_unit="frames",
+        )
+        # dummy_pose_file has 10 frames; request first 5
+        tensor_full = proc_full.process_sample(dummy_pose_file)
+        tensor_sliced = proc_sliced.process_sample(
+            {"signal": dummy_pose_file, "signal_start": 0, "signal_end": 5}
+        )
+        assert tensor_sliced.shape[0] == 5
+        assert tensor_full.shape[0] == 10
+
+    def test_frames_unit_zero_zero_loads_full_file(self, dummy_pose_file):
+        """signal_start=0, signal_end=0 with unit='frames' loads the full file."""
+        proc = PoseModalityProcessor(
+            reduce_holistic_poses=True,
+            signal_start_end_unit="frames",
+        )
+        tensor = proc.process_sample(
+            {"signal": dummy_pose_file, "signal_start": 0, "signal_end": 0}
+        )
+        assert tensor.shape[0] == 10  # all frames present
+
+    def test_milliseconds_and_frames_unit_same_full_load(self, dummy_pose_file):
+        """Both units with start=0, end=0 should yield the same frame count."""
+        proc_ms = PoseModalityProcessor(
+            reduce_holistic_poses=True,
+            signal_start_end_unit="milliseconds",
+        )
+        proc_fr = PoseModalityProcessor(
+            reduce_holistic_poses=True,
+            signal_start_end_unit="frames",
+        )
+        t_ms = proc_ms.process_sample(
+            {"signal": dummy_pose_file, "signal_start": 0, "signal_end": 0}
+        )
+        t_fr = proc_fr.process_sample(
+            {"signal": dummy_pose_file, "signal_start": 0, "signal_end": 0}
+        )
+        assert t_ms.shape[0] == t_fr.shape[0]
+
+    def test_legacy_wrapper_passes_unit_through(self, tokenizer, dummy_pose_file):
+        """Pose2TextTranslationProcessor should propagate signal_start_end_unit."""
+        proc = Pose2TextTranslationProcessor(
+            tokenizer=tokenizer,
+            signal_start_end_unit="frames",
+        )
+        assert _modality_proc(proc).signal_start_end_unit == "frames"

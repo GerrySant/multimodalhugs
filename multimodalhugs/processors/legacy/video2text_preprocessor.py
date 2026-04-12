@@ -26,12 +26,14 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
         skip_frames_stride: Optional[int] = None,
         join_chw: bool = False,
         use_cache: bool = True,
+        signal_start_end_unit: str = "milliseconds",
         **kwargs,
     ):
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw
         self.use_cache = use_cache
+        self.signal_start_end_unit = signal_start_end_unit
         if "slots" in kwargs:
             super().__init__(tokenizer=tokenizer, **kwargs)
             return
@@ -43,6 +45,7 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
                         skip_frames_stride=skip_frames_stride,
                         join_chw=join_chw,
                         use_cache=use_cache,
+                        signal_start_end_unit=signal_start_end_unit,
                     ),
                     output_data_key="input_frames",
                     output_mask_key="attention_mask",

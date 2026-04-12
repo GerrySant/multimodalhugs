@@ -24,10 +24,12 @@ class Pose2TextTranslationProcessor(MultimodalMetaProcessor):
         tokenizer: Optional[Any] = None,
         reduce_holistic_poses: bool = True,
         skip_frames_stride: Optional[int] = None,
+        signal_start_end_unit: str = "milliseconds",
         **kwargs,
     ):
         self.reduce_holistic_poses = reduce_holistic_poses
         self.skip_frames_stride = skip_frames_stride
+        self.signal_start_end_unit = signal_start_end_unit
         # Pass-through for from_pretrained, which calls cls(slots=..., tokenizer=...)
         if "slots" in kwargs:
             super().__init__(tokenizer=tokenizer, **kwargs)
@@ -38,6 +40,7 @@ class Pose2TextTranslationProcessor(MultimodalMetaProcessor):
                     processor=PoseModalityProcessor(
                         reduce_holistic_poses=reduce_holistic_poses,
                         skip_frames_stride=skip_frames_stride,
+                        signal_start_end_unit=signal_start_end_unit,
                     ),
                     output_data_key="input_frames",
                     output_mask_key="attention_mask",
