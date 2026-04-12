@@ -45,7 +45,7 @@ class VideoModalityProcessor(ModalityProcessor):
         join_chw: bool = False,
         use_cache: bool = False,
         io_max_retries: int = 3,
-        signal_start_end_unit: Union[str, SignalUnit] = SignalUnit.MILLISECONDS,
+        signal_start_end_unit: SignalUnit = SignalUnit.MILLISECONDS,
     ):
         """
         Args:
@@ -77,8 +77,6 @@ class VideoModalityProcessor(ModalityProcessor):
                 path, direct tensor slicing for the torchvision path).
                 When ``signal_start=0`` and ``signal_end=0`` the full file is
                 always loaded regardless of this setting.
-                Plain strings ``"milliseconds"`` and ``"frames"`` are also
-                accepted for backward compatibility.
         """
         if custom_preprocessor_path is not None and not _CV2_AVAILABLE:
             raise ImportError(

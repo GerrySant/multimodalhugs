@@ -11,7 +11,7 @@ Each version section may have subsections for: _Added_, _Changed_, _Removed_, _D
 ### Added
 
 - **`signal_start_end_unit` parameter on `PoseModalityProcessor`, `VideoModalityProcessor`, `Pose2TextDataConfig`, and `Video2TextDataConfig`.**
-  Processors and dataset configs now accept `signal_start_end_unit` (default `SignalUnit.MILLISECONDS`, preserving the existing behaviour). Setting it to `SignalUnit.FRAMES` tells the processor to interpret `signal_start` / `signal_end` as frame indices rather than milliseconds. Plain strings `"milliseconds"` and `"frames"` are accepted for backward compatibility.
+  Processors and dataset configs now accept `signal_start_end_unit` (default `SignalUnit.MILLISECONDS`, preserving the existing behaviour). Setting it to `SignalUnit.FRAMES` tells the processor to interpret `signal_start` / `signal_end` as frame indices rather than milliseconds.
 
   - **`PoseModalityProcessor`** — passes `start_frame` / `end_frame` directly to `Pose.read`, which uses a seek-capable `BytesIOReader` internally. Normalisation sees only the requested window, consistent with the milliseconds path. Raises `ValueError` at construction time for unknown unit values.
 

@@ -52,7 +52,7 @@ class Video2TextDataConfig(MultimodalDataConfig):
         default=None,
         metadata={"help": "Filter out videos shorter than this value (in frames)"}
     )
-    signal_start_end_unit: Union[str, SignalUnit] = field(
+    signal_start_end_unit: SignalUnit = field(
         default=SignalUnit.MILLISECONDS,
         metadata={"help": "Unit for signal_start/signal_end. Use SignalUnit.MILLISECONDS or SignalUnit.FRAMES."}
     )

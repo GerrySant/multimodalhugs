@@ -53,7 +53,7 @@ class Pose2TextDataConfig(MultimodalDataConfig):
         default=None,
         metadata={"help": "Pose related samples shorter than this value will be filtered"}
     )
-    signal_start_end_unit: Union[str, SignalUnit] = field(
+    signal_start_end_unit: SignalUnit = field(
         default=SignalUnit.MILLISECONDS,
         metadata={"help": "Unit for signal_start/signal_end. Use SignalUnit.MILLISECONDS or SignalUnit.FRAMES."}
     )

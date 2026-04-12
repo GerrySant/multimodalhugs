@@ -29,7 +29,7 @@ class PoseModalityProcessor(ModalityProcessor):
         self,
         reduce_holistic_poses: bool = True,
         skip_frames_stride: Optional[int] = None,
-        signal_start_end_unit: Union[str, SignalUnit] = SignalUnit.MILLISECONDS,
+        signal_start_end_unit: SignalUnit = SignalUnit.MILLISECONDS,
     ):
         """
         Args:
@@ -47,8 +47,6 @@ class PoseModalityProcessor(ModalityProcessor):
                 ``start_frame``/``end_frame``).
                 When ``signal_start=0`` and ``signal_end=0`` the full file is
                 always loaded regardless of this setting.
-                Plain strings ``"milliseconds"`` and ``"frames"`` are also
-                accepted for backward compatibility.
         """
         if not _POSE_FORMAT_AVAILABLE:
             raise ImportError(

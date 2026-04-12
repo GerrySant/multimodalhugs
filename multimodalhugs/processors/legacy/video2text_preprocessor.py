@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
@@ -27,7 +27,7 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
         skip_frames_stride: Optional[int] = None,
         join_chw: bool = False,
         use_cache: bool = True,
-        signal_start_end_unit: Union[str, SignalUnit] = SignalUnit.MILLISECONDS,
+        signal_start_end_unit: SignalUnit = SignalUnit.MILLISECONDS,
         **kwargs,
     ):
         self.custom_preprocessor_path = custom_preprocessor_path
