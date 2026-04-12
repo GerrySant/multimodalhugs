@@ -184,11 +184,14 @@ class VideoModalityProcessor(ModalityProcessor):
                     if self.signal_start_end_unit == "frames":
                         # torchvision's read_video does not support frame-index
                         # seeking, so we load the full video and slice by index.
-                        # Note: when use_cache=True, each unique video_path is
-                        # cached as a full load; clip ranges are not part of the
-                        # cache key, so slicing is applied after the cache hit.
-                        # The cache size was calibrated for whole videos (~50 MB
-                        # each), not individual clips.
+                        # When use_cache=True the LRU cache key is
+                        # (video_path, signal_start, signal_end), so each
+                        # distinct clip range is a separate cache entry. On a
+                        # cache miss the full video is read from disk before
+                        # slicing; the sliced tensor is what gets stored.
+                        # The avg_item_size_bytes=50 MB estimate used to size
+                        # the cache was calibrated for full videos, not clips —
+                        # actual cached items may be much smaller.
                         result, _, _ = read_video(
                             str(video_path),
                             pts_unit="sec",
