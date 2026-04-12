@@ -172,6 +172,7 @@ class TestVideoSignalStartEndUnit:
         t_fr = proc_fr.process_sample(
             {"signal": dummy_video_file, "signal_start": 0, "signal_end": 0}
         )
+        assert t_ms.shape[0] > 0  # ensure at least some frames were loaded
         assert t_ms.shape[0] == t_fr.shape[0]
 
     def test_legacy_wrapper_passes_unit_through(self, tokenizer, dummy_video_file):

@@ -101,10 +101,15 @@ class PoseModalityProcessor(ModalityProcessor):
                     end_time=signal_end or None,
                 )
         else:
-            # Load the full file; frame-based slicing is applied after
-            # preprocessing so that normalization sees the complete pose.
+            # Pose.read natively accepts start_frame/end_frame and uses a
+            # seek-capable reader, so normalization sees only the requested
+            # window — consistent with the milliseconds path.
+            # Note: start_frame/end_frame and start_time/end_time cannot be
+            # mixed; Pose.read raises ValueError if both are set.
+            start_f = int(signal_start) if signal_start else None
+            end_f = int(signal_end) if signal_end else None
             with open(pose_file, "rb") as f:
-                pose = Pose.read(f)
+                pose = Pose.read(f, start_frame=start_f, end_frame=end_f)
 
         pose_hide_legs(pose)
         if self.reduce_holistic_poses:
@@ -112,14 +117,6 @@ class PoseModalityProcessor(ModalityProcessor):
         pose = pose.normalize()
         tensor = pose.torch().body.data.zero_filled()
         tensor = tensor.contiguous().view(tensor.size(0), -1)
-
-        if self.signal_start_end_unit == "frames":
-            # Note: normalization above sees the full sequence, which differs from
-            # the milliseconds path where Pose.read clips before normalization.
-            # This is intentional: frame-based slicing avoids re-reading the file.
-            start_frame = int(signal_start) if signal_start else None
-            end_frame = int(signal_end) if signal_end else None
-            tensor = tensor[start_frame:end_frame]
 
         if self.skip_frames_stride is not None:
             tensor = frame_skipping(x=tensor, t_dim=0, stride=self.skip_frames_stride)
