@@ -1,3 +1,4 @@
+import contextlib
 import warnings
 from copy import deepcopy
 from pathlib import Path
@@ -16,6 +17,9 @@ from transformers import Trainer, Seq2SeqTrainer
 from transformers.generation.configuration_utils import GenerationConfig
 from transformers.integrations.deepspeed import is_deepspeed_zero3_enabled
 from transformers.integrations.fsdp import is_fsdp_managed_module
+
+if torch.distributed.is_available():
+    from torch.distributed.fsdp import FullyShardedDataParallel
 from transformers.trainer import Trainer
 from transformers.utils import logging
 
@@ -162,35 +166,42 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
                 k: v for k, v in inputs.items() if k not in ("decoder_input_ids", "decoder_attention_mask")
             }
 
-        if all_values_equal(generation_inputs['decoder_attention_mask']):
-            # If all decoder_prompts have the same number of tokens, we can pass the whole batch in the model.generate()
-            generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
+        summon_full_params_context = (
+            FullyShardedDataParallel.summon_full_params(self.model)
+            if torch.distributed.is_available() and isinstance(self.model, FullyShardedDataParallel)
+            else contextlib.nullcontext()
+        )
 
-        elif generation_inputs['decoder_attention_mask'].numel() == 0:
-            # If decoder_prompts are empty, remove the empty tensors from generation_inputs before calling model.generate()
-            generation_inputs.pop("decoder_input_ids", None)
-            generation_inputs.pop("decoder_attention_mask", None)
-            generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
+        with summon_full_params_context:
+            if all_values_equal(generation_inputs['decoder_attention_mask']):
+                # If all decoder_prompts have the same number of tokens, we can pass the whole batch in the model.generate()
+                generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
 
-        else:
-            # Otherwise, we generate sample by sample:
-            B = next(iter(generation_inputs.values())).shape[0]
-            samples = [{key: value[i:i+1] for key, value in generation_inputs.items()} for i in range(B)]
+            elif generation_inputs['decoder_attention_mask'].numel() == 0:
+                # If decoder_prompts are empty, remove the empty tensors from generation_inputs before calling model.generate()
+                generation_inputs.pop("decoder_input_ids", None)
+                generation_inputs.pop("decoder_attention_mask", None)
+                generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
 
-            generated_tokens = []
-            max_len_generation = 0
+            else:
+                # Otherwise, we generate sample by sample:
+                B = next(iter(generation_inputs.values())).shape[0]
+                samples = [{key: value[i:i+1] for key, value in generation_inputs.items()} for i in range(B)]
 
-            for sample in samples:
-                _generated_tokens = self.model.generate(**sample, **gen_kwargs)
+                generated_tokens = []
+                max_len_generation = 0
 
-                if _generated_tokens.shape[1] > max_len_generation:
-                    max_len_generation = _generated_tokens.shape[1]
+                for sample in samples:
+                    _generated_tokens = self.model.generate(**sample, **gen_kwargs)
 
-                generated_tokens.append(_generated_tokens)
+                    if _generated_tokens.shape[1] > max_len_generation:
+                        max_len_generation = _generated_tokens.shape[1]
 
-            for i in range(len(generated_tokens)):
-                generated_tokens[i] = F.pad(generated_tokens[i], (0, max_len_generation - generated_tokens[i].size(1)), value=self.processing_class.pad_token_id)
-            generated_tokens = torch.cat(generated_tokens, dim=0)
+                    generated_tokens.append(_generated_tokens)
+
+                for i in range(len(generated_tokens)):
+                    generated_tokens[i] = F.pad(generated_tokens[i], (0, max_len_generation - generated_tokens[i].size(1)), value=self.processing_class.pad_token_id)
+                generated_tokens = torch.cat(generated_tokens, dim=0)
 
         # Fill in any None fields on generation_config with their defaults so that
         # comparisons like `shape[-1] < gen_config.max_length` never raise TypeError.
