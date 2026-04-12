@@ -12,7 +12,7 @@ except ImportError:
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
-from multimodalhugs.processors.utils import frame_skipping
+from multimodalhugs.processors.utils import frame_skipping, SignalUnit
 
 
 class PoseModalityProcessor(ModalityProcessor):
@@ -29,7 +29,7 @@ class PoseModalityProcessor(ModalityProcessor):
         self,
         reduce_holistic_poses: bool = True,
         skip_frames_stride: Optional[int] = None,
-        signal_start_end_unit: str = "milliseconds",
+        signal_start_end_unit: Union[str, SignalUnit] = SignalUnit.MILLISECONDS,
     ):
         """
         Args:
@@ -40,23 +40,27 @@ class PoseModalityProcessor(ModalityProcessor):
                 temporal axis after loading (e.g. 2 → halve frame rate).
                 None disables downsampling. Default: None.
             signal_start_end_unit: Unit for ``signal_start`` / ``signal_end``
-                values in the dataset.  Either ``"milliseconds"`` (default,
-                current behaviour — values are passed to ``Pose.read`` as
-                ``start_time``/``end_time``) or ``"frames"`` (values are used
-                as frame indices to slice the loaded tensor directly).
+                values in the dataset.  Either ``SignalUnit.MILLISECONDS``
+                (default, current behaviour — values are passed to ``Pose.read``
+                as ``start_time``/``end_time``) or ``SignalUnit.FRAMES``
+                (values are used as frame indices passed to ``Pose.read`` as
+                ``start_frame``/``end_frame``).
                 When ``signal_start=0`` and ``signal_end=0`` the full file is
                 always loaded regardless of this setting.
+                Plain strings ``"milliseconds"`` and ``"frames"`` are also
+                accepted for backward compatibility.
         """
         if not _POSE_FORMAT_AVAILABLE:
             raise ImportError(
                 "PoseModalityProcessor requires 'pose-format'. "
                 'Install it with: pip install pose-format  or  pip install "multimodalhugs[pose]"'
             )
-        _valid_units = {"milliseconds", "frames"}
-        if signal_start_end_unit not in _valid_units:
+        try:
+            signal_start_end_unit = SignalUnit(signal_start_end_unit)
+        except ValueError:
             raise ValueError(
                 f"Invalid signal_start_end_unit '{signal_start_end_unit}'. "
-                f"Must be one of: {sorted(_valid_units)}."
+                f"Must be one of: {[u.value for u in SignalUnit]}."
             )
         self.reduce_holistic_poses = reduce_holistic_poses
         self.skip_frames_stride = skip_frames_stride

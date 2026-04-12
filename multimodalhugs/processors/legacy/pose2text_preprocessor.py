@@ -1,9 +1,10 @@
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
 from multimodalhugs.processors.pose_modality_processor import PoseModalityProcessor
 from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
+from multimodalhugs.processors.utils import SignalUnit
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class Pose2TextTranslationProcessor(MultimodalMetaProcessor):
         tokenizer: Optional[Any] = None,
         reduce_holistic_poses: bool = True,
         skip_frames_stride: Optional[int] = None,
-        signal_start_end_unit: str = "milliseconds",
+        signal_start_end_unit: Union[str, SignalUnit] = SignalUnit.MILLISECONDS,
         **kwargs,
     ):
         self.reduce_holistic_poses = reduce_holistic_poses

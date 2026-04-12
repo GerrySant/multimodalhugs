@@ -23,7 +23,7 @@ except ImportError:
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
-from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size
+from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size, SignalUnit
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class VideoModalityProcessor(ModalityProcessor):
         join_chw: bool = False,
         use_cache: bool = False,
         io_max_retries: int = 3,
-        signal_start_end_unit: str = "milliseconds",
+        signal_start_end_unit: Union[str, SignalUnit] = SignalUnit.MILLISECONDS,
     ):
         """
         Args:
@@ -69,14 +69,16 @@ class VideoModalityProcessor(ModalityProcessor):
                 (1 s, 2 s, 4 s, …) to tolerate transient NFS slowness on
                 shared clusters. Default: 3.
             signal_start_end_unit: Unit for ``signal_start`` / ``signal_end``
-                values in the dataset.  Either ``"milliseconds"`` (default,
-                current behaviour — for the OpenCV path values are used with
-                ``CAP_PROP_POS_MSEC``; for the torchvision path values are
-                converted to seconds) or ``"frames"`` (values are used as
-                frame indices: ``CAP_PROP_POS_FRAMES`` for the OpenCV path,
-                direct tensor slicing for the torchvision path).
+                values in the dataset.  Either ``SignalUnit.MILLISECONDS``
+                (default, current behaviour — for the OpenCV path values are
+                used with ``CAP_PROP_POS_MSEC``; for the torchvision path values
+                are converted to seconds) or ``SignalUnit.FRAMES`` (values are
+                used as frame indices: ``CAP_PROP_POS_FRAMES`` for the OpenCV
+                path, direct tensor slicing for the torchvision path).
                 When ``signal_start=0`` and ``signal_end=0`` the full file is
                 always loaded regardless of this setting.
+                Plain strings ``"milliseconds"`` and ``"frames"`` are also
+                accepted for backward compatibility.
         """
         if custom_preprocessor_path is not None and not _CV2_AVAILABLE:
             raise ImportError(
@@ -88,11 +90,12 @@ class VideoModalityProcessor(ModalityProcessor):
                 "VideoModalityProcessor requires 'torchvision'. "
                 'Install it with: pip install torchvision  or  pip install "multimodalhugs[video]"'
             )
-        _valid_units = {"milliseconds", "frames"}
-        if signal_start_end_unit not in _valid_units:
+        try:
+            signal_start_end_unit = SignalUnit(signal_start_end_unit)
+        except ValueError:
             raise ValueError(
                 f"Invalid signal_start_end_unit '{signal_start_end_unit}'. "
-                f"Must be one of: {sorted(_valid_units)}."
+                f"Must be one of: {[u.value for u in SignalUnit]}."
             )
         self.custom_preprocessor_path = custom_preprocessor_path
         self.skip_frames_stride = skip_frames_stride

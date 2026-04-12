@@ -1,7 +1,26 @@
 import os
+from enum import Enum
 
 import psutil
 import torch
+
+try:
+    from enum import StrEnum  # Python 3.11+
+except ImportError:
+    class StrEnum(str, Enum):  # type: ignore[no-redef]
+        pass
+
+
+class SignalUnit(StrEnum):
+    """
+    Valid units for the ``signal_start`` / ``signal_end`` dataset columns.
+
+    Attributes:
+        MILLISECONDS: Values are timestamps in milliseconds (default).
+        FRAMES: Values are frame indices (0-based, exclusive end).
+    """
+    MILLISECONDS = "milliseconds"
+    FRAMES = "frames"
 
 
 def get_dynamic_cache_size(avg_item_size_bytes: float) -> int:

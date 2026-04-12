@@ -32,6 +32,7 @@ from multimodalhugs.data import (
 
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
+from multimodalhugs.processors.utils import SignalUnit
 
 @dataclass
 class Video2TextDataConfig(MultimodalDataConfig):
@@ -51,9 +52,9 @@ class Video2TextDataConfig(MultimodalDataConfig):
         default=None,
         metadata={"help": "Filter out videos shorter than this value (in frames)"}
     )
-    signal_start_end_unit: str = field(
-        default="milliseconds",
-        metadata={"help": "Unit for signal_start/signal_end: 'milliseconds' or 'frames'"}
+    signal_start_end_unit: Union[str, SignalUnit] = field(
+        default=SignalUnit.MILLISECONDS,
+        metadata={"help": "Unit for signal_start/signal_end. Use SignalUnit.MILLISECONDS or SignalUnit.FRAMES."}
     )
     def __init__(self, cfg=None, **kwargs):
         data_cfg = gather_appropriate_data_cfg(cfg)
@@ -62,7 +63,7 @@ class Video2TextDataConfig(MultimodalDataConfig):
         # pull from OmegaConf yaml (or leave defaults)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
         self.min_frames = valid_config.get("min_frames", self.min_frames)
-        self.signal_start_end_unit = valid_config.get("signal_start_end_unit", self.signal_start_end_unit)
+        self.signal_start_end_unit = SignalUnit(valid_config.get("signal_start_end_unit", self.signal_start_end_unit))
 
 @register_dataset("video2text")
 class Video2TextDataset(datasets.GeneratorBasedBuilder):
@@ -178,7 +179,7 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
                 sample["DURATION"] = 0
                 return sample
 
-            if signal_start_end_unit == "frames" and not full_signal:
+            if signal_start_end_unit == SignalUnit.FRAMES and not full_signal:
                 # Frame indices: duration is trivially signal_end - signal_start.
                 # No frame decoding needed.
                 container.close()
@@ -188,7 +189,7 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
 
             # For the ms unit (any bounds) or frames unit with full-file load:
             # count frames by decoding through av, seeking by time.
-            if signal_start_end_unit == "milliseconds":
+            if signal_start_end_unit == SignalUnit.MILLISECONDS:
                 start_sec = signal_start / 1000.0
                 end_sec   = signal_end   / 1000.0 if signal_end > 0 else None
             else:
@@ -213,7 +214,7 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
             # For the ms unit, if within ±2 frames of the threshold fall back
             # to torchvision for an exact count.
             maxf = self.max_frames
-            if signal_start_end_unit == "milliseconds" and maxf is not None and abs(count_new - maxf) <= 2:
+            if signal_start_end_unit == SignalUnit.MILLISECONDS and maxf is not None and abs(count_new - maxf) <= 2:
                 frames, _, _ = read_video(
                     str(video_path),
                     start_pts=start_sec,

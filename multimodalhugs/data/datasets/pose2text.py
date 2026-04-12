@@ -25,6 +25,7 @@ from multimodalhugs.data import (
 )
 from multimodalhugs.utils.utils import get_num_proc
 from multimodalhugs.utils.registry import register_dataset
+from multimodalhugs.processors.utils import SignalUnit
 
 from functools import lru_cache
 
@@ -52,9 +53,9 @@ class Pose2TextDataConfig(MultimodalDataConfig):
         default=None,
         metadata={"help": "Pose related samples shorter than this value will be filtered"}
     )
-    signal_start_end_unit: str = field(
-        default="milliseconds",
-        metadata={"help": "Unit for signal_start/signal_end: 'milliseconds' or 'frames'"}
+    signal_start_end_unit: Union[str, SignalUnit] = field(
+        default=SignalUnit.MILLISECONDS,
+        metadata={"help": "Unit for signal_start/signal_end. Use SignalUnit.MILLISECONDS or SignalUnit.FRAMES."}
     )
     def __init__(self, cfg=None, **kwargs):
         """
@@ -71,7 +72,7 @@ class Pose2TextDataConfig(MultimodalDataConfig):
         # Assign new arguments from config if available
         self.max_frames = valid_config.get("max_frames", self.max_frames)
         self.min_frames = valid_config.get("min_frames", self.min_frames)
-        self.signal_start_end_unit = valid_config.get("signal_start_end_unit", self.signal_start_end_unit)
+        self.signal_start_end_unit = SignalUnit(valid_config.get("signal_start_end_unit", self.signal_start_end_unit))
 
         # Store any remaining kwargs (not expected by dataclass)
         self._extra_args = extra_args
@@ -232,7 +233,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
             signal_end = sample['signal_end'] or 0
 
             with open(sample['signal'], "rb") as f:
-                if signal_start_end_unit == "frames":
+                if signal_start_end_unit == SignalUnit.FRAMES:
                     start_f = int(signal_start) if signal_start else None
                     end_f = int(signal_end) if signal_end else None
                     pose = Pose.read(f, start_frame=start_f, end_frame=end_f)
