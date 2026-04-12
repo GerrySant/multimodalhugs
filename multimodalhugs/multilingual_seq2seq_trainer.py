@@ -44,6 +44,7 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
         eval_dataset: Optional[Union[Dataset, Dict[str, Dataset]]] = None,
         processing_class: Optional["PreTrainedTokenizerBase"] = None,
         model_init: Optional[Callable[[], "PreTrainedModel"]] = None,
+        compute_loss_func: Optional[Callable] = None,
         compute_metrics: Optional[Callable[["EvalPrediction"], Dict]] = None,
         callbacks: Optional[List["TrainerCallback"]] = None,
         optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None),
@@ -61,6 +62,7 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
             eval_dataset=eval_dataset,
             processing_class=processing_class,
             model_init=model_init,
+            compute_loss_func=compute_loss_func,
             compute_metrics=compute_metrics,
             callbacks=callbacks,
             optimizers=optimizers,
@@ -129,7 +131,7 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
             labels (each being optional).
         """
         if not self.args.predict_with_generate or prediction_loss_only:
-            return Trainer.prediction_step(
+            return super().prediction_step(
                 model, inputs, prediction_loss_only=prediction_loss_only, ignore_keys=ignore_keys
             )
         has_labels = "labels" in inputs
