@@ -48,8 +48,12 @@ class Video2TextDataConfig(MultimodalDataConfig):
         metadata={"help": "Filter out videos longer than this (in frames)."}
     )
     min_frames: Optional[int] = field(
-        default=None, 
+        default=None,
         metadata={"help": "Filter out videos shorter than this value (in frames)"}
+    )
+    signal_start_end_unit: str = field(
+        default="milliseconds",
+        metadata={"help": "Unit for signal_start/signal_end: 'milliseconds' or 'frames'"}
     )
     def __init__(self, cfg=None, **kwargs):
         data_cfg = gather_appropriate_data_cfg(cfg)
@@ -58,6 +62,7 @@ class Video2TextDataConfig(MultimodalDataConfig):
         # pull from OmegaConf yaml (or leave defaults)
         self.max_frames = valid_config.get("max_frames", self.max_frames)
         self.min_frames = valid_config.get("min_frames", self.min_frames)
+        self.signal_start_end_unit = valid_config.get("signal_start_end_unit", self.signal_start_end_unit)
 
 @register_dataset("video2text")
 class Video2TextDataset(datasets.GeneratorBasedBuilder):
@@ -93,6 +98,7 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
         self.config = config
         self.max_frames = config.max_frames
         self.min_frames = config.min_frames
+        self.signal_start_end_unit = config.signal_start_end_unit
 
     def _info(self):
         features = {
@@ -156,20 +162,39 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
         # Filter missing files
         dataset = dataset.filter(lambda ex: file_exists_filter("signal", ex), num_proc=get_num_proc())
 
+        signal_start_end_unit = self.signal_start_end_unit
+
         def mapping_function(sample: Dict[str, Any]) -> Dict[str, Any]:
             video_path = sample["signal"]
-            # Convert millisecond timestamps to seconds
-            start_ms = sample.get("signal_start", 0) or 0
-            end_ms   = sample.get("signal_end",   0) or 0
-            start_sec = start_ms / 1000.0
-            end_sec   = end_ms   / 1000.0 if end_ms > 0 else None
+            signal_start = sample.get("signal_start", 0) or 0
+            signal_end   = sample.get("signal_end",   0) or 0
+            full_signal  = signal_start == 0 and signal_end == 0
 
-            # Try to open and seek; skip if no video stream or any error
+            # Open the container to validate the video stream.
             container = av.open(str(video_path))
             if not container.streams.video:
+                container.close()
                 sample["_invalid"] = True
                 sample["DURATION"] = 0
                 return sample
+
+            if signal_start_end_unit == "frames" and not full_signal:
+                # Frame indices: duration is trivially signal_end - signal_start.
+                # No frame decoding needed.
+                container.close()
+                sample["DURATION"] = int(signal_end) - int(signal_start)
+                sample["_invalid"] = False
+                return sample
+
+            # For the ms unit (any bounds) or frames unit with full-file load:
+            # count frames by decoding through av, seeking by time.
+            if signal_start_end_unit == "milliseconds":
+                start_sec = signal_start / 1000.0
+                end_sec   = signal_end   / 1000.0 if signal_end > 0 else None
+            else:
+                # frames unit, full file (0/0)
+                start_sec = 0.0
+                end_sec   = None
 
             stream = container.streams.video[0]
             start_pts = int(start_sec / float(stream.time_base))
@@ -185,10 +210,10 @@ class Video2TextDataset(datasets.GeneratorBasedBuilder):
                 count_new += 1
             container.close()
 
-            # If within ±2 frames of the threshold, fallback to old method
+            # For the ms unit, if within ±2 frames of the threshold fall back
+            # to torchvision for an exact count.
             maxf = self.max_frames
-            if maxf is not None and abs(count_new - maxf) <= 2:
-                # --- Fallback (torchvision.read_video) ---
+            if signal_start_end_unit == "milliseconds" and maxf is not None and abs(count_new - maxf) <= 2:
                 frames, _, _ = read_video(
                     str(video_path),
                     start_pts=start_sec,
