@@ -112,12 +112,18 @@ Tracking breaking changes found when updating multimodalhugs from `transformers<
 
 ---
 
-### 12. `get_image_features()` returns `ModelOutput` instead of tensor
+### 12. `CLIPModel._init_weights` crashes when text branch is nullified; replace with `CLIPVisionModelWithProjection`
 **Files affected:** `multimodalhugs/modules/feature_extractor.py`
 
-**Change:** In transformers 5.x, `CLIPModel.get_image_features()` returns `BaseModelOutputWithPooling` instead of a plain tensor.
+**Change:** In transformers 5.x, `from_pretrained` (and random-init via `post_init`) calls `initialize_weights() → smart_apply → _init_weights` on every submodule. `CLIPModel._init_weights` unconditionally accesses `module.text_projection.weight`, crashing with `AttributeError: 'NoneType' object has no attribute 'weight'` when the text branch has been nullified (`text_model = None`, `text_projection = None`).
 
-**Fix:** After calling `get_image_features()`, check if the result is already a tensor. If not, extract the primary feature tensor in a model-agnostic way: prefer `pooler_output` (projected/pooled representation) when available, fall back to `last_hidden_state` for models without a pooling head.
+**Root cause:** The old code loaded a full `CLIPModel` and discarded the text branch by setting `text_model = None` and `text_projection = None`. This worked in 4.x but is unsafe in 5.x because weight-init hooks run after submodule assignment and don't guard against `None` components.
+
+**Fix:** Replaced `CLIPModel` + text nullification with `CLIPVisionModelWithProjection`:
+- Vision-only model with no `text_model` or `text_projection` attributes whatsoever.
+- Takes `CLIPVisionConfig`; extracted from the `CLIPConfig.vision_config` sub-config when a full `CLIPConfig` is passed.
+- `forward(pixel_values=x).image_embeds` returns the projected vision features as a plain tensor — no `ModelOutput` unwrapping needed.
+- `CLIPVisionModelWithProjection.from_pretrained("openai/clip-vit-base-patch32")` loads correctly from a full CLIP checkpoint (extra text-model keys are ignored with a warning).
 
 ---
 
@@ -181,6 +187,47 @@ Generation length is now controlled separately for each use case:
   ```
 
 - **Default behaviour when neither is set:** `model.generation_config.max_length` is `None` after setup (no value is baked in). `generate()` then applies a hardcoded fallback of **20 new tokens** (output length ≤ 21 including the decoder start token), with a UserWarning recommending `max_new_tokens` be set explicitly.
+
+---
+
+### 19. `Seq2SeqTrainer.__init__` no longer accepts `tokenizer` kwarg
+**Files affected:** `multimodalhugs/multilingual_seq2seq_trainer.py`, `multimodalhugs/tasks/translation/translation_training.py`, `multimodalhugs/tasks/translation/translation_generate.py`
+
+**Change:** In transformers 5.x, `Trainer.__init__` (and `Seq2SeqTrainer.__init__`) removed the `tokenizer` parameter. The replacement is `processing_class`, which accepts any processor/tokenizer instance.
+
+**Fix:**
+- Renamed `tokenizer` parameter to `processing_class` in `MultiLingualSeq2SeqTrainer.__init__`.
+- Replaced `tokenizer=tokenizer` with `processing_class=tokenizer` at all three call sites.
+- Replaced `self.tokenizer` with `self.processing_class` throughout the trainer body.
+
+---
+
+### 20. `generate()` requires `main_input_name` to identify the encoder input
+**Files affected:** `multimodalhugs/models/multimodal_embedder/modeling_multimodal_embedder.py`
+
+**Change:** In transformers 5.x, `GenerationMixin.generate()` added a hard guard in `_prepare_model_inputs`: it looks up `self.main_input_name` in the provided kwargs to find the encoder input. If the named key is absent and `bos_token_id` is also None, it raises `ValueError: bos_token_id has to be defined when no input_ids are provided`. `PreTrainedModel.main_input_name` defaults to `"input_ids"`, but our model's primary encoder input is `"input_frames"`.
+
+In 4.x the same check was absent, so `input_frames` stayed in `model_kwargs` and reached the encoder naturally through `_prepare_encoder_decoder_kwargs_for_generation`.
+
+**Fix:** Added `main_input_name = "input_frames"` as a class attribute on `MultiModalEmbedderModel`. This is the standard HuggingFace pattern for models whose primary input is not token IDs (e.g. `CLIPModel.main_input_name = "pixel_values"`, `Wav2Vec2Model.main_input_name = "input_values"`). The `EncoderWrapper` already handles `input_frames` correctly; this was the missing declaration.
+
+---
+
+### 21. `GenerationConfig.max_length` defaults to `None` in 5.x; padding comparisons crash
+**Files affected:** `multimodalhugs/multilingual_seq2seq_trainer.py`
+
+**Change:** In transformers 4.x, `GenerationConfig.max_length` defaulted to 20. In 5.x it defaults to `None` (generation length is expected to be controlled via `max_new_tokens` or set explicitly). The custom `prediction_step` compared `generated_tokens.shape[-1] < self.generation_config.max_length` without a None guard, raising `TypeError: '<' not supported between instances of 'int' and 'NoneType'`.
+
+**Fix:** Before the post-generation padding logic, apply `gen_config.update(**gen_config._get_default_generation_params(), defaults_only=True)`. This fills in `max_length=20` (and other defaults) for any field still set to `None`, matching what the 5.x `Seq2SeqTrainer.prediction_step` does internally. The `max_length` comparison then works correctly.
+
+---
+
+### 22. `synced_gpus` must include FSDP-managed models
+**Files affected:** `multimodalhugs/multilingual_seq2seq_trainer.py`
+
+**Change:** In transformers 5.x, `Seq2SeqTrainer.prediction_step` changed `default_synced_gpus` from `is_deepspeed_zero3_enabled()` to `is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self.model)`. FSDP-sharded models require all ranks to stay in sync during autoregressive decoding, the same as DeepSpeed ZeRO-3.
+
+**Fix:** Added `from transformers.integrations.fsdp import is_fsdp_managed_module` and updated the `default_synced_gpus` expression to match the 5.x parent.
 
 ---
 
