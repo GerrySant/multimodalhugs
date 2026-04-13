@@ -269,8 +269,10 @@ def main():
         eval_dataset=test_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=lambda eval_preds: compute_metrics(eval_preds, tokenizer, metrics_list, metric_names)
-            if training_args.predict_with_generate and metrics_list else None,
+        compute_metrics=(
+            (lambda eval_preds: compute_metrics(eval_preds, tokenizer, metrics_list, metric_names))
+            if training_args.predict_with_generate and metrics_list else None
+        ),
         visualize_prediction_prob=training_args.visualize_prediction_prob
     )
 
