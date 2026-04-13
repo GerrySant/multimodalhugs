@@ -11,12 +11,22 @@ Each version section may have subsections for: _Added_, _Changed_, _Removed_, _D
 ### Changed
 
 - **`multimodalhugs-generate` now supports multiple metrics via `--metric_name`.**
-  `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently and stored under its own key in the results. Single-metric usage is unchanged.
+  `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently and stored under its own key in the results (e.g. `predict_sacrebleu`, `predict_chrf`).
+
+  **Breaking change for existing single-metric users:** the output key in `predict_results.json` changed from the metric's internal key (e.g. `predict_score`) to the user-supplied metric name (e.g. `predict_sacrebleu`). Any downstream script reading `predict_score` must be updated.
+
+### Removed
+
+- **Metric sub-fields no longer appear in `predict_results.json`.**
+  The previous implementation stored every field returned by the metric (e.g. `precisions`, `bp`, `sys_len`, `ref_len` for sacrebleu). Only a single scalar per metric is now stored. Users who relied on those sub-fields should read them directly via the `evaluate` library.
 
 ### Fixed
 
 - **`multimodalhugs-generate` no longer crashes when `--metric_name` is not specified.**
   A lambda returning `None` was being passed as `compute_metrics` to the trainer even when no metrics were requested, causing a `TypeError` when the trainer tried to assign `predict_loss` to the result. `compute_metrics=None` is now passed directly in that case.
+
+- **`multimodalhugs-generate` now warns instead of silently returning `0.0` for metrics without a `"score"` key.**
+  Metrics like `rouge` return result dicts with no `"score"` entry. Previously this fell back to `0.0` without any indication. A logger warning is now emitted listing the available keys.
 
 ---
 

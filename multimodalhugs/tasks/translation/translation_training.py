@@ -295,9 +295,6 @@ def main():
         return preds, labels
 
     def compute_metrics(eval_preds):
-        if not metrics_list:
-            return {}
-
         compute_metrics_tokenizer = tokenizer if tokenizer is not None else processor.tokenizer
         preds, labels = eval_preds
         if isinstance(preds, tuple):
@@ -331,7 +328,9 @@ def main():
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics if training_args.predict_with_generate else None,
+        compute_metrics=(
+            compute_metrics if training_args.predict_with_generate and metrics_list else None
+        ),
         visualize_prediction_prob=training_args.visualize_prediction_prob,
         print_decoder_prompt_on_prediction=training_args.print_decoder_prompt_on_prediction,
         print_special_tokens_on_prediction=training_args.print_special_tokens_on_prediction,
