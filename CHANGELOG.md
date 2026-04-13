@@ -13,6 +13,11 @@ Each version section may have subsections for: _Added_, _Changed_, _Removed_, _D
 - **`multimodalhugs-generate` now supports multiple metrics via `--metric_name`.**
   `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently and stored under its own key in the results. Single-metric usage is unchanged.
 
+### Fixed
+
+- **`multimodalhugs-generate` no longer crashes when `--metric_name` is not specified.**
+  A lambda returning `None` was being passed as `compute_metrics` to the trainer even when no metrics were requested, causing a `TypeError` when the trainer tried to assign `predict_loss` to the result. `compute_metrics=None` is now passed directly in that case.
+
 ---
 
 ## [0.5.2]
