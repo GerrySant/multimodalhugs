@@ -6,6 +6,15 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
+## [0.5.3]
+
+### Changed
+
+- **`multimodalhugs-generate` now supports multiple metrics via `--metric_name`.**
+  `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently and stored under its own key in the results. Single-metric usage is unchanged.
+
+---
+
 ## [0.5.2]
 
 ### Added
