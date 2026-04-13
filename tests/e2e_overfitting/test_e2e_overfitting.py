@@ -146,7 +146,7 @@ def test_generation_score_is_perfect():
     with open(result_path, "r") as f:
         results = json.load(f)
 
-    score = results.get("predict_score", None)
-    assert score is not None, "predict_score not found in result file"
-    print(f"✅ predict_score from predict_results.json: {score}")
-    assert score == 100.0, f"Expected predict_score of 100.0, got {score}"
+    score = results.get("predict_chrf", None)
+    assert score is not None, "predict_chrf not found in result file"
+    print(f"✅ predict_chrf from predict_results.json: {score}")
+    assert score == 100.0, f"Expected predict_chrf of 100.0, got {score}"
