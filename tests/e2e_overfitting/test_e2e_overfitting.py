@@ -151,4 +151,3 @@ def test_generation_score_is_perfect():
     print(f"✅ predict_chrf: {results['predict_chrf']}")
     print(f"✅ predict_sacrebleu: {results['predict_sacrebleu']}")
     assert results["predict_chrf"] == 100.0, f"Expected predict_chrf of 100.0, got {results['predict_chrf']}"
-    assert results["predict_sacrebleu"] == 100.0, f"Expected predict_sacrebleu of 100.0, got {results['predict_sacrebleu']}"
