@@ -862,4 +862,4 @@ Full end-to-end pipeline test using the image2text modality.
 |---|---|
 | `test_setup_runs_successfully` | `multimodalhugs_cli.training_setup` completes without error |
 | `test_model_converges_in_training` | Training run achieves `eval_chrf=100.0` |
-| `test_generation_score_is_perfect` | Generation on the best checkpoint achieves `predict_score=100.0` |
+| `test_generation_score_is_perfect` | Generation on the best checkpoint with `--metric_name sacrebleu,chrf` achieves `predict_sacrebleu=100.0` and `predict_chrf=100.0`; verifies both metric keys are present in `predict_results.json` (exercises the multi-metric zip loop and separate `evaluate.load` calls) |
