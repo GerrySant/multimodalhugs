@@ -312,7 +312,12 @@ def main():
             metric_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
             for k, v in metric_result.items():
                 out_key = name if k == "score" else f"{name}_{k}"
-                result[out_key] = round(v, 4) if isinstance(v, (float, int)) else v
+                if isinstance(v, (float, int)):
+                    result[out_key] = round(v, 4)
+                elif isinstance(v, list):
+                    result[out_key] = str(v)
+                else:
+                    result[out_key] = v
 
         prediction_lens = [np.count_nonzero(pred != compute_metrics_tokenizer.pad_token_id) for pred in preds]
         result["gen_len"] = round(np.mean(prediction_lens), 4)
