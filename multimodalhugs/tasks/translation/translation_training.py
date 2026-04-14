@@ -310,7 +310,9 @@ def main():
         result = {}
         for metric, name in zip(metrics_list, metric_names):
             metric_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-            result[name] = round(metric_result.get("score", metric_result.get(name, 0.0)), 4)
+            for k, v in metric_result.items():
+                out_key = name if k == "score" else f"{name}_{k}"
+                result[out_key] = round(v, 4) if isinstance(v, (float, int)) else v
 
         prediction_lens = [np.count_nonzero(pred != compute_metrics_tokenizer.pad_token_id) for pred in preds]
         result["gen_len"] = round(np.mean(prediction_lens), 4)

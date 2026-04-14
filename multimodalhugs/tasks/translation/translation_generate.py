@@ -81,14 +81,9 @@ def compute_metrics(eval_preds, tokenizer, metrics_list, metric_names):
     result = {}
     for metric, name in zip(metrics_list, metric_names):
         raw_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-        score = raw_result.get("score", raw_result.get(name, None))
-        if score is None:
-            logger.warning(
-                f"Metric '{name}' did not return a 'score' or '{name}' key. "
-                f"Available keys: {list(raw_result.keys())}. Storing 0.0."
-            )
-            score = 0.0
-        result[name] = round(score, 4)
+        for k, v in raw_result.items():
+            out_key = name if k == "score" else f"{name}_{k}"
+            result[out_key] = round(v, 4) if isinstance(v, (float, int)) else v
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
     result["gen_len"] = round(np.mean(prediction_lens), 4)
     return result
