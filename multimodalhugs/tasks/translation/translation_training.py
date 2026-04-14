@@ -295,9 +295,6 @@ def main():
         return preds, labels
 
     def compute_metrics(eval_preds):
-        if not metrics_list:
-            return {}
-
         compute_metrics_tokenizer = tokenizer if tokenizer is not None else processor.tokenizer
         preds, labels = eval_preds
         if isinstance(preds, tuple):
@@ -313,7 +310,14 @@ def main():
         result = {}
         for metric, name in zip(metrics_list, metric_names):
             metric_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-            result[name] = round(metric_result.get("score", metric_result.get(name, 0.0)), 4)
+            for k, v in metric_result.items():
+                out_key = name if k == "score" else f"{name}_{k}"
+                if isinstance(v, (float, int)):
+                    result[out_key] = round(v, 4)
+                elif isinstance(v, list):
+                    result[out_key] = str(v)
+                else:
+                    result[out_key] = v
 
         prediction_lens = [np.count_nonzero(pred != compute_metrics_tokenizer.pad_token_id) for pred in preds]
         result["gen_len"] = round(np.mean(prediction_lens), 4)
@@ -331,7 +335,9 @@ def main():
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics if training_args.predict_with_generate else None,
+        compute_metrics=(
+            compute_metrics if training_args.predict_with_generate and metrics_list else None
+        ),
         visualize_prediction_prob=training_args.visualize_prediction_prob,
         print_decoder_prompt_on_prediction=training_args.print_decoder_prompt_on_prediction,
         print_special_tokens_on_prediction=training_args.print_special_tokens_on_prediction,

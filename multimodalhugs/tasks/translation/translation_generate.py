@@ -68,7 +68,7 @@ def postprocess_text(preds, labels):
     labels = [[label.strip()] for label in labels]
     return preds, labels
 
-def compute_metrics(eval_preds, tokenizer, metric):
+def compute_metrics(eval_preds, tokenizer, metrics_list, metric_names):
     preds, labels = eval_preds
     if isinstance(preds, tuple):
         preds = preds[0]
@@ -78,17 +78,19 @@ def compute_metrics(eval_preds, tokenizer, metric):
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
     decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-    raw_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-    result = dict(raw_result)
+    result = {}
+    for metric, name in zip(metrics_list, metric_names):
+        raw_result = metric.compute(predictions=decoded_preds, references=decoded_labels)
+        for k, v in raw_result.items():
+            out_key = name if k == "score" else f"{name}_{k}"
+            if isinstance(v, (float, int)):
+                result[out_key] = round(v, 4)
+            elif isinstance(v, list):
+                result[out_key] = str(v)
+            else:
+                result[out_key] = v
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
-    result["gen_len"] = np.mean(prediction_lens)
-    # Convert values to rounded numbers or to a string if it is a list.
-    result = {
-        k: (round(v, 4) if isinstance(v, (float, int))
-            else ", ".join(str(x) for x in v) if isinstance(v, list)
-            else v)
-        for k, v in result.items()
-    }
+    result["gen_len"] = round(np.mean(prediction_lens), 4)
     return result
 
 # -----------------------------
@@ -257,10 +259,12 @@ def main():
     # to *load* this module, even in pose-only or text-only setups that never
     # use a metric. Keeping the import conditional means environments without
     # `av` can still run generation as long as no metric is requested.
-    metric = None
+    metrics_list = []
+    metric_names = []
     if training_args.metric_name is not None:
         import evaluate
-        metric = evaluate.load(training_args.metric_name, cache_dir=model_args.cache_dir)
+        metric_names = [m.strip() for m in training_args.metric_name.split(",")]
+        metrics_list = [evaluate.load(name, cache_dir=model_args.cache_dir) for name in metric_names]
     training_args.generation_config = generation_config if generation_config is not None else None
 
     if generate_args.generate_output_dir is not None: # HOTFIX to ensure the trainer stores all_results.json at generate_output_dir directory
@@ -272,8 +276,10 @@ def main():
         eval_dataset=test_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=lambda eval_preds: compute_metrics(eval_preds, tokenizer, metric)
-            if training_args.predict_with_generate and metric is not None else None,
+        compute_metrics=(
+            (lambda eval_preds: compute_metrics(eval_preds, tokenizer, metrics_list, metric_names))
+            if training_args.predict_with_generate and metrics_list else None
+        ),
         visualize_prediction_prob=training_args.visualize_prediction_prob
     )
 

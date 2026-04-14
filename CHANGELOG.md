@@ -6,6 +6,22 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
+## [0.5.3]
+
+### Changed
+
+- **`multimodalhugs-generate` now supports multiple metrics via `--metric_name`.**
+  `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently. All fields returned by each metric are written to `predict_results.json` under namespaced keys: sub-fields use `predict_<metric_name>_<field>` (e.g. `predict_sacrebleu_bp`, `predict_sacrebleu_precisions`). For metrics that expose a `score` key (e.g. `sacrebleu`, `chrf`), the primary scalar is additionally stored under the short key `predict_<metric_name>`. For metrics that do not expose a `score` key (e.g. `rouge`, which returns `rouge1`, `rouge2`, etc.), only the namespaced sub-fields are written — there is no top-level `predict_<metric_name>` entry. This avoids key collisions across multiple metrics while preserving all diagnostic information.
+
+  **Breaking change:** the primary score key changed from the metric's internal key (e.g. `predict_score`) to the user-supplied metric name (e.g. `predict_sacrebleu`). Any downstream script reading `predict_score` must be updated.
+
+### Fixed
+
+- **`multimodalhugs-generate` no longer crashes when `--metric_name` is not specified.**
+  A lambda returning `None` was being passed as `compute_metrics` to the trainer even when no metrics were requested, causing a `TypeError` when the trainer tried to assign `predict_loss` to the result. `compute_metrics=None` is now passed directly in that case.
+
+---
+
 ## [0.5.2]
 
 ### Added
