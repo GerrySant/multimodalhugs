@@ -4,16 +4,6 @@ This document catalogs every test in the suite, organized by file. Each entry de
 
 ---
 
-## `test_config/`
-
-### `test_multimodal_embedder_config.py`
-
-> **Note (transformers 5.x update):** `max_length` and `use_backbone_max_length` were removed from `MultiModalEmbedderConfig` as part of the transformers 5.x compatibility update (see `docs/transformers_compatibility.md` §8). Generation length is now managed via `model.generation_config.max_length`. The four tests that previously covered these config-level parameters were removed along with the parameters themselves.
-
-_(No active tests in this file.)_
-
----
-
 ## `test_data/`
 
 ### `test_data_utils.py`
