@@ -11,7 +11,7 @@ Each version section may have subsections for: _Added_, _Changed_, _Removed_, _D
 ### Changed
 
 - **`multimodalhugs-generate` now supports multiple metrics via `--metric_name`.**
-  `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently. All fields returned by each metric are written to `predict_results.json` under namespaced keys: the primary scalar uses `predict_<metric_name>` (mapped from the metric's `score` key) and sub-fields use `predict_<metric_name>_<field>` (e.g. `predict_sacrebleu_bp`, `predict_sacrebleu_precisions`). This avoids key collisions across multiple metrics while preserving all diagnostic information.
+  `metric_name` accepts a comma-separated list (e.g. `sacrebleu,chrf`). Each metric is evaluated independently. All fields returned by each metric are written to `predict_results.json` under namespaced keys: sub-fields use `predict_<metric_name>_<field>` (e.g. `predict_sacrebleu_bp`, `predict_sacrebleu_precisions`). For metrics that expose a `score` key (e.g. `sacrebleu`, `chrf`), the primary scalar is additionally stored under the short key `predict_<metric_name>`. For metrics that do not expose a `score` key (e.g. `rouge`, which returns `rouge1`, `rouge2`, etc.), only the namespaced sub-fields are written — there is no top-level `predict_<metric_name>` entry. This avoids key collisions across multiple metrics while preserving all diagnostic information.
 
   **Breaking change:** the primary score key changed from the metric's internal key (e.g. `predict_score`) to the user-supplied metric name (e.g. `predict_sacrebleu`). Any downstream script reading `predict_score` must be updated.
 
