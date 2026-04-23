@@ -113,6 +113,12 @@ class PoseModalityProcessor(ModalityProcessor):
             with open(pose_file, "rb") as f:
                 pose = Pose.read(f, start_frame=start_f, end_frame=end_f)
 
+        # Some estimators (e.g. OpenPose) can detect multiple people, but in
+        # sign language data there is almost always a single signer. Keeping
+        # only the first person is therefore a safe default heuristic and
+        # avoids downstream shape mismatches when extra detections are spurious.
+        pose.body.data = pose.body.data[:, :1]
+        pose.body.confidence = pose.body.confidence[:, :1]
         pose_hide_legs(pose)
         if self.reduce_holistic_poses:
             pose = reduce_holistic(pose)
