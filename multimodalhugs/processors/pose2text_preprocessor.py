@@ -81,7 +81,8 @@ class Pose2TextTranslationProcessor(MultimodalSequence2SequenceProcessor):  # Fe
         
         with open(pose_file, "rb") as pose_file:
             pose = Pose.read(pose_file, start_time=signal_start or None, end_time=signal_end or None) 
-        
+            pose.body.data = pose.body.data[:, :1]
+            pose.body.confidence = pose.body.confidence[:, :1]
         pose_hide_legs(pose)
     
         if self.reduce_holistic_poses:
