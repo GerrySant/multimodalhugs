@@ -1,7 +1,10 @@
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 try:
     from pose_format import Pose
@@ -117,6 +120,14 @@ class PoseModalityProcessor(ModalityProcessor):
         # sign language data there is almost always a single signer. Keeping
         # only the first person is therefore a safe default heuristic and
         # avoids downstream shape mismatches when extra detections are spurious.
+        n_people = pose.body.data.shape[1]
+        if n_people > 1:
+            logger.warning(
+                "Pose file '%s' contains %d people; truncating to person 0. "
+                "This is the expected behaviour for single-signer data.",
+                pose_file,
+                n_people,
+            )
         pose.body.data = pose.body.data[:, :1]
         pose.body.confidence = pose.body.confidence[:, :1]
         pose_hide_legs(pose)
