@@ -130,7 +130,7 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
         gen_kwargs = self.model.generation_config.to_dict()
         if not self.args.predict_with_generate or prediction_loss_only:
             return Trainer.prediction_step(
-                model, inputs, prediction_loss_only=prediction_loss_only, ignore_keys=ignore_keys
+                self, model, inputs, prediction_loss_only=prediction_loss_only, ignore_keys=ignore_keys
             )
         has_labels = "labels" in inputs
         inputs = self._prepare_inputs(inputs)
