@@ -313,10 +313,10 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
 
         # Re-establish tied weight references after load_state_dict.
         # load_state_dict copies values but does not restore Python object identity
-        # between tied parameters.  tie_weights() reconnects them via the backbone's
-        # _tied_weights_keys mapping (a dict in transformers 5.x).
-        if hasattr(model.backbone, "tie_weights"):
-            model.backbone.tie_weights()
+        # between tied parameters.  tie_weights() reconnects them at the composite
+        # model scope using the prefixed keys stored in all_tied_weights_keys (5.x).
+        if hasattr(model, "tie_weights"):
+            model.tie_weights()
 
         # Converts all tensors in the model to contiguous
         for param in model.parameters():
