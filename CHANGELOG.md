@@ -6,6 +6,16 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
+## [0.5.4]
+
+### Fixed
+
+- **`PoseModalityProcessor` now enforces single-person pose data.** After reading a pose file, the processor always truncates the person dimension to index 0. Multi-person estimators (e.g. OpenPose) can return spurious extra detections that cause downstream shape mismatches; since sign language data almost always contains a single signer, keeping only the first person is the correct default. A `logger.warning` is emitted when truncation actually occurs, reporting the file path and the number of detected people.
+
+- **`MultiLingualSeq2SeqTrainer.prediction_step` no longer crashes when `compute_metrics` is not configured.** The method was calling `Trainer.prediction_step` as an unbound class method without passing `self`, so `model` was silently bound to the instance slot and `inputs` went unfilled, raising `TypeError: Trainer.prediction_step() missing 1 required positional argument: 'inputs'`. This path is hit whenever `prediction_loss_only=True`, which the base `Trainer.evaluate()` sets when `compute_metrics=None` (i.e. `--metric_name` is not specified). Fixed by passing `self` explicitly.
+
+---
+
 ## [0.5.3]
 
 ### Changed

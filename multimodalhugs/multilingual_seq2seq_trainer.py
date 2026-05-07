@@ -20,7 +20,6 @@ from transformers.integrations.fsdp import is_fsdp_managed_module
 
 if torch.distributed.is_available():
     from torch.distributed.fsdp import FullyShardedDataParallel
-from transformers.trainer import Trainer
 from transformers.utils import logging
 
 
@@ -135,8 +134,8 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
             labels (each being optional).
         """
         if not self.args.predict_with_generate or prediction_loss_only:
-            return super().prediction_step(
-                model, inputs, prediction_loss_only=prediction_loss_only, ignore_keys=ignore_keys
+            return Trainer.prediction_step(
+                self, model, inputs, prediction_loss_only=prediction_loss_only, ignore_keys=ignore_keys
             )
         has_labels = "labels" in inputs
         inputs = self._prepare_inputs(inputs)
