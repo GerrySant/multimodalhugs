@@ -2,6 +2,7 @@
 import logging
 import math
 import importlib
+import warnings
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Tuple, Union
 
@@ -144,6 +145,12 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         eos_token_id: Optional[int] = None,
         **kwargs):
 
+        warnings.warn(
+            "MultiModalEmbedderConfig is deprecated and will be removed in multimodalhugs v0.7.0. "
+            "Use ModularMultiModalConfig instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
         # Pass remaining arguments to the parent (e.g. name, hashes, revisions)
         super().__init__(**kwargs)
 

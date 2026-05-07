@@ -2,6 +2,7 @@
 import logging
 import math
 import importlib
+import warnings
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Tuple, Union
 
@@ -59,6 +60,12 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         **Args:**
         - `config` (MultiModalEmbedderConfig): Model configuration.
         """
+        warnings.warn(
+            "MultiModalEmbedderModel is deprecated and will be removed in multimodalhugs v0.7.0. "
+            "Use ModularMultiModalForConditionalGeneration instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
         super().__init__(config)
         self._init_feature_extractor(config)
         self._init_multimodal_mapper(config)
