@@ -150,9 +150,7 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
             gen_kwargs.pop("max_length")
 
         default_synced_gpus = is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self.model)
-        gen_kwargs["synced_gpus"] = (
-            gen_kwargs["synced_gpus"] if gen_kwargs.get("synced_gpus") is not None else default_synced_gpus
-        )
+        gen_kwargs["synced_gpus"] = gen_kwargs.get("synced_gpus", default_synced_gpus)
         generation_inputs = inputs.copy()
 
         # If the `decoder_input_ids` was created from `labels`, evict the former, so that the model can freely generate
@@ -203,27 +201,29 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
                     generated_tokens[i] = F.pad(generated_tokens[i], (0, max_len_generation - generated_tokens[i].size(1)), value=self.processing_class.pad_token_id)
                 generated_tokens = torch.cat(generated_tokens, dim=0)
 
+        # Temporary hack to ensure the generation config is not initialized for each iteration of the
+        # evaluation loop. Matches the upstream Seq2SeqTrainer pattern added in transformers 5.x.
+        if self.model.generation_config._from_model_config:
+            self.model.generation_config._from_model_config = False
+
         # Fill in any None fields on generation_config with their defaults so that
         # comparisons like `shape[-1] < gen_config.max_length` never raise TypeError.
         gen_config = self.model.generation_config
         gen_config.update(**gen_config._get_default_generation_params(), defaults_only=True)
-        self.generation_config = gen_config
         # in case the batch is shorter than max length, the output should be padded
-        if hasattr(self, "generation_max_length") and self.generation_max_length is not None and generated_tokens.shape[-1] < self.generation_max_length + 1:
-            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, self.generation_max_length + 1)
+        if generated_tokens.shape[-1] < gen_config.max_length:
+            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_length)
         elif gen_config.max_new_tokens is not None and generated_tokens.shape[-1] < gen_config.max_new_tokens + 1:
             generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_new_tokens + 1)
-        elif generated_tokens.shape[-1] < gen_config.max_length:
-            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_length)
 
         with torch.no_grad():
             if has_labels:
                 with self.compute_loss_context_manager():
                     outputs = model(**inputs)
                 if self.label_smoother is not None:
-                    loss = self.label_smoother(outputs, inputs["labels"]).mean().detach()
+                    loss = self.label_smoother(outputs, inputs["labels"]).detach().mean()
                 else:
-                    loss = (outputs["loss"] if isinstance(outputs, dict) else outputs[0]).mean().detach()
+                    loss = (outputs["loss"] if isinstance(outputs, dict) else outputs[0]).detach().mean()
             else:
                 loss = None
 
@@ -232,12 +232,10 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
 
         if has_labels:
             labels = inputs["labels"]
-            if hasattr(self, "generation_max_length") and self.generation_max_length is not None and labels.shape[-1] < self.generation_max_length + 1:
-                labels = self._pad_tensors_to_max_len(labels, self.generation_max_length + 1)
+            if labels.shape[-1] < gen_config.max_length:
+                labels = self._pad_tensors_to_max_len(labels, gen_config.max_length)
             elif gen_config.max_new_tokens is not None and labels.shape[-1] < gen_config.max_new_tokens + 1:
                 labels = self._pad_tensors_to_max_len(labels, gen_config.max_new_tokens + 1)
-            elif labels.shape[-1] < gen_config.max_length:
-                labels = self._pad_tensors_to_max_len(labels, gen_config.max_length)
         else:
             labels = None
         if random.random() < self.visualize_prediction_prob:
