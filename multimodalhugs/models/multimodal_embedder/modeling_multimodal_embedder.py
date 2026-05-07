@@ -88,8 +88,6 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
 
         if self.feature_extractor is not None:
             self.is_parallelizable = self.is_parallelizable and getattr(self.feature_extractor, "is_parallelizable", True)
-            self._no_split_modules = self._no_split_modules + list(getattr(self.feature_extractor, "_no_split_modules", []) or [])
-            self._keep_in_fp32_modules = self._keep_in_fp32_modules + list(getattr(self.feature_extractor, "_keep_in_fp32_modules", []) or [])
 
     def _init_multimodal_mapper(self, config):
         """
@@ -140,8 +138,6 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         )
         set_module_parameters(self.get_shared, freeze=freeze_shared, verbose=False)
         self.is_parallelizable = self.is_parallelizable and getattr(self.backbone, "is_parallelizable", True)
-        self._no_split_modules = self._no_split_modules + list(getattr(self.backbone, "_no_split_modules", []) or [])
-        self._keep_in_fp32_modules = self._keep_in_fp32_modules + list(getattr(self.backbone, "_keep_in_fp32_modules", []) or [])
 
     def get_input_embeddings(self):
         """
