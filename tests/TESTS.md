@@ -784,8 +784,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 |---|---|
 | `test_pose_processor_raises_without_pose_format` | `PoseModalityProcessor()` raises `ImportError` mentioning `pose-format` when `_POSE_FORMAT_AVAILABLE=False` |
 | `test_signwriting_processor_raises_without_signwriting` | `SignwritingModalityProcessor()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
-| `test_video_processor_raises_without_cv2_when_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=...)` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
-| `test_video_processor_raises_without_torchvision` | `VideoModalityProcessor()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
+| `test_video_processor_raises_on_invalid_backend` | `VideoModalityProcessor(backend="invalid_backend")` raises `ValueError` mentioning `backend must be one of` |
 | `test_image_processor_raises_without_cv2` | `ImageModalityProcessor()` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
 
 **Datasets**
@@ -796,7 +795,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 | `test_signwriting_dataset_raises_without_signwriting` | `SignWritingDataset()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
 | `test_video2text_dataset_raises_without_av` | `Video2TextDataset()` raises `ImportError` mentioning `av` when `_AV_AVAILABLE=False` |
 | `test_video2text_dataset_raises_without_torchvision` | `Video2TextDataset()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
-| `test_video_processor_no_raise_without_cv2_when_no_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=None)` does **not** raise when `_CV2_AVAILABLE=False`; cv2 is only required when a custom preprocessor path is provided |
+| `test_video_processor_accepts_supported_backends` | `VideoModalityProcessor(backend=b)` instantiates without error for every backend in `SUPPORTED_BACKENDS`; availability of the backend package is deferred to call time |
 
 ---
 

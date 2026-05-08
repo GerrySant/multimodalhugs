@@ -8,24 +8,15 @@ import numpy as np
 import torch
 from PIL import Image
 from transformers import AutoProcessor
-
-try:
-    import cv2
-    _CV2_AVAILABLE = True
-except ImportError:
-    _CV2_AVAILABLE = False
-
-try:
-    from torchvision.io import read_video
-    _TORCHVISION_AVAILABLE = True
-except ImportError:
-    _TORCHVISION_AVAILABLE = False
+from transformers.video_utils import load_video, VideoMetadata
 
 from multimodalhugs.data import pad_and_create_mask
 from multimodalhugs.processors.modality_processor import ModalityProcessor, ProcessBatchOutput
-from multimodalhugs.processors.utils import frame_skipping, get_dynamic_cache_size, SignalUnit
+from multimodalhugs.processors.utils import get_dynamic_cache_size, SignalUnit
 
 logger = logging.getLogger(__name__)
+
+SUPPORTED_BACKENDS = {"pyav", "torchvision", "torchcodec", "decord", "opencv"}
 
 
 class VideoModalityProcessor(ModalityProcessor):
@@ -41,6 +32,8 @@ class VideoModalityProcessor(ModalityProcessor):
     def __init__(
         self,
         custom_preprocessor_path: Optional[str] = None,
+        backend: str = "pyav",
+        num_frames: Optional[int] = None,
         skip_frames_stride: Optional[int] = None,
         join_chw: bool = False,
         use_cache: bool = False,
@@ -51,12 +44,21 @@ class VideoModalityProcessor(ModalityProcessor):
         Args:
             custom_preprocessor_path: HuggingFace model ID or local path to an
                 image preprocessor (e.g. ``"openai/clip-vit-base-patch32"``).
-                When provided, frames are decoded with OpenCV and passed through
-                the preprocessor (e.g. CLIPImageProcessor). When None, frames
-                are read with torchvision and returned as raw float tensors.
+                When provided, frames are passed through the preprocessor
+                (e.g. CLIPImageProcessor) after decoding. When None, frames are
+                returned as raw float tensors.
+            backend: Video decoding backend. One of ``"pyav"`` (default),
+                ``"torchvision"``, ``"torchcodec"``, ``"decord"``, or
+                ``"opencv"``. The chosen backend must be installed; if it is not,
+                ``load_video`` raises a clear ``ImportError`` at call time.
+                ``"torchcodec"`` decodes directly to GPU tensors and eliminates
+                the CPU→GPU copy bottleneck for large-batch training.
+            num_frames: If set, uniformly subsample this many frames from the
+                clip window. Takes precedence over ``skip_frames_stride`` when
+                both are set. Default: None (keep all frames).
             skip_frames_stride: If set, keeps only every N-th frame along the
                 temporal axis after loading (e.g. 2 → halve frame rate).
-                None disables downsampling. Default: None.
+                Ignored when ``num_frames`` is set. Default: None.
             join_chw: If True, merges the channel, height, and width dimensions
                 into a single feature dimension, producing shape [B, T, C*H*W]
                 instead of [B, T, C, H, W]. Default: False.
@@ -69,24 +71,14 @@ class VideoModalityProcessor(ModalityProcessor):
                 (1 s, 2 s, 4 s, …) to tolerate transient NFS slowness on
                 shared clusters. Default: 3.
             signal_start_end_unit: Unit for ``signal_start`` / ``signal_end``
-                values in the dataset.  Either ``SignalUnit.MILLISECONDS``
-                (default, current behaviour — for the OpenCV path values are
-                used with ``CAP_PROP_POS_MSEC``; for the torchvision path values
-                are converted to seconds) or ``SignalUnit.FRAMES`` (values are
-                used as frame indices: ``CAP_PROP_POS_FRAMES`` for the OpenCV
-                path, direct tensor slicing for the torchvision path).
-                When ``signal_start=0`` and ``signal_end=0`` the full file is
-                always loaded regardless of this setting.
+                values in the dataset. Either ``SignalUnit.MILLISECONDS``
+                (default) or ``SignalUnit.FRAMES`` (values are used as frame
+                indices). When ``signal_start=0`` and ``signal_end=0`` the full
+                file is always loaded regardless of this setting.
         """
-        if custom_preprocessor_path is not None and not _CV2_AVAILABLE:
-            raise ImportError(
-                "VideoModalityProcessor with a custom_preprocessor_path requires 'opencv-python'. "
-                'Install it with: pip install opencv-python  or  pip install "multimodalhugs[video]"'
-            )
-        if custom_preprocessor_path is None and not _TORCHVISION_AVAILABLE:
-            raise ImportError(
-                "VideoModalityProcessor requires 'torchvision'. "
-                'Install it with: pip install torchvision  or  pip install "multimodalhugs[video]"'
+        if backend not in SUPPORTED_BACKENDS:
+            raise ValueError(
+                f"backend must be one of {SUPPORTED_BACKENDS}, got '{backend}'"
             )
         try:
             signal_start_end_unit = SignalUnit(signal_start_end_unit)
@@ -96,6 +88,8 @@ class VideoModalityProcessor(ModalityProcessor):
                 f"Must be one of: {[u.value for u in SignalUnit]}."
             )
         self.custom_preprocessor_path = custom_preprocessor_path
+        self.backend = backend
+        self.num_frames = num_frames
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw
         self.use_cache = use_cache
@@ -123,26 +117,17 @@ class VideoModalityProcessor(ModalityProcessor):
     ) -> torch.Tensor:
         """
         Load a video clip from disk and apply the preprocessing pipeline.
-
-        When ``custom_preprocessor`` is set, frames are decoded with OpenCV
-        and passed through the image preprocessor (e.g. CLIPImageProcessor).
-        Otherwise, torchvision's ``read_video`` is used and frames are returned
-        as raw float tensors. Retries up to ``io_max_retries`` times with
-        exponential backoff on transient I/O failures.
+        Retries up to ``io_max_retries`` times with exponential backoff on
+        transient I/O failures.
 
         Args:
-            video_path: Path to a video file (any format supported by OpenCV
-                or torchvision).
-            signal_start: Clip start value. When ``signal_start_end_unit`` is
-                ``"milliseconds"`` this is a time in ms; when ``"frames"`` it
-                is a frame index. 0.0 means start of file in both units.
-            signal_end: Clip end value. Same unit logic as ``signal_start``.
-                0.0 means end of file in both units.
+            video_path: Path to a video file.
+            signal_start: Clip start value in the unit given by
+                ``signal_start_end_unit``. 0.0 means start of file.
+            signal_end: Clip end value. 0.0 means end of file.
 
         Returns:
-            Float tensor of shape [T, C, H, W] (or [T, C*H*W] when
-            ``join_chw=True``) where T is the number of frames after optional
-            downsampling.
+            Float tensor of shape [T, C, H, W].
 
         Raises:
             IOError: If the video cannot be opened after ``io_max_retries``
@@ -151,72 +136,7 @@ class VideoModalityProcessor(ModalityProcessor):
         last_exc: Exception = IOError(f"Cannot open video {video_path}")
         for attempt in range(max(1, self.io_max_retries)):
             try:
-                if self.custom_preprocessor is not None:
-                    cap = cv2.VideoCapture(str(video_path))
-                    if not cap.isOpened():
-                        cap.release()
-                        raise IOError(f"Cannot open video {video_path}")
-
-                    full_signal = (signal_start == signal_end) or (signal_start is None) or (signal_end is None)
-                    if not full_signal:
-                        if self.signal_start_end_unit == "frames":
-                            cap.set(cv2.CAP_PROP_POS_FRAMES, signal_start)
-                        else:
-                            cap.set(cv2.CAP_PROP_POS_MSEC, signal_start)
-
-                    frames = []
-                    while True:
-                        ret, frame = cap.read()
-                        if not ret:
-                            break
-                        if not full_signal:
-                            if self.signal_start_end_unit == "frames":
-                                if cap.get(cv2.CAP_PROP_POS_FRAMES) > signal_end:
-                                    break
-                            else:
-                                if cap.get(cv2.CAP_PROP_POS_MSEC) > signal_end:
-                                    break
-                        frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
-                    cap.release()
-
-                    result = self.custom_preprocessor(images=frames, return_tensors="pt")["pixel_values"]
-                    result = result.squeeze(0) if result.ndim == 5 else result
-                else:
-                    if self.signal_start_end_unit == "frames":
-                        # torchvision's read_video does not support frame-index
-                        # seeking, so we load the full video and slice by index.
-                        # When use_cache=True the LRU cache key is
-                        # (video_path, signal_start, signal_end), so each
-                        # distinct clip range is a separate cache entry. On a
-                        # cache miss the full video is read from disk before
-                        # slicing; the sliced tensor is what gets stored.
-                        # The avg_item_size_bytes=50 MB estimate used to size
-                        # the cache was calibrated for full videos, not clips —
-                        # actual cached items may be much smaller.
-                        result, _, _ = read_video(
-                            str(video_path),
-                            pts_unit="sec",
-                            output_format="TCHW",
-                        )
-                        start_frame = int(signal_start) if signal_start else None
-                        end_frame = int(signal_end) if signal_end else None
-                        result = result[start_frame:end_frame].to(torch.float32)
-                    else:
-                        start_sec = (signal_start or 0) / 1000.0
-                        end_sec = (signal_end / 1000.0) if signal_end else None
-                        result, _, _ = read_video(
-                            str(video_path),
-                            start_pts=start_sec,
-                            end_pts=end_sec,
-                            pts_unit="sec",
-                            output_format="TCHW",
-                        )
-                        result = result.to(torch.float32)
-
-                if self.skip_frames_stride is not None:
-                    result = frame_skipping(x=result, t_dim=0, stride=self.skip_frames_stride)
-                return result
-
+                return self._load_video_impl(video_path, signal_start, signal_end)
             except (IOError, OSError, RuntimeError) as exc:
                 last_exc = exc
                 if attempt < self.io_max_retries - 1:
@@ -230,6 +150,68 @@ class VideoModalityProcessor(ModalityProcessor):
         raise IOError(
             f"Cannot open video '{video_path}' after {self.io_max_retries} attempts."
         ) from last_exc
+
+    def _load_video_impl(
+        self,
+        video_path: Union[str, Path],
+        signal_start: float = 0.0,
+        signal_end: float = 0.0,
+    ) -> torch.Tensor:
+        """Actual video loading via ``transformers.video_utils.load_video``."""
+
+        def _sample_indices_fn(metadata: VideoMetadata, **kwargs):
+            total = metadata.total_num_frames
+            if signal_start == signal_end == 0:
+                start_frame, end_frame = 0, total
+            elif self.signal_start_end_unit == SignalUnit.FRAMES:
+                start_frame = int(signal_start) if signal_start else 0
+                end_frame = int(signal_end) if signal_end else total
+            else:  # MILLISECONDS
+                fps = metadata.fps or 25.0
+                start_frame = int((signal_start / 1000.0) * fps)
+                end_frame = int((signal_end / 1000.0) * fps) if signal_end else total
+                end_frame = min(end_frame, total)
+
+            clip_frames = end_frame - start_frame
+            if self.num_frames is not None and self.num_frames < clip_frames:
+                indices = np.linspace(start_frame, end_frame - 1, self.num_frames, dtype=int)
+            elif self.skip_frames_stride is not None:
+                indices = np.arange(start_frame, end_frame, self.skip_frames_stride)
+            else:
+                indices = np.arange(start_frame, end_frame)
+
+            return indices
+
+        frames, _ = load_video(
+            str(video_path),
+            backend=self.backend,
+            sample_indices_fn=_sample_indices_fn,
+        )
+        # frames: np.ndarray [T, H, W, C] uint8 for most backends;
+        #         torch.Tensor [T, C, H, W] for torchcodec (GPU-native)
+
+        if self.custom_preprocessor is not None:
+            if isinstance(frames, torch.Tensor):
+                # torchcodec returns a tensor; move to CPU for preprocessors that
+                # expect numpy/PIL input
+                result = self.custom_preprocessor(
+                    images=frames.cpu(), return_tensors="pt"
+                )["pixel_values"]
+            else:
+                pil_frames = [Image.fromarray(f) for f in frames]
+                result = self.custom_preprocessor(
+                    images=pil_frames, return_tensors="pt"
+                )["pixel_values"]
+            result = result.squeeze(0) if result.ndim == 5 else result
+        else:
+            if isinstance(frames, torch.Tensor):
+                # torchcodec already returns [T, C, H, W]
+                result = frames.to(torch.float32)
+            else:
+                # THWC uint8 → TCHW float32
+                result = torch.from_numpy(frames).permute(0, 3, 1, 2).to(torch.float32)
+
+        return result
 
     # ------------------------------------------------------------------
     # ModalityProcessor interface

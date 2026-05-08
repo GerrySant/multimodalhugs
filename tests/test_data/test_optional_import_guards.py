@@ -36,16 +36,9 @@ def test_signwriting_processor_raises_without_signwriting(monkeypatch):
         sw_mod.SignwritingModalityProcessor(custom_preprocessor_path="dummy")
 
 
-def test_video_processor_raises_without_cv2_when_custom_preprocessor(monkeypatch):
-    monkeypatch.setattr(video_mod, "_CV2_AVAILABLE", False)
-    with pytest.raises(ImportError, match="opencv-python"):
-        video_mod.VideoModalityProcessor(custom_preprocessor_path="dummy")
-
-
-def test_video_processor_raises_without_torchvision(monkeypatch):
-    monkeypatch.setattr(video_mod, "_TORCHVISION_AVAILABLE", False)
-    with pytest.raises(ImportError, match="torchvision"):
-        video_mod.VideoModalityProcessor()
+def test_video_processor_raises_on_invalid_backend():
+    with pytest.raises(ValueError, match="backend must be one of"):
+        video_mod.VideoModalityProcessor(backend="invalid_backend")
 
 
 def test_image_processor_raises_without_cv2(monkeypatch):
@@ -82,8 +75,8 @@ def test_video2text_dataset_raises_without_torchvision(monkeypatch):
         video2text_mod.Video2TextDataset()
 
 
-def test_video_processor_no_raise_without_cv2_when_no_custom_preprocessor(monkeypatch):
-    monkeypatch.setattr(video_mod, "_CV2_AVAILABLE", False)
-    # cv2 is only required when custom_preprocessor_path is set; without it the
-    # processor should instantiate without error even if cv2 is absent.
-    video_mod.VideoModalityProcessor(custom_preprocessor_path=None)
+def test_video_processor_accepts_supported_backends():
+    # All SUPPORTED_BACKENDS should pass __init__ validation; actual loading is
+    # deferred to call time so no backend package needs to be installed here.
+    for backend in video_mod.SUPPORTED_BACKENDS:
+        video_mod.VideoModalityProcessor(backend=backend)
