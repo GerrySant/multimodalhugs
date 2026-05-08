@@ -293,23 +293,26 @@ class VideoModalityProcessor(ModalityProcessor):
 
         if self.custom_preprocessor is not None:
             if isinstance(frames, torch.Tensor):
-                # torchcodec returns a tensor; move to CPU for preprocessors that
-                # expect numpy/PIL input
-                result = self.custom_preprocessor(
-                    images=frames.cpu(), return_tensors="pt"
-                )["pixel_values"]
+                # torchcodec: [T, C, H, W] tensor — convert each frame to PIL so
+                # every preprocessor receives the same list-of-PIL-images interface
+                # regardless of backend.
+                pil_frames = [
+                    Image.fromarray(frames[i].cpu().permute(1, 2, 0).numpy())
+                    for i in range(frames.shape[0])
+                ]
             else:
+                # numpy [T, H, W, C] uint8
                 pil_frames = [Image.fromarray(f) for f in frames]
-                result = self.custom_preprocessor(
-                    images=pil_frames, return_tensors="pt"
-                )["pixel_values"]
+            result = self.custom_preprocessor(
+                images=pil_frames, return_tensors="pt"
+            )["pixel_values"]
             result = result.squeeze(0) if result.ndim == 5 else result
         else:
             if isinstance(frames, torch.Tensor):
-                # torchcodec already returns [T, C, H, W]
+                # torchcodec: already [T, C, H, W]; keep on original device
                 result = frames.to(torch.float32)
             else:
-                # THWC uint8 → TCHW float32
+                # numpy [T, H, W, C] uint8 → [T, C, H, W] float32
                 result = torch.from_numpy(frames).permute(0, 3, 1, 2).to(torch.float32)
 
         return result
