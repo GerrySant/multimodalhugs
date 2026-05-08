@@ -1,4 +1,6 @@
 import logging
+import multiprocessing
+import sys
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -80,6 +82,19 @@ class VideoModalityProcessor(ModalityProcessor):
             raise ValueError(
                 f"backend must be one of {SUPPORTED_BACKENDS}, got '{backend}'"
             )
+        if backend == "torchcodec":
+            start_method = multiprocessing.get_start_method(allow_none=True)
+            if start_method is None:
+                start_method = "fork" if sys.platform.startswith("linux") else "spawn"
+            if start_method == "fork":
+                logger.warning(
+                    "backend='torchcodec' decodes video on CUDA. The current (or default) "
+                    "multiprocessing start method is 'fork', which cannot safely inherit a "
+                    "CUDA context into DataLoader worker processes — this will cause CUDA "
+                    "errors or deadlocks when num_workers > 0. "
+                    "Call torch.multiprocessing.set_start_method('spawn') before training, "
+                    "or set dataloader_num_workers=0."
+                )
         try:
             signal_start_end_unit = SignalUnit(signal_start_end_unit)
         except ValueError:
