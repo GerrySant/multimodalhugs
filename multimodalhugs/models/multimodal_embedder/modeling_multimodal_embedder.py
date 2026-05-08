@@ -61,7 +61,7 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         - `config` (MultiModalEmbedderConfig): Model configuration.
         """
         warnings.warn(
-            "MultiModalEmbedderModel is deprecated and will be removed in multimodalhugs v0.7.0. "
+            "MultiModalEmbedderModel is deprecated and will be removed in multimodalhugs v0.8.0. "
             "Use ModularMultiModalForConditionalGeneration instead.",
             FutureWarning,
             stacklevel=2,

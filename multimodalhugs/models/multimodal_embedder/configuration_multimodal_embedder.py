@@ -146,7 +146,7 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         **kwargs):
 
         warnings.warn(
-            "MultiModalEmbedderConfig is deprecated and will be removed in multimodalhugs v0.7.0. "
+            "MultiModalEmbedderConfig is deprecated and will be removed in multimodalhugs v0.8.0. "
             "Use ModularMultiModalConfig instead.",
             FutureWarning,
             stacklevel=2,
