@@ -71,13 +71,17 @@ class VideoModalityProcessor(ModalityProcessor):
 
     **torchcodec + custom_preprocessor_path (GPU decode)**
 
-    When ``custom_preprocessor_path`` is set and ``device="cuda"``, the CUDA
-    tensor must be moved to CPU before entering the preprocessor
-    (``frames.cpu()``), because standard HF image processors operate on
-    CPU/PIL inputs. GPU decode is still faster than a CPU-based backend, but
-    the CPU transfer and CPU preprocessing re-introduce a partial bottleneck.
-    The full zero-copy GPU pipeline is only achieved when
-    ``custom_preprocessor_path=None``.
+    With transformers 5.x, the default ``TorchvisionBackend`` image processor
+    accepts tensors directly and runs on the same device as the input. When
+    ``device="cuda"`` and ``custom_preprocessor_path`` is set, decoded CUDA
+    tensors are passed directly to the preprocessor without any CPU transfer —
+    the full zero-copy GPU pipeline (decode + preprocess on GPU) is available.
+
+    This works because the ``device`` argument is forwarded to the preprocessor
+    call, and ``TorchvisionBackend`` honours it when inputs are tensors. For
+    CPU-decoded backends (``pyav``, ``opencv``, ``decord``), passing
+    ``device="cuda"`` will move frames to GPU for the resize and normalize
+    steps, saving compute at the cost of one CPU→GPU transfer.
     """
 
     def __init__(
@@ -293,18 +297,17 @@ class VideoModalityProcessor(ModalityProcessor):
 
         if self.custom_preprocessor is not None:
             if isinstance(frames, torch.Tensor):
-                # torchvision / torchcodec: [T, C, H, W] tensor — convert each frame to PIL
-                # so every preprocessor receives the same list-of-PIL-images interface.
-                pil_frames = [
-                    Image.fromarray(frames[i].cpu().permute(1, 2, 0).numpy())
-                    for i in range(frames.shape[0])
-                ]
+                # torchvision / torchcodec: pass as list of [C, H, W] tensors.
+                # TorchvisionBackend (transformers 5.x default) processes tensors natively
+                # and keeps them on their original device — no CPU transfer for GPU frames.
+                input_frames = list(frames)
             else:
-                # numpy [T, H, W, C] uint8
-                pil_frames = [Image.fromarray(f) for f in frames]
-            result = self.custom_preprocessor(
-                images=pil_frames, return_tensors="pt"
-            )["pixel_values"]
+                # numpy [T, H, W, C] uint8 → list of PIL
+                input_frames = [Image.fromarray(f) for f in frames]
+            call_kwargs = {"images": input_frames, "return_tensors": "pt"}
+            if self.device is not None:
+                call_kwargs["device"] = self.device
+            result = self.custom_preprocessor(**call_kwargs)["pixel_values"]
             result = result.squeeze(0) if result.ndim == 5 else result
         else:
             if isinstance(frames, torch.Tensor):
