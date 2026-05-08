@@ -29,6 +29,46 @@ class VideoModalityProcessor(ModalityProcessor):
                      preprocessor (e.g. CLIPImageProcessor), returns [T, C, H, W].
     process_batch  — pads a list of [T_i, ...] tensors to [B, T_max, ...] and
                      returns a [B, T_max] attention mask.
+
+    Video decoding is delegated to ``transformers.video_utils.load_video()``,
+    which supports five backends: ``"pyav"`` (default), ``"torchvision"``,
+    ``"decord"``, ``"opencv"``, and ``"torchcodec"``. The backend is selected
+    via the ``backend`` constructor parameter and is independent of
+    ``custom_preprocessor_path``.
+
+    **torchcodec and DataLoader workers**
+
+    ``backend="torchcodec"`` decodes video frames directly on the GPU, returning
+    CUDA tensors without a CPU copy. This eliminates the main CPU→GPU transfer
+    bottleneck for large-batch video training.
+
+    However, torchcodec requires that DataLoader workers are started with the
+    ``"spawn"`` multiprocessing start method. On Linux, PyTorch defaults to
+    ``"fork"``, which cannot safely inherit a CUDA context into child processes
+    and will cause CUDA errors or deadlocks when ``num_workers > 0``.
+
+    To use ``backend="torchcodec"`` safely with multiple workers::
+
+        import torch
+        torch.multiprocessing.set_start_method("spawn")
+        # then create your DataLoader / Trainer as normal
+
+    Or, if changing the start method is not possible, set
+    ``dataloader_num_workers=0`` in your training config.
+
+    ``VideoModalityProcessor`` emits a ``logger.warning`` at construction time
+    if ``backend="torchcodec"`` is combined with the ``"fork"`` start method
+    (or its Linux default), so misconfiguration is caught before training starts.
+
+    **torchcodec + custom_preprocessor_path**
+
+    When ``custom_preprocessor_path`` is set (e.g. a CLIPImageProcessor),
+    the decoded CUDA tensor must be moved to CPU before being passed to the
+    preprocessor (``frames.cpu()``), because standard HF image processors
+    operate on CPU/PIL inputs. The GPU decode is still faster than a CPU-based
+    backend, but the CPU transfer and CPU preprocessing re-introduce a partial
+    bottleneck. The full zero-copy GPU pipeline (decode → model input, all on
+    GPU) is only achieved when ``custom_preprocessor_path=None``.
     """
 
     def __init__(
@@ -51,10 +91,20 @@ class VideoModalityProcessor(ModalityProcessor):
                 returned as raw float tensors.
             backend: Video decoding backend. One of ``"pyav"`` (default),
                 ``"torchvision"``, ``"torchcodec"``, ``"decord"``, or
-                ``"opencv"``. The chosen backend must be installed; if it is not,
-                ``load_video`` raises a clear ``ImportError`` at call time.
-                ``"torchcodec"`` decodes directly to GPU tensors and eliminates
-                the CPU→GPU copy bottleneck for large-batch training.
+                ``"opencv"``. The chosen backend must be installed; if it is
+                not, ``load_video`` raises a clear ``ImportError`` at call
+                time.
+
+                - ``"pyav"`` (default): CPU, widely available, handles most
+                  formats. Safe with any number of DataLoader workers.
+                - ``"torchvision"``: CPU, PyTorch-native.
+                - ``"decord"``: CPU, fast random access.
+                - ``"opencv"``: CPU, no audio support.
+                - ``"torchcodec"``: GPU-native. Decodes directly to CUDA
+                  tensors, eliminating the CPU→GPU copy bottleneck. Requires
+                  the ``"spawn"`` multiprocessing start method when
+                  ``num_workers > 0`` (see class docstring). A warning is
+                  emitted at construction time if ``"fork"`` is detected.
             num_frames: If set, uniformly subsample this many frames from the
                 clip window. Takes precedence over ``skip_frames_stride`` when
                 both are set. Default: None (keep all frames).
