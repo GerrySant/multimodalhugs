@@ -288,14 +288,13 @@ class VideoModalityProcessor(ModalityProcessor):
         if self.device is not None:
             load_video_kwargs["device"] = self.device
         frames, _ = load_video(str(video_path), **load_video_kwargs)
-        # frames: np.ndarray [T, H, W, C] uint8 for most backends;
-        #         torch.Tensor [T, C, H, W] for torchcodec (device matches self.device)
+        # frames: np.ndarray [T, H, W, C] uint8  — pyav, opencv, decord
+        #         torch.Tensor [T, C, H, W]       — torchvision (deprecated in transformers 5.5), torchcodec
 
         if self.custom_preprocessor is not None:
             if isinstance(frames, torch.Tensor):
-                # torchcodec: [T, C, H, W] tensor — convert each frame to PIL so
-                # every preprocessor receives the same list-of-PIL-images interface
-                # regardless of backend.
+                # torchvision / torchcodec: [T, C, H, W] tensor — convert each frame to PIL
+                # so every preprocessor receives the same list-of-PIL-images interface.
                 pil_frames = [
                     Image.fromarray(frames[i].cpu().permute(1, 2, 0).numpy())
                     for i in range(frames.shape[0])
@@ -309,7 +308,7 @@ class VideoModalityProcessor(ModalityProcessor):
             result = result.squeeze(0) if result.ndim == 5 else result
         else:
             if isinstance(frames, torch.Tensor):
-                # torchcodec: already [T, C, H, W]; keep on original device
+                # torchvision / torchcodec: already [T, C, H, W]; keep on original device
                 result = frames.to(torch.float32)
             else:
                 # numpy [T, H, W, C] uint8 → [T, C, H, W] float32
