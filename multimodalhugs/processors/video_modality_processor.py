@@ -149,6 +149,17 @@ class VideoModalityProcessor(ModalityProcessor):
             raise ValueError(
                 f"backend must be one of {SUPPORTED_BACKENDS}, got '{backend}'"
             )
+        if backend == "torchcodec" and device is None:
+            if torch.cuda.is_available():
+                detected_device = f"cuda:{torch.cuda.current_device()}"
+                device = detected_device
+                logger.warning(
+                    "backend='torchcodec' selected without an explicit device. "
+                    "Automatically using device='%s' (detected from torch.cuda.current_device()). "
+                    "To use a specific device or force CPU decode, set the device argument "
+                    "explicitly (e.g. device='cuda:0' or device='cpu').",
+                    detected_device,
+                )
         if device is not None and backend != "torchcodec":
             logger.warning(
                 "device='%s' is only used by the 'torchcodec' backend; "
