@@ -82,7 +82,14 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 | `"opencv"` | CPU | No audio support. |
 | `"torchcodec"` | CPU (default) or **GPU** | Hardware codec decode. CPU by default. Set `device: "cuda"` to decode directly to CUDA tensors via NVDEC, eliminating the CPU→GPU copy. Requires `worker_start_method: spawn` when `dataloader_num_workers > 0` on Linux. |
 
-`num_frames` uniformly subsamples exactly N frames from the clip window via `np.linspace`. `skip_frames_stride` keeps every N-th frame. When both are set, `num_frames` takes precedence. `custom_preprocessor_path` accepts a HuggingFace model ID or local path (e.g. `"openai/clip-vit-base-patch32"`); frames are passed through the preprocessor after decoding. With transformers 5.x, the default `TorchvisionBackend` image processor accepts tensors directly — when `backend="torchcodec"` and `device="cuda"`, the decoded CUDA tensor is passed straight to the preprocessor with no CPU transfer, giving a full GPU decode + preprocess pipeline. For CPU-decoded backends, setting `device="cuda"` moves frames to GPU for the preprocessing step.
+**Frame sampling** is controlled by two mutually exclusive parameters:
+
+- `num_frames=N` — uniformly subsample exactly N frames from the clip window using `np.linspace(start, end-1, N)`. The output always has exactly N frames regardless of clip length. Use this when the model expects a fixed temporal dimension.
+- `skip_frames_stride=N` — keep every N-th frame using `np.arange(start, end, N)`. The output length scales with clip length: a 50-frame clip with stride 2 gives 25 frames; a 100-frame clip gives 50. Use this when variable-length sequences are acceptable and you want to reduce the frame rate proportionally.
+
+When both are set, `num_frames` takes precedence **only when `num_frames < clip_length`**. If the clip is shorter than `num_frames` (e.g. a 10-frame clip with `num_frames=16`), the `num_frames` condition is false and execution falls through to `skip_frames_stride` if set, or all frames otherwise. Setting both is therefore redundant in the normal case and potentially surprising for short clips — pick one.
+
+`custom_preprocessor_path` accepts a HuggingFace model ID or local path (e.g. `"openai/clip-vit-base-patch32"`); frames are passed through the preprocessor after decoding. With transformers 5.x, the default `TorchvisionBackend` image processor accepts tensors directly — when `backend="torchcodec"` and `device="cuda"`, the decoded CUDA tensor is passed straight to the preprocessor with no CPU transfer, giving a full GPU decode + preprocess pipeline. For CPU-decoded backends, setting `device="cuda"` moves frames to GPU for the preprocessing step.
 
 `TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter (a `TextRole` enum) controls how the batch is assembled:
 
