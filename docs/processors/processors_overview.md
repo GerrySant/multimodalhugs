@@ -66,7 +66,7 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 | Class | Modality | Key parameters |
 |---|---|---|
 | `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` |
-| `VideoModalityProcessor` | Video files | `backend`, `num_frames`, `custom_preprocessor_path`, `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` |
+| `VideoModalityProcessor` | Video files | `backend`, `device`, `num_frames`, `custom_preprocessor_path`, `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` |
 | `ImageModalityProcessor` | Image files / text-rendered images | `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` |
 | `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` |
 | `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |
@@ -80,9 +80,9 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 | `"torchvision"` | CPU | PyTorch-native. |
 | `"decord"` | CPU | Fast random access. |
 | `"opencv"` | CPU | No audio support. |
-| `"torchcodec"` | **GPU** | Decodes directly to CUDA tensors; eliminates the CPU→GPU copy bottleneck. Requires `worker_start_method: spawn` in the training config when `dataloader_num_workers > 0` on Linux (see [Training configuration](#training-section)). |
+| `"torchcodec"` | CPU (default) or **GPU** | Hardware codec decode. CPU by default. Set `device: "cuda"` to decode directly to CUDA tensors via NVDEC, eliminating the CPU→GPU copy. Requires `worker_start_method: spawn` when `dataloader_num_workers > 0` on Linux. |
 
-`num_frames` uniformly subsamples exactly N frames from the clip window via `np.linspace`. `skip_frames_stride` keeps every N-th frame. When both are set, `num_frames` takes precedence. `custom_preprocessor_path` accepts a HuggingFace model ID or local path (e.g. `"openai/clip-vit-base-patch32"`); frames are passed through the preprocessor after decoding. Note that when `backend="torchcodec"` and `custom_preprocessor_path` is set, the GPU-decoded tensor is moved to CPU before entering the preprocessor.
+`num_frames` uniformly subsamples exactly N frames from the clip window via `np.linspace`. `skip_frames_stride` keeps every N-th frame. When both are set, `num_frames` takes precedence. `custom_preprocessor_path` accepts a HuggingFace model ID or local path (e.g. `"openai/clip-vit-base-patch32"`); frames are passed through the preprocessor after decoding. Note that when `backend="torchcodec"`, `device="cuda"`, and `custom_preprocessor_path` is set, the GPU-decoded tensor is moved to CPU before entering the preprocessor.
 
 `TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter (a `TextRole` enum) controls how the batch is assembled:
 

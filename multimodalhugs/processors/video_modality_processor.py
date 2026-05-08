@@ -36,45 +36,55 @@ class VideoModalityProcessor(ModalityProcessor):
     via the ``backend`` constructor parameter and is independent of
     ``custom_preprocessor_path``.
 
-    **torchcodec and DataLoader workers**
+    **torchcodec: CPU vs GPU decode**
 
-    ``backend="torchcodec"`` decodes video frames directly on the GPU, returning
-    CUDA tensors without a CPU copy. This eliminates the main CPU→GPU transfer
-    bottleneck for large-batch video training.
+    ``backend="torchcodec"`` uses hardware codec infrastructure for video
+    decoding. By default (``device=None``) it decodes to a **CPU tensor** —
+    faster than software decoders (pyav, cv2) but still on CPU.
 
-    However, torchcodec requires that DataLoader workers are started with the
+    To get true GPU decode, set ``device="cuda"`` (or ``"cuda:N"`` for a
+    specific device). This routes decoding through NVDEC — a dedicated
+    hardware video decode engine on NVIDIA GPUs that runs independently of
+    CUDA compute cores. Decoded frames arrive as CUDA tensors without any
+    CPU→GPU copy, and NVDEC can run in parallel with the training forward/
+    backward pass on the same GPU without competing for compute resources.
+
+    **torchcodec + DataLoader workers (GPU decode only)**
+
+    When ``device="cuda"``, DataLoader workers must be started with the
     ``"spawn"`` multiprocessing start method. On Linux, PyTorch defaults to
     ``"fork"``, which cannot safely inherit a CUDA context into child processes
     and will cause CUDA errors or deadlocks when ``num_workers > 0``.
 
-    To use ``backend="torchcodec"`` safely with multiple workers::
+    To use GPU decode safely with multiple workers::
 
         import torch
         torch.multiprocessing.set_start_method("spawn")
         # then create your DataLoader / Trainer as normal
 
-    Or, if changing the start method is not possible, set
-    ``dataloader_num_workers=0`` in your training config.
+    Or set ``worker_start_method: spawn`` in the training config (see
+    ``ExtendedSeq2SeqTrainingArguments``), or ``dataloader_num_workers=0``.
 
     ``VideoModalityProcessor`` emits a ``logger.warning`` at construction time
-    if ``backend="torchcodec"`` is combined with the ``"fork"`` start method
-    (or its Linux default), so misconfiguration is caught before training starts.
+    when ``device="cuda"`` is combined with the ``"fork"`` start method (or
+    its Linux default).
 
-    **torchcodec + custom_preprocessor_path**
+    **torchcodec + custom_preprocessor_path (GPU decode)**
 
-    When ``custom_preprocessor_path`` is set (e.g. a CLIPImageProcessor),
-    the decoded CUDA tensor must be moved to CPU before being passed to the
-    preprocessor (``frames.cpu()``), because standard HF image processors
-    operate on CPU/PIL inputs. The GPU decode is still faster than a CPU-based
-    backend, but the CPU transfer and CPU preprocessing re-introduce a partial
-    bottleneck. The full zero-copy GPU pipeline (decode → model input, all on
-    GPU) is only achieved when ``custom_preprocessor_path=None``.
+    When ``custom_preprocessor_path`` is set and ``device="cuda"``, the CUDA
+    tensor must be moved to CPU before entering the preprocessor
+    (``frames.cpu()``), because standard HF image processors operate on
+    CPU/PIL inputs. GPU decode is still faster than a CPU-based backend, but
+    the CPU transfer and CPU preprocessing re-introduce a partial bottleneck.
+    The full zero-copy GPU pipeline is only achieved when
+    ``custom_preprocessor_path=None``.
     """
 
     def __init__(
         self,
         custom_preprocessor_path: Optional[str] = None,
         backend: str = "pyav",
+        device: Optional[str] = None,
         num_frames: Optional[int] = None,
         skip_frames_stride: Optional[int] = None,
         join_chw: bool = False,
@@ -100,11 +110,18 @@ class VideoModalityProcessor(ModalityProcessor):
                 - ``"torchvision"``: CPU, PyTorch-native.
                 - ``"decord"``: CPU, fast random access.
                 - ``"opencv"``: CPU, no audio support.
-                - ``"torchcodec"``: GPU-native. Decodes directly to CUDA
-                  tensors, eliminating the CPU→GPU copy bottleneck. Requires
-                  the ``"spawn"`` multiprocessing start method when
-                  ``num_workers > 0`` (see class docstring). A warning is
-                  emitted at construction time if ``"fork"`` is detected.
+                - ``"torchcodec"``: Hardware codec decode. Defaults to CPU
+                  unless ``device="cuda"`` is also set, in which case NVDEC
+                  is used for GPU-native decode. See the ``device`` parameter.
+            device: Decode device for the ``"torchcodec"`` backend. ``None``
+                (default) uses torchcodec's default (CPU). Set to ``"cuda"``
+                or ``"cuda:N"`` to decode directly to GPU tensors via NVDEC,
+                eliminating the CPU→GPU copy. Ignored for all other backends
+                (a ``logger.warning`` is emitted if set with a non-torchcodec
+                backend). When set to a CUDA device, the ``"spawn"``
+                multiprocessing start method is required for DataLoader
+                workers with ``num_workers > 0`` on Linux (see class
+                docstring and ``worker_start_method`` in training config).
             num_frames: If set, uniformly subsample this many frames from the
                 clip window. Takes precedence over ``skip_frames_stride`` when
                 both are set. Default: None (keep all frames).
@@ -132,18 +149,26 @@ class VideoModalityProcessor(ModalityProcessor):
             raise ValueError(
                 f"backend must be one of {SUPPORTED_BACKENDS}, got '{backend}'"
             )
-        if backend == "torchcodec":
+        if device is not None and backend != "torchcodec":
+            logger.warning(
+                "device='%s' is only used by the 'torchcodec' backend; "
+                "it will be ignored for backend='%s'.",
+                device, backend,
+            )
+        if device is not None and str(device).startswith("cuda"):
             start_method = multiprocessing.get_start_method(allow_none=True)
             if start_method is None:
                 start_method = "fork" if sys.platform.startswith("linux") else "spawn"
             if start_method == "fork":
                 logger.warning(
-                    "backend='torchcodec' decodes video on CUDA. The current (or default) "
+                    "device='%s' enables CUDA decode via torchcodec. The current (or default) "
                     "multiprocessing start method is 'fork', which cannot safely inherit a "
                     "CUDA context into DataLoader worker processes — this will cause CUDA "
                     "errors or deadlocks when num_workers > 0. "
-                    "Call torch.multiprocessing.set_start_method('spawn') before training, "
-                    "or set dataloader_num_workers=0."
+                    "Set worker_start_method: spawn in your training config, call "
+                    "torch.multiprocessing.set_start_method('spawn') before training, "
+                    "or set dataloader_num_workers=0.",
+                    device,
                 )
         try:
             signal_start_end_unit = SignalUnit(signal_start_end_unit)
@@ -154,6 +179,7 @@ class VideoModalityProcessor(ModalityProcessor):
             )
         self.custom_preprocessor_path = custom_preprocessor_path
         self.backend = backend
+        self.device = device
         self.num_frames = num_frames
         self.skip_frames_stride = skip_frames_stride
         self.join_chw = join_chw
@@ -247,13 +273,12 @@ class VideoModalityProcessor(ModalityProcessor):
 
             return indices
 
-        frames, _ = load_video(
-            str(video_path),
-            backend=self.backend,
-            sample_indices_fn=_sample_indices_fn,
-        )
+        load_video_kwargs = {"backend": self.backend, "sample_indices_fn": _sample_indices_fn}
+        if self.device is not None:
+            load_video_kwargs["device"] = self.device
+        frames, _ = load_video(str(video_path), **load_video_kwargs)
         # frames: np.ndarray [T, H, W, C] uint8 for most backends;
-        #         torch.Tensor [T, C, H, W] for torchcodec (GPU-native)
+        #         torch.Tensor [T, C, H, W] for torchcodec (device matches self.device)
 
         if self.custom_preprocessor is not None:
             if isinstance(frames, torch.Tensor):
