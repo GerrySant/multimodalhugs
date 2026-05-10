@@ -22,7 +22,7 @@ from ruamel.yaml import YAML
 # Local Application Imports
 from multimodalhugs.models.utils import get_backbone_config_class, get_backbone_model_class
 from multimodalhugs.utils.registry import register_model
-from multimodalhugs.modules import MultimodalMapper, FeatureExtractor, get_feature_extractor_class
+from multimodalhugs.modules import MultimodalMapper, FeatureExtractor, get_feature_extractor_class, load_pretrained_feature_extractor
 from multimodalhugs.modules.utils import set_module_parameters, extend_all_embeddings_and_lm_head, merge_modalities, merge_modalities_mask_correction
 from multimodalhugs.utils import serialize_config
 from multimodalhugs.models.multimodal_embedder.configuration_multimodal_embedder import MultiModalEmbedderConfig
@@ -129,7 +129,13 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         """
         BackboneModelClass = get_backbone_model_class(config.backbone_type)
         if config.backbone_config is not None:
-            self.backbone = BackboneModelClass(config.backbone_config)
+            backbone_cfg = config.backbone_config
+            if isinstance(backbone_cfg, dict):
+                # PretrainedConfig subclasses are serialised as plain dicts in config.json;
+                # reconstruct the right config class before passing to the model constructor.
+                BackboneConfigClass = get_backbone_config_class(config.backbone_type)
+                backbone_cfg = BackboneConfigClass.from_dict(backbone_cfg)
+            self.backbone = BackboneModelClass(backbone_cfg)
         else:
             self.backbone = BackboneModelClass.from_pretrained(config.pretrained_backbone)
         
@@ -287,6 +293,17 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         else:
             cfg = cfg
 
+        # Load feature extractor weights before building model structure so the
+        # config can be stored in cfg and the weights copied after cls() returns.
+        # from_pretrained() must NOT be called inside __init__ (meta-device context
+        # during from_pretrained loading would reject it in transformers 5.x).
+        fe_model = None
+        if cfg.feature_extractor_type and cfg.pretrained_feature_extractor is not None:
+            fe_model = load_pretrained_feature_extractor(
+                cfg.feature_extractor_type, cfg.pretrained_feature_extractor
+            )
+            cfg.feature_extractor_config = fe_model.config
+
         # Load backbone model & config
         BackboneModelClass = get_backbone_model_class(cfg.backbone_type)
         if cfg.pretrained_backbone is not None:
@@ -294,7 +311,7 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
             cfg.backbone_config = AutoConfig.from_pretrained(cfg.pretrained_backbone)
         else:
             backbone = BackboneModelClass(cfg.backbone_config)
-        
+
         cfg.d_model = cfg.d_model or cfg.backbone_config.d_model
         cfg.decoder_start_token_id = cfg.decoder_start_token_id or cfg.backbone_config.decoder_start_token_id
 
@@ -312,11 +329,15 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         backbone, new_vocab_size = extend_all_embeddings_and_lm_head(backbone=backbone, num_new_tokens=len(new_vocab_tokens), verbose=True)
         cfg.backbone_config.vocab_size = new_vocab_size
 
-        # Create an instance of the model
+        # Create an instance of the model (structure only — __init__ does not load weights)
         model = cls(config=cfg)
 
         # Copy the weights from the backbone instance to the model.backbone
         model.backbone.load_state_dict(backbone.state_dict())
+
+        # Copy feature extractor weights
+        if fe_model is not None and model.feature_extractor is not None:
+            model.feature_extractor.feature_extractor.load_state_dict(fe_model.state_dict())
 
         # Re-establish tied weight references after load_state_dict.
         # load_state_dict copies values but does not restore Python object identity

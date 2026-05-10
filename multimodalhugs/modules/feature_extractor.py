@@ -91,6 +91,21 @@ def get_feature_extractor_class(feature_extractor_type: str):
     
     return model_class, config_class
 
+def load_pretrained_feature_extractor(feature_extractor_type: str, pretrained_module: Union[str, Path]):
+    """
+    Load a pretrained inner model for the given feature extractor type.
+
+    Called exclusively from ``build_model`` at setup time to obtain pretrained
+    weights that are then copied into the assembled model. Never called from
+    ``FeatureExtractor.__init__``, keeping ``__init__`` structure-only and
+    compatible with transformers 5.x ``init_empty_weights()`` context.
+    """
+    if feature_extractor_type == "clip":
+        return CLIPVisionModelWithProjection.from_pretrained(pretrained_module)
+    FeatureExtractorClass, _ = get_feature_extractor_class(feature_extractor_type)
+    return FeatureExtractorClass.from_pretrained(pretrained_module)
+
+
 class FeatureExtractor(nn.Module):
     """
     A wrapper for feature extractors.
@@ -113,23 +128,28 @@ class FeatureExtractor(nn.Module):
                 # in transformers 5.x because initialize_weights() unconditionally accesses
                 # text_projection.weight via _init_weights.  CLIPVisionModelWithProjection
                 # has only the vision encoder and visual_projection — no text branch at all.
-                if pretrained_module is not None:
-                    self.feature_extractor = CLIPVisionModelWithProjection.from_pretrained(pretrained_module)
+                #
+                # Weight loading via from_pretrained() is NOT done here. __init__ is
+                # responsible for model structure only. build_model() loads pretrained weights
+                # and copies them explicitly; from_pretrained(saved_path) loads them from the
+                # combined checkpoint. This makes __init__ compatible with transformers 5.x
+                # init_empty_weights() used during from_pretrained loading.
+                if isinstance(config, CLIPConfig):
+                    vision_config = config.vision_config
+                elif isinstance(config, dict):
+                    vision_config = CLIPVisionConfig(**config)
+                elif config is None:
+                    vision_config = CLIPVisionConfig()
                 else:
-                    # Extract CLIPVisionConfig from a full CLIPConfig if that's what was passed.
-                    if isinstance(config, CLIPConfig):
-                        vision_config = config.vision_config
-                    elif config is None:
-                        vision_config = CLIPVisionConfig()
-                    else:
-                        vision_config = config  # already a CLIPVisionConfig
-                    self.feature_extractor = CLIPVisionModelWithProjection(vision_config)
+                    vision_config = config  # already a CLIPVisionConfig
+                self.feature_extractor = CLIPVisionModelWithProjection(vision_config)
             else:
-                FeatureExtractorClass, _ = get_feature_extractor_class(self.feature_extractor_type)
-                if pretrained_module is not None:
-                    self.feature_extractor = FeatureExtractorClass.from_pretrained(pretrained_module)
-                else:
-                    self.feature_extractor = FeatureExtractorClass(config)
+                FeatureExtractorClass, ConfigClass = get_feature_extractor_class(self.feature_extractor_type)
+                if isinstance(config, dict):
+                    config = ConfigClass.from_dict(config)
+                elif config is None:
+                    config = ConfigClass()
+                self.feature_extractor = FeatureExtractorClass(config)
             # Propagate FSDP parallelism metadata from the inner model so that
             # MultiModalEmbedderModel._init_feature_extractor can read them transparently.
             self._no_split_modules = list(getattr(self.feature_extractor, "_no_split_modules", None) or [])
