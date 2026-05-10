@@ -176,6 +176,49 @@ options:
 
 ---
 
+## Multi-GPU Training with FSDP
+
+MultimodalHugs supports fully sharded data parallel (FSDP) training via [Accelerate](https://huggingface.co/docs/accelerate). FSDP shards model parameters, gradients, and optimizer states across GPUs, enabling training of models that do not fit in a single GPU's memory.
+
+### Prerequisites
+
+```bash
+pip install accelerate
+```
+
+### Quick start
+
+Replace `multimodalhugs-train` / `multimodalhugs-generate` with `accelerate launch ... $(which multimodalhugs-train)`:
+
+```bash
+export CONFIG_PATH="/path/to/config.yaml"
+export OUTPUT_PATH="/path/to/output"
+
+accelerate launch \
+    --config_file examples/fsdp/fsdp_m2m100.yaml \
+    --num_processes 4 \
+    $(which multimodalhugs-train) \
+    --task translation \
+    --config_path $CONFIG_PATH \
+    --output_dir $OUTPUT_PATH
+```
+
+The `$(which multimodalhugs-train)` construct resolves the entry-point script path so `accelerate launch` can spawn it correctly across processes. Make sure your conda/virtual environment is active before running.
+
+### Provided FSDP config files
+
+Pre-built Accelerate config files are available under `examples/fsdp/`:
+
+| File | Backbone | Wrap strategy |
+|---|---|---|
+| `fsdp_m2m100.yaml` | M2M-100 | Wraps `M2M100EncoderLayer`, `M2M100DecoderLayer`, `CLIPEncoderLayer` |
+| `fsdp_t5.yaml` | T5 | Wraps `T5Block`, `CLIPEncoderLayer` |
+| `fsdp_size_based.yaml` | Any | Wraps submodules with ≥ 100M parameters |
+
+See [`examples/fsdp/README.md`](../../examples/fsdp/README.md) for detailed instructions, generation/evaluation usage, and guidance on adapting configs to other backbones.
+
+---
+
 ## Conclusion
 
 MultiModalHugs CLI provides a streamlined workflow from setup to training and evaluation. Users can refer to the `--help` option in each command for further details and consult the official Hugging Face documentation for additional guidance.

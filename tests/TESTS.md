@@ -4,19 +4,6 @@ This document catalogs every test in the suite, organized by file. Each entry de
 
 ---
 
-## `test_config/`
-
-### `test_multimodal_embedder_config.py`
-
-| Test | What it checks |
-|---|---|
-| `test_config_max_length_default` | `MultiModalEmbedderConfig` has default `max_length=200` |
-| `test_config_max_length_nondefault` | Custom `max_length` can be set at construction |
-| `test_config_use_backbone_max_length_true` | `use_backbone_max_length=True` sets `max_length` to the backbone's value (512) |
-| `test_config_use_backbone_max_length_fails_without_backbone_config` | `use_backbone_max_length=True` without a backbone config raises `ValueError` |
-
----
-
 ## `test_data/`
 
 ### `test_data_utils.py`
@@ -600,6 +587,8 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 **`TestDataCollatorWithMetaProcessor`** — collator delegates to `MultimodalMetaProcessor`
 
+Processors are constructed as `MultimodalMetaProcessor(slots=[...])` — no `tokenizer=` argument; the tokenizer is derived automatically from the first text slot via `@property`.
+
 | Test | What it checks |
 |---|---|
 | `test_text2text_returns_expected_keys` | All expected output keys present |
@@ -795,8 +784,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 |---|---|
 | `test_pose_processor_raises_without_pose_format` | `PoseModalityProcessor()` raises `ImportError` mentioning `pose-format` when `_POSE_FORMAT_AVAILABLE=False` |
 | `test_signwriting_processor_raises_without_signwriting` | `SignwritingModalityProcessor()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
-| `test_video_processor_raises_without_cv2_when_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=...)` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
-| `test_video_processor_raises_without_torchvision` | `VideoModalityProcessor()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
+| `test_video_processor_raises_on_invalid_backend` | `VideoModalityProcessor(backend="invalid_backend")` raises `ValueError` mentioning `backend must be one of` |
 | `test_image_processor_raises_without_cv2` | `ImageModalityProcessor()` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
 
 **Datasets**
@@ -807,7 +795,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 | `test_signwriting_dataset_raises_without_signwriting` | `SignWritingDataset()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
 | `test_video2text_dataset_raises_without_av` | `Video2TextDataset()` raises `ImportError` mentioning `av` when `_AV_AVAILABLE=False` |
 | `test_video2text_dataset_raises_without_torchvision` | `Video2TextDataset()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
-| `test_video_processor_no_raise_without_cv2_when_no_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=None)` does **not** raise when `_CV2_AVAILABLE=False`; cv2 is only required when a custom preprocessor path is provided |
+| `test_video_processor_accepts_supported_backends` | `VideoModalityProcessor(backend=b)` instantiates without error for every backend in `SUPPORTED_BACKENDS`; availability of the backend package is deferred to call time |
 
 ---
 
@@ -826,7 +814,7 @@ Regression tests comparing processor output against golden files in `tests/asset
 | `TestLabelsRegression` | `create_seq2seq_labels_from_samples` | `labels.json` |
 | `TestImage2TextRegression` | `Image2TextTranslationProcessor` | `image2text.json` |
 
-**New flat-slots classes** — verify that `MultimodalMetaProcessor(slots=[...])` produces identical output to the legacy wrappers (same golden files):
+**New flat-slots classes** — verify that `MultimodalMetaProcessor(slots=[...])` (no `tokenizer=` argument; derived from text slot) produces identical output to the legacy wrappers (same golden files):
 
 | Class | Slot configuration | Golden file |
 |---|---|---|
@@ -842,13 +830,17 @@ Regression tests comparing processor output against golden files in `tests/asset
 
 ### `test_model_only.py`
 
-Parametrized over three model configurations (default `max_length`, backbone-derived `max_length`, explicit `max_length`).
+The `model_setup` fixture builds the model via `build_processor_from_config(cfg.processor)` (0.0.5 slot-based format) and passes `processor.tokenizer` to `MultiModalEmbedderModel.build_model`. Config: `tests/test_model_only/configs/test_model_only.yaml`.
 
 | Test | What it checks |
 |---|---|
-| `test_model_maxlength_is_correct` | Model `max_length` matches expected value for each config (200, 15, or 20) |
+| `test_feature_extractor_propagates_no_split_modules` | `FeatureExtractor("clip", config=...)` sets `_no_split_modules` and `_keep_in_fp32_modules` from the inner `CLIPVisionModelWithProjection`; `CLIPEncoderLayer` is present. No fixture — direct instantiation. |
+| `test_model_no_split_modules_contains_all_components` | `MultiModalEmbedderModel._no_split_modules` aggregates class names from both the feature extractor (`CLIPEncoderLayer`) and the backbone (`M2M100EncoderLayer`, `M2M100DecoderLayer`), driving FSDP `TRANSFORMER_BASED_WRAP` policy. |
+| `test_backbone_shared_weights_are_tied` | After `build_model` + vocab extension, `encoder.embed_tokens`, `decoder.embed_tokens`, and `lm_head` all share the same underlying storage as `model.shared` (same `data_ptr`) |
 | `test_training` | Model overfits to a tiny batch: loss drops below `0.11` within 500 epochs |
 | `test_overfitting_accuracy` | WER ≤ 0.125 on test samples after training on the same data |
+
+> **Note (transformers 5.x update):** `test_model_maxlength_is_correct` and its three associated config files (`test_default_max_length.yaml`, `test_nondefault_max_length.yaml`, `test_use_backbone_max_length.yaml`) were removed. `max_length` was removed from `MultiModalEmbedderConfig` and `model.max_length` was removed from `MultiModalEmbedderModel` as part of the transformers 5.x compatibility update (see `docs/transformers_compatibility.md` §8). Generation length is now managed via `model.generation_config.max_length`.
 
 ---
 

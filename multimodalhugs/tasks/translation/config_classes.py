@@ -185,3 +185,16 @@ class ExtendedSeq2SeqTrainingArguments(Seq2SeqTrainingArguments):
             "help": "The output directory where the model predictions and checkpoints will be written. Defaults to 'trainer_output' if not provided."
         },
     )
+    worker_start_method: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Multiprocessing start method for all worker processes ('fork', 'spawn', or 'forkserver'). "
+                "When None, the Python/OS default is used (typically 'fork' on Linux, 'spawn' on macOS/Windows). "
+                "Set to 'spawn' when using backend='torchcodec' in VideoModalityProcessor with "
+                "dataloader_num_workers > 0 — 'fork' cannot safely inherit a CUDA context and will "
+                "cause errors or deadlocks. This is a global setting: it affects DataLoader workers, "
+                "Dataset.map() workers, and any other child processes spawned via torch.multiprocessing."
+            )
+        },
+    )

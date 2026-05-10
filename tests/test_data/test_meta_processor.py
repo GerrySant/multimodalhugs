@@ -134,7 +134,6 @@ def make_pose2text_meta(tokenizer):
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
-        tokenizer=tokenizer,
     )
 
 
@@ -166,7 +165,6 @@ def make_text2text_meta(tokenizer):
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
-        tokenizer=tokenizer,
     )
 
 
@@ -198,7 +196,6 @@ def _make_features2text_meta(tokenizer, use_cache=False):
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
-        tokenizer=tokenizer,
     )
 
 
@@ -236,7 +233,6 @@ def _make_multi_input_meta(tokenizer):
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
-        tokenizer=tokenizer,
     )
 
 
@@ -476,7 +472,6 @@ class TestMultimodalMetaProcessorMultiInput:
                     column_map={"decoder_prompt": "target_prefix", "output": "target"},
                 ),
             ],
-            tokenizer=tokenizer,
         )
 
     def test_call_produces_video_frames(self, tokenizer, multi_input_batch_samples):
@@ -958,7 +953,6 @@ class TestMultimodalMetaProcessorRoundTrip:
                     column_map={"decoder_prompt": "signal"},
                 ),
             ],
-            tokenizer=tokenizer,
         )
 
     def test_features2text_processor_kwargs_preserved(self, tokenizer, tmp_path):

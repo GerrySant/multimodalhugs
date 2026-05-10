@@ -1,14 +1,14 @@
 import logging
 from typing import Any, Optional
 
-from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+from multimodalhugs.processors.meta_processor import _LegacyMetaProcessorBase, ProcessorSlot
 from multimodalhugs.processors.features_modality_processor import FeaturesModalityProcessor
 from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 
 logger = logging.getLogger(__name__)
 
 
-class Features2TextTranslationProcessor(MultimodalMetaProcessor):
+class Features2TextTranslationProcessor(_LegacyMetaProcessorBase):
     """
     .. deprecated::
         Use ``MultimodalMetaProcessor`` with explicit ``ProcessorSlot`` declarations
@@ -31,7 +31,7 @@ class Features2TextTranslationProcessor(MultimodalMetaProcessor):
         self.skip_frames_stride = skip_frames_stride
         self.temporal_dimension_position = temporal_dimension_position
         if "slots" in kwargs:
-            super().__init__(tokenizer=tokenizer, **kwargs)
+            super().__init__(**kwargs)
             return
         super().__init__(
             slots=[
@@ -63,5 +63,4 @@ class Features2TextTranslationProcessor(MultimodalMetaProcessor):
                     column_map={"decoder_prompt": "signal"},
                 ),
             ],
-            tokenizer=tokenizer,
         )

@@ -82,26 +82,24 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     pre-populating decoder_input_ids), not for intra-slot
                     communication.
 
-    tokenizer — optional pre-built tokenizer. If None, auto-derived from the
-                first text slot. Stored as self.tokenizer so that save_pretrained
-                writes the tokenizer to disk alongside the slot config, allowing
-                from_pretrained to reconstruct text slots without requiring the
-                original tokenizer_path to be accessible. None is valid for
-                pipelines with no text slots.
+    tokenizer — read-only property derived from the first text slot that
+                owns a tokenizer. None for pipelines with no text slots.
+                save_pretrained writes the tokenizer to disk alongside the
+                slot config so that from_pretrained can reconstruct text
+                slots without requiring the original tokenizer_path.
     """
 
-    # attributes is empty because we fully own save_pretrained / from_pretrained.
-    # ProcessorMixin.save_pretrained iterates attributes and calls .save_pretrained()
-    # on each — keeping "tokenizer" here would require a non-None tokenizer and
-    # would duplicate the saving we already do in our override.
-    attributes = []
+    # MultimodalMetaProcessor.__init__ has no modality-named parameters
+    # (ProcessorMixin 5.x looks for tokenizer, image_processor, …), so
+    # get_attributes() naturally returns [] and ProcessorMixin.__init__
+    # requires no typed components. save_pretrained/from_pretrained are
+    # fully overridden below.
     tokenizer_class = None
     name = "multimodal_meta_processor"
 
     def __init__(
         self,
         slots: List[ProcessorSlot],
-        tokenizer: Optional[Any] = None,
     ):
         if not slots:
             raise ValueError(
@@ -126,19 +124,19 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     )
                 seen_mask_keys.add(slot.output_mask_key)
         self.slots = slots
-        if tokenizer is None:
-            tokenizer = next(
-                (
-                    s.processor.tokenizer
-                    for s in slots
-                    if hasattr(s.processor, "tokenizer") and s.processor.tokenizer is not None
-                ),
-                None,
-            )
-        # Set tokenizer directly — bypasses ProcessorMixin type validation which
-        # requires a non-None PreTrainedTokenizerBase when tokenizer_class is set.
-        self.tokenizer = tokenizer
         super().__init__()
+
+    @property
+    def tokenizer(self):
+        """Return the tokenizer from the first text slot, or None if no text slot exists."""
+        return next(
+            (
+                s.processor.tokenizer
+                for s in self.slots
+                if hasattr(s.processor, "tokenizer") and s.processor.tokenizer is not None
+            ),
+            None,
+        )
 
     # ------------------------------------------------------------------
     # HF save / load compatibility
@@ -235,8 +233,10 @@ class MultimodalMetaProcessor(ProcessorMixin):
 
         try:
             tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
-        except OSError:
+        except (OSError, ValueError):
             # No tokenizer files present in the directory — valid for non-text pipelines.
+            # OSError: raised by transformers 4.x when no tokenizer files found.
+            # ValueError: raised by transformers 5.x in the same situation.
             logger.debug(
                 "No tokenizer found in '%s'; setting tokenizer=None. "
                 "This is expected for processors with no text slots.",
@@ -302,10 +302,7 @@ class MultimodalMetaProcessor(ProcessorMixin):
                 is_label=slot_dict.get("is_label", False),
             )
 
-        return cls(
-            slots=[_reconstruct_slot(s) for s in config["slots"]],
-            tokenizer=tokenizer,
-        )
+        return cls(slots=[_reconstruct_slot(s) for s in config["slots"]])
 
     def __repr__(self) -> str:
         tok = type(self.tokenizer).__name__ if self.tokenizer is not None else "None"
@@ -409,3 +406,24 @@ class MultimodalMetaProcessor(ProcessorMixin):
                 result[slot.output_mask_key] = mask
 
         return BatchFeature(result)
+
+
+class _LegacyMetaProcessorBase(MultimodalMetaProcessor):
+    """
+    Base class for deprecated task-specific processor wrappers.
+
+    Legacy processors (e.g. Text2TextTranslationProcessor) accept ``tokenizer``
+    as a build-time convenience parameter to pass into their TextModalityProcessor
+    slots. ProcessorMixin 5.x would misinterpret that parameter name as a required
+    typed modality component, so this base class overrides ``get_attributes()`` to
+    return [] — the same natural result that MultimodalMetaProcessor itself produces,
+    but explicitly enforced so that subclass __init__ signatures do not re-trigger
+    the detection.
+
+    All legacy complexity is isolated here; the modern MultimodalMetaProcessor API
+    needs no such override.
+    """
+
+    @classmethod
+    def get_attributes(cls):
+        return []

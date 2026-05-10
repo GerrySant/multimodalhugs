@@ -191,7 +191,6 @@ def _make_text2text_meta(tokenizer):
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
-        tokenizer=tokenizer,
     )
 
 
@@ -222,7 +221,6 @@ def _make_features2text_meta(tokenizer):
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
-        tokenizer=tokenizer,
     )
 
 

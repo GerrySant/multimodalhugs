@@ -16,22 +16,15 @@ from PIL import Image
 from transformers import PreTrainedTokenizerFast
 
 # ---------------------------------------------------------------------------
-# Paths to existing test assets
+# Paths and sample data — single source of truth in tests/assets/sample_data.py
 # ---------------------------------------------------------------------------
-_TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TINY_TOKENIZER_PATH = os.path.join(_TESTS_DIR, "test_model_only", "tiny_tokenizer")
-FONT_PATH = os.path.join(_TESTS_DIR, "e2e_overfitting", "other_files", "Arial.ttf")
-ASSETS_DIR = os.path.join(_TESTS_DIR, "assets")
-CLIP_PROCESSOR_PATH = os.path.join(ASSETS_DIR, "processors", "clip_image_processor")
-
-# ---------------------------------------------------------------------------
-# SignWriting constants
-# ---------------------------------------------------------------------------
-SIGNWRITING_STRINGS = [
-    "M518x529S14c20481x471S27106503x489",
-    "M522x525S11541498x491S11549479x498",
-    "M524x518S15a28476x483S20e00499x489",
-]
+from tests.assets.sample_data import (
+    ASSETS_DIR,
+    TINY_TOKENIZER_PATH,
+    FONT_PATH,
+    CLIP_PROCESSOR_PATH,
+    SIGNWRITING_STRINGS,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -347,88 +340,29 @@ def signwriting_batch_samples():
 
 @pytest.fixture(scope="session")
 def pose_asset_samples():
-    pose_dir = os.path.join(ASSETS_DIR, "pose")
-    return [
-        {
-            "signal": os.path.join(pose_dir, "sample_01.pose"),
-            "signal_start": 0, "signal_end": 0,
-            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
-            "output": "Let's open Access.",
-        },
-        {
-            "signal": os.path.join(pose_dir, "sample_02.pose"),
-            "signal_start": 0, "signal_end": 0,
-            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
-            "output": "Good.",
-        },
-    ]
+    from tests.assets.sample_data import pose_asset_samples as _samples
+    return _samples()
 
 
 @pytest.fixture(scope="session")
 def video_asset_samples():
-    video_dir = os.path.join(ASSETS_DIR, "video")
-    return [
-        {
-            "signal": os.path.join(video_dir, "sample_01.mp4"),
-            "signal_start": 0, "signal_end": 0,
-            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
-            "output": "Let's open Access.",
-        },
-        {
-            "signal": os.path.join(video_dir, "sample_02.mp4"),
-            "signal_start": 0, "signal_end": 0,
-            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
-            "output": "Good.",
-        },
-    ]
+    from tests.assets.sample_data import video_asset_samples as _samples
+    return _samples()
 
 
 @pytest.fixture(scope="session")
 def features_asset_samples():
-    features_dir = os.path.join(ASSETS_DIR, "features")
-    return [
-        {
-            "signal": os.path.join(features_dir, "sample_01.npy"),
-            "signal_start": 0, "signal_end": 0,
-            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
-            "output": "Let's open Access.",
-        },
-        {
-            "signal": os.path.join(features_dir, "sample_02.npy"),
-            "signal_start": 0, "signal_end": 0,
-            "encoder_prompt": "__asl__", "decoder_prompt": "__en__",
-            "output": "Good.",
-        },
-    ]
+    from tests.assets.sample_data import features_asset_samples as _samples
+    return _samples()
 
 
 @pytest.fixture(scope="session")
 def text_asset_samples():
-    return [
-        {
-            "signal": "Let's open Access.",
-            "encoder_prompt": "__en__", "decoder_prompt": "__fr__",
-            "output": "Ouvrons Access.",
-        },
-        {
-            "signal": "Good.",
-            "encoder_prompt": "__en__", "decoder_prompt": "__fr__",
-            "output": "Bien.",
-        },
-    ]
+    from tests.assets.sample_data import text_asset_samples as _samples
+    return _samples()
 
 
 @pytest.fixture(scope="session")
 def image_asset_samples():
-    return [
-        {
-            "signal": "Let's open Access.",
-            "encoder_prompt": "lowercase: ", "decoder_prompt": "__en__",
-            "output": "let's open access.",
-        },
-        {
-            "signal": "Good.",
-            "encoder_prompt": "lowercase: ", "decoder_prompt": "__en__",
-            "output": "good.",
-        },
-    ]
+    from tests.assets.sample_data import image_asset_samples as _samples
+    return _samples()

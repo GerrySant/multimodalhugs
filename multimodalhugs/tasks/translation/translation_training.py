@@ -33,7 +33,6 @@ from datasets import load_from_disk
 
 import transformers
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import send_example_telemetry
 
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
@@ -67,6 +66,10 @@ def main():
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, sys.argv[1:])
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, sys.argv[1:])
 
+    if training_args.worker_start_method is not None:
+        import torch.multiprocessing as tmp
+        tmp.set_start_method(training_args.worker_start_method, force=True)
+
     resolve_missing_arg(model_args, 'model_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
@@ -75,10 +78,6 @@ def main():
 
     # set remove_unused_columns to false
     setattr(training_args, "remove_unused_columns", False)
-
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_translation", model_args, data_args)
 
     # Setup logging
     logging.basicConfig(
@@ -333,7 +332,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=(
             compute_metrics if training_args.predict_with_generate and metrics_list else None
@@ -387,7 +386,7 @@ def main():
         max_length = (
             generate_args.max_length
             if generate_args.max_length is not None
-            else model.max_length
+            else model.generation_config.max_length
         )
         num_beams = generate_args.num_beams if generate_args.num_beams is not None else training_args.generation_num_beams
 

@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
-from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES
+from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES, MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES
 
 # Other
 from typing import Optional
@@ -105,7 +105,7 @@ def get_backbone_config_class(model_type: str):
 def get_backbone_model_class(model_type: str):
     """
     Retrieves the specific model (backbone) class for the given `model_type`
-    using Hugging Face's MODEL_WITH_LM_HEAD_MAPPING_NAMES and 
+    using Hugging Face's MODEL_FOR_CAUSAL_LM_MAPPING_NAMES and
     MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES mappings.
 
     Args:
@@ -120,8 +120,8 @@ def get_backbone_model_class(model_type: str):
     """
     model_class_name = None
     
-    if model_type in MODEL_WITH_LM_HEAD_MAPPING_NAMES:
-        model_class_name = MODEL_WITH_LM_HEAD_MAPPING_NAMES[model_type]
+    if model_type in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES:
+        model_class_name = MODEL_FOR_CAUSAL_LM_MAPPING_NAMES[model_type]
 
     if model_type in MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES:
         # If the model appears in both, you could log a warning or choose a default behavior.
@@ -134,7 +134,7 @@ def get_backbone_model_class(model_type: str):
     if not model_class_name:
         raise ValueError(
             f"Unknown model type '{model_type}'. Available options: "
-            f"{list(MODEL_WITH_LM_HEAD_MAPPING_NAMES.keys())} and "
+            f"{list(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.keys())} and "
             f"{list(MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES.keys())}"
         )
 
