@@ -368,6 +368,11 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     if len(slot.column_map) > 1
                     else batch[primary][i]
                 )
+                # Auto-inject the dataset split so processors can apply
+                # split-conditional logic (e.g. augmentation only on train)
+                # without requiring an explicit column_map entry for "split".
+                if isinstance(raw, dict) and "split" in batch and "split" not in raw:
+                    raw["split"] = batch["split"][i]
                 result = slot.processor.process_sample(raw)
                 new_values.append(result if isinstance(result, torch.Tensor) else batch[primary][i])
             batch[primary] = new_values

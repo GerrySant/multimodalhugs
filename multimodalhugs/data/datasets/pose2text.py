@@ -142,6 +142,7 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
                 "encoder_prompt": Optional[str],
                 "decoder_prompt": Optional[str],
                 "output": Optional[str],
+                "split": Optional[str],
             }
 
         dataset_features = datasets.Features(dataset_features)
@@ -272,4 +273,5 @@ class Pose2TextDataset(datasets.GeneratorBasedBuilder):
                 "encoder_prompt": item.get("encoder_prompt") or "",
                 "decoder_prompt": item.get("decoder_prompt") or "",
                 "output": item['output'],
+                "split": split,
             }
