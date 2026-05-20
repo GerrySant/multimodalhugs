@@ -163,6 +163,7 @@ def apply_component_jitter(
     x: torch.Tensor,
     global_jitter_std: float = 0.02,
     hand_jitter_std: float = 0.01,
+    elbow_follow_fraction: float = 0.0,
     **kwargs,
 ) -> torch.Tensor:
     """
@@ -189,11 +190,16 @@ def apply_component_jitter(
       added only to the left-hand and right-hand components (each hand gets its
       own independent offset). The POSE wrist keypoints (LEFT_WRIST index 4,
       RIGHT_WRIST index 5) receive the same offset so both representations of
-      the wrist stay consistent. The elbow is left at its original position;
-      the forearm length therefore changes by the jitter magnitude, which is
-      acceptable because pose estimation from video cannot reliably recover the
-      depth dimension and real sequences already carry natural arm-length
-      variation across frames.
+      the wrist stay consistent. Two offsets are sampled per hand (start and
+      end of the sequence) and linearly interpolated across T frames, so the
+      displacement drifts smoothly and different signs within the clip are
+      performed at slightly different positions — more natural than a single
+      constant shift for the entire sequence. When ``elbow_follow_fraction > 0``,
+      the elbow also moves by that fraction of the per-frame wrist offset, but
+      only its component *perpendicular* to the mean upper-arm axis (shoulder →
+      elbow). This makes the elbow rotate rather than stretch the upper arm —
+      a downward wrist displacement no longer unnaturally elongates the
+      shoulder-to-elbow segment.
 
     Coordinate scale and normalization
     -----------------------------------
@@ -220,14 +226,25 @@ def apply_component_jitter(
 
     Args:
         x:                 [T, D] pose tensor (D = 534 after reduce_holistic).
-        global_jitter_std: Std of the global offset in shoulder-width units.
-                           Recommended: 0 (see note above). Default: 0.02.
-        hand_jitter_std:   Std of the per-hand additional offset in
-                           shoulder-width units. Set to 0 to disable.
-                           Default: 0.01.
+        global_jitter_std:    Std of the global offset in shoulder-width units.
+                              Recommended: 0 (see note above). Default: 0.02.
+        hand_jitter_std:      Std of the per-hand additional offset in
+                              shoulder-width units. Set to 0 to disable.
+                              Default: 0.01.
+        elbow_follow_fraction: Controls how much the elbow follows the wrist
+                              displacement. The elbow is moved by
+                              ``elbow_follow_fraction`` times the component of
+                              the wrist offset that is *perpendicular* to the
+                              mean upper-arm axis (shoulder → elbow). The
+                              parallel component is discarded so the elbow
+                              rotates around the shoulder rather than stretching
+                              the upper arm. 0.0 = elbow stays (default);
+                              1.0 = full perpendicular follow. Must be in [0, 1].
     """
     if global_jitter_std < 0 or hand_jitter_std < 0:
         raise ValueError("global_jitter_std and hand_jitter_std must be >= 0")
+    if not (0.0 <= elbow_follow_fraction <= 1.0):
+        raise ValueError(f"elbow_follow_fraction must be in [0, 1], got {elbow_follow_fraction}")
 
     T, D = x.shape
     n_kpts = D // _N_COORDS
@@ -246,6 +263,24 @@ def apply_component_jitter(
         out[:, _HAND_START + _LHAND_N : _HAND_END,  :] += right_offset
         out[:, _POSE_LWRIST_IDX, :] += left_offset
         out[:, _POSE_RWRIST_IDX, :] += right_offset
+
+        if elbow_follow_fraction > 0.0:
+            # Move the elbow only in the direction perpendicular to the upper arm
+            # (shoulder → elbow). The parallel component would stretch / compress
+            # the upper arm; discarding it means the elbow *rotates* around the
+            # shoulder instead of extending along it — no unnatural length change.
+            # Mean direction is used as a stable reference (avoids per-frame noise
+            # in the arm axis amplifying into frame-to-frame elbow jumps).
+            l_se = (out[:, _POSE_LELBOW_IDX, :] - out[:, _POSE_LSHOULDER_IDX, :]).mean(dim=0)
+            r_se = (out[:, _POSE_RELBOW_IDX, :] - out[:, _POSE_RSHOULDER_IDX, :]).mean(dim=0)
+            l_se_dir = l_se / l_se.norm().clamp(min=1e-8)  # [3] unit vector
+            r_se_dir = r_se / r_se.norm().clamp(min=1e-8)
+
+            l_elbow_offset = left_offset  - (left_offset  @ l_se_dir) * l_se_dir
+            r_elbow_offset = right_offset - (right_offset @ r_se_dir) * r_se_dir
+
+            out[:, _POSE_LELBOW_IDX, :] += l_elbow_offset * elbow_follow_fraction
+            out[:, _POSE_RELBOW_IDX, :] += r_elbow_offset * elbow_follow_fraction
 
     return out.view(T, D).to(x.dtype)
 
