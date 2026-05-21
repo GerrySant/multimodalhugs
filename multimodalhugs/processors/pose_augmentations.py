@@ -164,6 +164,7 @@ def apply_component_jitter(
     global_jitter_std: float = 0.02,
     hand_jitter_std: float = 0.01,
     elbow_follow_fraction: float = 0.0,
+    hands_move_together: bool = True,
     **kwargs,
 ) -> torch.Tensor:
     """
@@ -240,6 +241,10 @@ def apply_component_jitter(
                               rotates around the shoulder rather than stretching
                               the upper arm. 0.0 = elbow stays (default);
                               1.0 = full perpendicular follow. Must be in [0, 1].
+        hands_move_together:  If True (default), both hands share the same
+                              displacement trajectory — the signer's overall
+                              hand position drifts as a unit. If False, each
+                              hand gets an independent trajectory.
     """
     if global_jitter_std < 0 or hand_jitter_std < 0:
         raise ValueError("global_jitter_std and hand_jitter_std must be >= 0")
@@ -256,28 +261,41 @@ def apply_component_jitter(
         out = out + torch.randn(1, 1, _N_COORDS) * global_jitter_std
 
     if hand_jitter_std > 0:
-        left_offset  = torch.randn(_N_COORDS) * hand_jitter_std  # [3]
-        right_offset = torch.randn(_N_COORDS) * hand_jitter_std  # [3]
+        # Sample start and end offsets independently; linearly interpolate across
+        # T frames so the displacement drifts smoothly through the sequence and
+        # different signs are performed at slightly different positions.
+        alpha = torch.linspace(0, 1, T)  # [T]
 
-        out[:, _HAND_START : _HAND_START + _LHAND_N, :] += left_offset
-        out[:, _HAND_START + _LHAND_N : _HAND_END,  :] += right_offset
+        l_start = torch.randn(_N_COORDS) * hand_jitter_std  # [3]
+        l_end   = torch.randn(_N_COORDS) * hand_jitter_std  # [3]
+        if hands_move_together:
+            r_start, r_end = l_start, l_end
+        else:
+            r_start = torch.randn(_N_COORDS) * hand_jitter_std  # [3]
+            r_end   = torch.randn(_N_COORDS) * hand_jitter_std  # [3]
+
+        left_offset  = l_start + alpha[:, None] * (l_end - l_start)   # [T, 3]
+        right_offset = r_start + alpha[:, None] * (r_end - r_start)   # [T, 3]
+
+        out[:, _HAND_START : _HAND_START + _LHAND_N, :] += left_offset[:, None, :]
+        out[:, _HAND_START + _LHAND_N : _HAND_END,  :] += right_offset[:, None, :]
         out[:, _POSE_LWRIST_IDX, :] += left_offset
         out[:, _POSE_RWRIST_IDX, :] += right_offset
 
         if elbow_follow_fraction > 0.0:
             # Move the elbow only in the direction perpendicular to the upper arm
             # (shoulder → elbow). The parallel component would stretch / compress
-            # the upper arm; discarding it means the elbow *rotates* around the
-            # shoulder instead of extending along it — no unnatural length change.
-            # Mean direction is used as a stable reference (avoids per-frame noise
-            # in the arm axis amplifying into frame-to-frame elbow jumps).
+            # the upper arm; discarding it means the elbow follows the lateral
+            # drift without unnaturally lengthening the arm.
+            # Mean axis is used as a stable reference across all frames.
             l_se = (out[:, _POSE_LELBOW_IDX, :] - out[:, _POSE_LSHOULDER_IDX, :]).mean(dim=0)
             r_se = (out[:, _POSE_RELBOW_IDX, :] - out[:, _POSE_RSHOULDER_IDX, :]).mean(dim=0)
             l_se_dir = l_se / l_se.norm().clamp(min=1e-8)  # [3] unit vector
             r_se_dir = r_se / r_se.norm().clamp(min=1e-8)
 
-            l_elbow_offset = left_offset  - (left_offset  @ l_se_dir) * l_se_dir
-            r_elbow_offset = right_offset - (right_offset @ r_se_dir) * r_se_dir
+            # left_offset is [T, 3]; project out the parallel component per frame.
+            l_elbow_offset = left_offset  - (left_offset  * l_se_dir).sum(dim=1, keepdim=True) * l_se_dir
+            r_elbow_offset = right_offset - (right_offset * r_se_dir).sum(dim=1, keepdim=True) * r_se_dir
 
             out[:, _POSE_LELBOW_IDX, :] += l_elbow_offset * elbow_follow_fraction
             out[:, _POSE_RELBOW_IDX, :] += r_elbow_offset * elbow_follow_fraction
