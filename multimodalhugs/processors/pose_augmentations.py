@@ -339,19 +339,26 @@ def apply_gaussian_noise(
 _APPEARANCE_CACHE: Dict[str, torch.Tensor] = {}
 
 
-def _load_and_normalize_appearances(pose_path: str) -> torch.Tensor:
+def _load_and_normalize_appearances(pose_path: str, cache: bool = True) -> torch.Tensor:
     """
     Load every frame from an appearances .pose file, normalize each frame to
     shoulder-width units (identical to PoseModalityProcessor's pose.normalize()),
-    and return a [N, D] float32 tensor.  Result is cached per path.
+    and return a [N, D] float32 tensor.
 
     Normalization per frame:
       centered  = kpts - shoulder_midpoint
       normalized = centered / shoulder_distance
     This matches the pose_format Pose.normalize() convention used during
     training-time preprocessing.
+
+    Args:
+        pose_path: Path to the .pose file.
+        cache:     If True, store the result in the module-level
+                   ``_APPEARANCE_CACHE`` dict and return it on subsequent calls
+                   without re-reading the file.  If False, the file is read
+                   from disk every time.  Default: True.
     """
-    if pose_path in _APPEARANCE_CACHE:
+    if cache and pose_path in _APPEARANCE_CACHE:
         return _APPEARANCE_CACHE[pose_path]
 
     try:
@@ -379,13 +386,15 @@ def _load_and_normalize_appearances(pose_path: str) -> torch.Tensor:
     normalized = (data - midpoint.unsqueeze(1)) / dist.unsqueeze(2)
     frames_flat = normalized.reshape(len(data), -1)  # [N, D]
 
-    _APPEARANCE_CACHE[pose_path] = frames_flat
+    if cache:
+        _APPEARANCE_CACHE[pose_path] = frames_flat
     return frames_flat
 
 
 def apply_appearance_transfer(
     x: torch.Tensor,
     appearance_pose_path: str,
+    cache_appearances: bool = True,
     **kwargs,
 ) -> torch.Tensor:
     """
@@ -421,10 +430,14 @@ def apply_appearance_transfer(
         appearance_pose_path: Path to the pre-built appearances .pose file
                               (e.g. built by build_appearances_pose.py).
                               Each frame is a different signer at rest with
-                              reduce_holistic already applied.  Loaded once
-                              and cached for the lifetime of the process.
+                              reduce_holistic already applied.
+        cache_appearances:    If True (default), the loaded appearance frames
+                              are stored in a module-level cache and reused
+                              across calls, avoiding repeated disk reads.
+                              Set to False if memory is constrained or if the
+                              file may change between calls.
     """
-    appearances = _load_and_normalize_appearances(appearance_pose_path)  # [N, D]
+    appearances = _load_and_normalize_appearances(appearance_pose_path, cache=cache_appearances)  # [N, D]
 
     # Pick one appearance frame at random
     idx = int(torch.randint(len(appearances), (1,)))
