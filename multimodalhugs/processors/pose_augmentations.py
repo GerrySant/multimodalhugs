@@ -8,6 +8,7 @@ a shared flat kwargs dict — unknown keys are silently ignored.
 
 from typing import Any, Callable, Dict, Optional
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -330,6 +331,135 @@ def apply_gaussian_noise(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Appearance transfer
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Module-level cache: path → [N, D] normalized float32 tensor.
+# Loaded once per process; avoids re-reading the file on every sample.
+_APPEARANCE_CACHE: Dict[str, torch.Tensor] = {}
+
+
+def _load_and_normalize_appearances(pose_path: str) -> torch.Tensor:
+    """
+    Load every frame from an appearances .pose file, normalize each frame to
+    shoulder-width units (identical to PoseModalityProcessor's pose.normalize()),
+    and return a [N, D] float32 tensor.  Result is cached per path.
+
+    Normalization per frame:
+      centered  = kpts - shoulder_midpoint
+      normalized = centered / shoulder_distance
+    This matches the pose_format Pose.normalize() convention used during
+    training-time preprocessing.
+    """
+    if pose_path in _APPEARANCE_CACHE:
+        return _APPEARANCE_CACHE[pose_path]
+
+    try:
+        from pose_format import Pose as _Pose
+    except ImportError:
+        raise ImportError(
+            "apply_appearance_transfer requires 'pose-format'. "
+            'Install it with: pip install pose-format'
+        )
+
+    with open(pose_path, "rb") as f:
+        pose = _Pose.read(f)
+
+    # shape [N, 1, K, 3] → [N, K, 3]
+    data = torch.from_numpy(
+        np.ma.filled(pose.body.data[:, 0, :, :], 0.0).astype(np.float32)
+    )
+
+    l_shoulder = data[:, _POSE_LSHOULDER_IDX, :]   # [N, 3]
+    r_shoulder = data[:, _POSE_RSHOULDER_IDX, :]   # [N, 3]
+    midpoint   = (l_shoulder + r_shoulder) * 0.5   # [N, 3]
+    dist       = torch.norm(r_shoulder - l_shoulder, dim=1, keepdim=True).clamp(min=1e-8)  # [N, 1]
+
+    # [N, K, 3]: subtract midpoint, divide by shoulder distance
+    normalized = (data - midpoint.unsqueeze(1)) / dist.unsqueeze(2)
+    frames_flat = normalized.reshape(len(data), -1)  # [N, D]
+
+    _APPEARANCE_CACHE[pose_path] = frames_flat
+    return frames_flat
+
+
+def apply_appearance_transfer(
+    x: torch.Tensor,
+    appearance_pose_path: str,
+    **kwargs,
+) -> torch.Tensor:
+    """
+    Transfer body appearance from a randomly selected resting frame onto the
+    input pose sequence.
+
+    Reimplements pose-anonymization's ``transfer_appearance`` / ``change_appearance``
+    directly in tensor space, requiring no dependency on that library.
+
+    Algorithm (all coordinates in shoulder-width units after normalization):
+
+      delta = target_appearance - x[0]
+      x_new[t] = x[t] + delta   for all t
+
+    This maps the first frame of the sequence exactly to the target signer's
+    resting body posture while preserving all relative frame-to-frame motion.
+
+    After the shift, hand keypoints (LEFT_HAND, RIGHT_HAND) and the POSE wrist
+    keypoints are restored from the original ``x`` — they encode the sign being
+    performed and must not be overwritten by the appearance shift.
+
+    Why after normalization
+    -----------------------
+    Signers are recorded at different distances and scales, making pixel
+    coordinates incomparable across datasets.  Normalization (shoulder-width
+    units, shoulder-midpoint origin) makes appearances from different datasets
+    directly comparable.  The input ``x`` is already normalized by
+    ``_load_pose``; appearance frames are normalized here at load time.
+
+    Args:
+        x:                    [T, D] normalized pose tensor (D = 534 after
+                              reduce_holistic).
+        appearance_pose_path: Path to the pre-built appearances .pose file
+                              (e.g. built by build_appearances_pose.py).
+                              Each frame is a different signer at rest with
+                              reduce_holistic already applied.  Loaded once
+                              and cached for the lifetime of the process.
+    """
+    appearances = _load_and_normalize_appearances(appearance_pose_path)  # [N, D]
+
+    # Pick one appearance frame at random
+    idx = int(torch.randint(len(appearances), (1,)))
+    target_app = appearances[idx].to(x.dtype)  # [D]
+
+    # Shift the whole sequence so x[0] → target appearance
+    x_new = x + (target_app - x[0])  # [T, D], broadcast
+
+    # Restore hand keypoints — they carry the sign content, not the appearance
+    hand_s = _HAND_START * _N_COORDS   # 408
+    hand_e = _HAND_END   * _N_COORDS   # 534
+    x_new[:, hand_s:hand_e] = x[:, hand_s:hand_e]
+
+    # Restore POSE wrist keypoints (must stay consistent with hand wrists)
+    lw_s = _POSE_LWRIST_IDX * _N_COORDS  # 12
+    rw_s = _POSE_RWRIST_IDX * _N_COORDS  # 15
+    x_new[:, lw_s : lw_s + _N_COORDS] = x[:, lw_s : lw_s + _N_COORDS]
+    x_new[:, rw_s : rw_s + _N_COORDS] = x[:, rw_s : rw_s + _N_COORDS]
+
+    # Renormalize: the appearance shift moves the shoulders, breaking the
+    # invariant that shoulder distance = 1.0 and origin = shoulder midpoint.
+    # Reapply per-frame normalization (equivalent to normalize_pose_size).
+    T, D = x_new.shape
+    n_kpts = D // _N_COORDS
+    x_3d  = x_new.view(T, n_kpts, _N_COORDS)
+    l_sh  = x_3d[:, _POSE_LSHOULDER_IDX, :]                           # [T, 3]
+    r_sh  = x_3d[:, _POSE_RSHOULDER_IDX, :]                           # [T, 3]
+    mid   = (l_sh + r_sh) * 0.5                                       # [T, 3]
+    dist  = (r_sh - l_sh).norm(dim=1, keepdim=True).clamp(min=1e-8)  # [T, 1]
+    x_new = ((x_3d - mid.unsqueeze(1)) / dist.unsqueeze(2)).view(T, D)
+
+    return x_new
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -338,4 +468,5 @@ AUGMENTATION_REGISTRY: Dict[str, Callable] = {
     "random_speed_perturbation": apply_random_speed_perturbation,
     "component_jitter":          apply_component_jitter,
     "gaussian_noise":            apply_gaussian_noise,
+    "appearance_transfer":       apply_appearance_transfer,
 }
