@@ -601,6 +601,22 @@ Processors are constructed as `MultimodalMetaProcessor(slots=[...])` — no `tok
 
 ---
 
+### `test_translation_utils.py`
+
+Tests for `merge_config_and_command_args()` in `tasks/translation/utils.py`.
+
+**`TestMergeConfigDerivedAttributes`** — derived `TrainingArguments` attributes must be recomputed after merge
+
+| Test | What it checks |
+|---|---|
+| `test_fp16_from_yaml_sets_mixed_precision` | `fp16: true` in YAML produces `fp16=True` and `mixed_precision="fp16"` on the returned args — regression test for transformers 5.x bug where stale `_args` was returned instead of freshly constructed `extra_args`, leaving `mixed_precision="no"` and silently disabling AMP |
+| `test_bf16_from_yaml_sets_mixed_precision` | `bf16: true` in YAML produces `bf16=True` and `mixed_precision="bf16"` |
+| `test_no_fp16_in_yaml_keeps_mixed_precision_no` | YAML without `fp16`/`bf16` produces `mixed_precision="no"` |
+| `test_cli_arg_takes_precedence_over_yaml` | A field explicitly provided on the CLI (here `--num_train_epochs 3`) wins over the YAML value (`num_train_epochs: 10`) |
+| `test_missing_section_returns_args_unchanged` | When the requested YAML section is absent, the original `_args` is returned unchanged (same object identity) |
+
+---
+
 ### `test_general_training_setup.py`
 
 Tests for `_build_dataset_map()` and `general_training_setup.main()` in `training_setup/general_training_setup.py`.
