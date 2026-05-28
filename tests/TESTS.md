@@ -601,6 +601,24 @@ Processors are constructed as `MultimodalMetaProcessor(slots=[...])` — no `tok
 
 ---
 
+### `test_tokenizer_utils.py`
+
+Tests for `add_new_special_tokens_from_vocab_file()` in `utils/tokenizer_utils.py`.
+
+Uses `_FakeLangTokenizer`, a minimal stub that replicates `M2M100Tokenizer`'s `_extra_special_tokens` replacement behaviour — no HuggingFace model download required.
+
+**`TestAddNewSpecialTokensPreservation`** — existing `_extra_special_tokens` must survive the call
+
+| Test | What it checks |
+|---|---|
+| `test_language_codes_preserved_when_adding_new_token` | Regression test for commit b59666b: all pre-existing language codes (`__en__`, etc.) remain in `_extra_special_tokens` after adding `__asl__`; verifies the wipe-on-replace bug is fixed |
+| `test_no_existing_extra_tokens_adds_normally` | Tokenizers with empty `_extra_special_tokens` (e.g. FastTokenizer) add new tokens correctly without change |
+| `test_no_duplication_when_token_already_in_vocab` | Token already in the vocabulary is skipped; `_extra_special_tokens` is unchanged |
+| `test_comma_separated_vocab_string` | Comma-separated string adds multiple tokens while preserving existing language codes |
+| `test_token_objects_in_extra_are_stringified` | Non-string entries in `_extra_special_tokens` (e.g. `AddedToken` objects) are converted to `str` before merging |
+
+---
+
 ### `test_translation_utils.py`
 
 Tests for `merge_config_and_command_args()` in `tasks/translation/utils.py`.
