@@ -3,6 +3,7 @@
 import pytest
 from omegaconf import OmegaConf
 from transformers import HfArgumentParser
+from unittest.mock import patch
 
 from multimodalhugs.tasks.translation.config_classes import ExtendedSeq2SeqTrainingArguments
 from multimodalhugs.tasks.translation.utils import merge_config_and_command_args
@@ -47,9 +48,15 @@ class TestMergeConfigDerivedAttributes:
         cfg_path = tmp_path / "config.yaml"
         OmegaConf.save(cfg, str(cfg_path))
 
-        result = merge_config_and_command_args(
-            str(cfg_path), ExtendedSeq2SeqTrainingArguments, "training", _default_training_args(), []
-        )
+        # _validate_args rejects bf16=True on CPU-only hardware. Patch it out on
+        # the exact class being instantiated so the mock is found first in the MRO,
+        # regardless of any _validate_args overrides in the transformers hierarchy.
+        # mixed_precision is computed by __post_init__ before _validate_args runs,
+        # so the patch suppresses only the hardware-check exception.
+        with patch.object(ExtendedSeq2SeqTrainingArguments, "_validate_args"):
+            result = merge_config_and_command_args(
+                str(cfg_path), ExtendedSeq2SeqTrainingArguments, "training", _default_training_args(), []
+            )
 
         assert result.bf16 is True
         assert result.mixed_precision == "bf16"
