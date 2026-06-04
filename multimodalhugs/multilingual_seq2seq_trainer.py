@@ -152,8 +152,9 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
         gen_kwargs["synced_gpus"] = gen_kwargs.get("synced_gpus", default_synced_gpus)
         generation_inputs = inputs.copy()
 
-        # If the `decoder_input_ids` was created from `labels`, evict the former, so that the model can freely generate
-        # (otherwise, it would continue generating from the padded `decoder_input_ids`)
+        # If decoder_input_ids was created from labels (shifted labels), evict it so generate()
+        # starts from the correct prefix.  After the slot rename, the raw decoder prompt is in
+        # decoder_prompt_ids; decoder_input_ids is always the teacher-forcing sequence.
         if (
             "labels" in generation_inputs
             and "decoder_input_ids" in generation_inputs
@@ -163,6 +164,15 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
                 k: v for k, v in inputs.items() if k not in ("decoder_input_ids", "decoder_attention_mask")
             }
 
+        # Extract the per-sample generation prefix (renamed from decoder_input_ids slot).
+        decoder_prompt_ids  = generation_inputs.pop("decoder_prompt_ids", None)
+        decoder_prompt_mask = generation_inputs.pop("decoder_prompt_mask", None)
+
+        _bos = self.model.config.decoder_start_token_id
+        if _bos is None:
+            _bos = self.model.generation_config.decoder_start_token_id
+        bos = _bos
+
         summon_full_params_context = (
             FullyShardedDataParallel.summon_full_params(self.model)
             if torch.distributed.is_available() and isinstance(self.model, FullyShardedDataParallel)
@@ -170,35 +180,50 @@ class MultiLingualSeq2SeqTrainer(Seq2SeqTrainer):
         )
 
         with summon_full_params_context:
-            if all_values_equal(generation_inputs['decoder_attention_mask']):
-                # If all decoder_prompts have the same number of tokens, we can pass the whole batch in the model.generate()
+            if decoder_prompt_ids is None or (
+                decoder_prompt_mask is not None and decoder_prompt_mask.numel() == 0
+            ):
+                # No decoder prompt (T5, ByT5, BART, mBART-cc25 with empty decoder_prompt).
+                # generate() starts from model.config.decoder_start_token_id automatically.
                 generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
 
-            elif generation_inputs['decoder_attention_mask'].numel() == 0:
-                # If decoder_prompts are empty, remove the empty tensors from generation_inputs before calling model.generate()
-                generation_inputs.pop("decoder_input_ids", None)
-                generation_inputs.pop("decoder_attention_mask", None)
+            elif all_values_equal(decoder_prompt_mask):
+                # All samples have the same prompt — batched generation.
+                # Build prefix: [bos, prompt_tok_1, ...] shape [B, 1+P]
+                B = decoder_prompt_ids.shape[0]
+                bos_col  = decoder_prompt_ids.new_full((B, 1), bos)
+                bos_mask = torch.ones(B, 1, dtype=decoder_prompt_mask.dtype,
+                                      device=decoder_prompt_mask.device)
+                generation_inputs["decoder_input_ids"]      = torch.cat([bos_col, decoder_prompt_ids], dim=1)
+                generation_inputs["decoder_attention_mask"] = torch.cat([bos_mask, decoder_prompt_mask], dim=1)
                 generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)
 
             else:
-                # Otherwise, we generate sample by sample:
-                B = next(iter(generation_inputs.values())).shape[0]
-                samples = [{key: value[i:i+1] for key, value in generation_inputs.items()} for i in range(B)]
-
-                generated_tokens = []
-                max_len_generation = 0
-
-                for sample in samples:
-                    _generated_tokens = self.model.generate(**sample, **gen_kwargs)
-
-                    if _generated_tokens.shape[1] > max_len_generation:
-                        max_len_generation = _generated_tokens.shape[1]
-
-                    generated_tokens.append(_generated_tokens)
-
-                for i in range(len(generated_tokens)):
-                    generated_tokens[i] = F.pad(generated_tokens[i], (0, max_len_generation - generated_tokens[i].size(1)), value=self.processing_class.pad_token_id)
-                generated_tokens = torch.cat(generated_tokens, dim=0)
+                # Different prompt lengths per sample — generate one by one.
+                B = decoder_prompt_ids.shape[0]
+                generated_tokens_list = []
+                max_len = 0
+                for i in range(B):
+                    actual_len    = int(decoder_prompt_mask[i].sum().item())
+                    actual_prompt = decoder_prompt_ids[i, :actual_len]
+                    bos_t         = actual_prompt.new_full((1,), bos)
+                    prefix        = torch.cat([bos_t, actual_prompt]).unsqueeze(0)
+                    prefix_mask   = torch.ones_like(prefix)
+                    sample_inputs = {
+                        **{k: v[i:i+1] for k, v in generation_inputs.items()},
+                        "decoder_input_ids":      prefix,
+                        "decoder_attention_mask": prefix_mask,
+                    }
+                    out = self.model.generate(**sample_inputs, **gen_kwargs)
+                    if out.shape[1] > max_len:
+                        max_len = out.shape[1]
+                    generated_tokens_list.append(out)
+                generated_tokens = torch.cat(
+                    [F.pad(t, (0, max_len - t.size(1)),
+                           value=self.processing_class.pad_token_id)
+                     for t in generated_tokens_list],
+                    dim=0,
+                )
 
         # Temporary hack to ensure the generation config is not initialized for each iteration of the
         # evaluation loop. Matches the upstream Seq2SeqTrainer pattern added in transformers 5.x.

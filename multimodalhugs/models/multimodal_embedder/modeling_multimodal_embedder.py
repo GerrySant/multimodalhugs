@@ -361,6 +361,8 @@ class MultiModalEmbedderModel(PreTrainedModel, GenerationMixin):
         attention_mask: Optional[torch.Tensor] = None,
         decoder_input_ids: Optional[torch.LongTensor] = None,
         decoder_attention_mask: Optional[torch.LongTensor] = None,
+        decoder_prompt_ids: Optional[torch.LongTensor] = None,
+        decoder_prompt_mask: Optional[torch.LongTensor] = None,
         head_mask: Optional[torch.Tensor] = None,
         decoder_head_mask: Optional[torch.Tensor] = None,
         cross_attn_head_mask: Optional[torch.Tensor] = None,
