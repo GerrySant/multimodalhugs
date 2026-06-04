@@ -110,17 +110,12 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
+    if os.path.isdir(training_args.output_dir) and training_args.do_train:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
-        if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-            raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-                "Use --overwrite_output_dir to overcome."
-            )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
+        if last_checkpoint is not None and training_args.resume_from_checkpoint is None:
             logger.info(
-                f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
-                "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
+                f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, "
+                "change the `--output_dir` to a fresh directory."
             )
 
     # Set seed before initializing model.
@@ -194,20 +189,6 @@ def main():
     else:
         logger.info("There is nothing to do. Please pass `do_train`, `do_eval` and/or `do_predict`.")
         return
-
-    # Check the whether the source target length fits in the model, if it has absolute positional embeddings
-    if (
-        hasattr(model.config, "max_position_embeddings")
-        and not hasattr(model.config, "relative_attention_max_distance")
-        and model.config.max_position_embeddings < data_args.max_source_length
-    ):
-        raise ValueError(
-            f"`--max_source_length` is set to {data_args.max_source_length}, but the model only has"
-            f" {model.config.max_position_embeddings} position encodings. Consider either reducing"
-            f" `--max_source_length` to {model.config.max_position_embeddings} or using a model with larger position "
-            "embeddings"
-        )
-
 
     if training_args.label_smoothing_factor > 0 and not hasattr(model, "prepare_decoder_input_ids_from_labels"):
         logger.warning(
