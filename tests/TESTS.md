@@ -760,7 +760,7 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 |---|---|
 | `test_returns_slots_key` | Expanded config contains a `slots` key |
 | `test_four_slots_generated` | Exactly 4 slots generated (1 modality + 3 text) |
-| `test_output_data_keys_match_standard` | Output keys are `input_frames`, `labels`, `encoder_prompt`, `decoder_input_ids` |
+| `test_output_data_keys_match_standard` | Output keys are `input_frames`, `labels`, `encoder_prompt`, `decoder_prompt_ids` |
 | `test_pipeline_key_removed` | `pipeline:` key absent from expanded config |
 | `test_shorthand_keys_removed` | All shorthand keys (`pipeline`, `tokenizer_path`, `new_vocabulary`, `modality_kwargs`) absent |
 | `test_returns_omegaconf_for_omegaconf_input` | OmegaConf input → OmegaConf output |
@@ -793,8 +793,8 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 | `test_labels_slot_column_map` | `labels` column_map is `{decoder_prompt: target_prefix, output: target}` |
 | `test_labels_slot_role_target` | `labels` slot has `role=target` |
 | `test_encoder_prompt_slot_has_mask_key` | `encoder_prompt` slot has correct mask key |
-| `test_decoder_input_ids_slot_has_mask_key` | `decoder_input_ids` slot has correct mask key |
-| `test_tokenizer_path_in_text_slots` | All three text slots contain `tokenizer_path` |
+| `test_decoder_prompt_ids_slot_has_mask_key` | `decoder_prompt_ids` slot has `output_mask_key == "decoder_prompt_mask"` |
+| `test_tokenizer_path_in_text_slots` | All three text slots (`labels`, `encoder_prompt`, `decoder_prompt_ids`) contain `tokenizer_path` |
 | `test_new_vocabulary_propagated` | `new_vocabulary` propagated to all text slots when set |
 | `test_new_vocabulary_absent_when_not_set` | `new_vocabulary` absent from slot kwargs when not provided |
 
