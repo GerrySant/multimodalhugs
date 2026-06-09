@@ -1,14 +1,18 @@
 """Tests for Image2TextTranslationProcessor."""
 
+import os
 import numpy as np
 import pytest
 import torch
 from transformers.feature_extraction_utils import BatchFeature
 
+from multimodalhugs.processors.image_modality_processor import ImageModalityProcessor
 from multimodalhugs.processors.legacy.image2text_preprocessor import (
     Image2TextTranslationProcessor,
 )
-from tests.test_data.conftest import FONT_PATH
+from tests.test_data.conftest import FONT_PATH, ASSETS_DIR
+
+_VIDEO_ASSET = os.path.join(ASSETS_DIR, "video", "sample_01.mp4")
 
 
 def _modality_proc(processor):
@@ -198,3 +202,48 @@ class TestImageProcessorCall:
                 assert val.shape[0] == batch_size, (
                     f"Key '{key}' has batch dim {val.shape[0]}, expected {batch_size}"
                 )
+
+
+@pytest.mark.skipif(not os.path.exists(_VIDEO_ASSET), reason="video asset not present")
+class TestImageLoadChannelOrder:
+    """Regression guard: ImageModalityProcessor must load images in RGB order.
+
+    Extracts the first frame from the test video using av (which always
+    yields rgb24), saves it as a PNG, then loads it with
+    ImageModalityProcessor and asserts the pixel values match the known
+    RGB source.  If the loader returned BGR (as cv2.imread does by default)
+    the R and B channel means would be swapped (~190 vs ~167 for this
+    frame) and the assertion would fail.
+    """
+
+    def test_loaded_values_match_rgb_source(self, tmp_path):
+        av = pytest.importorskip("av")
+        from PIL import Image as PILImage
+
+        # Extract the first frame as a known-good RGB array via av
+        container = av.open(_VIDEO_ASSET)
+        frame = next(container.decode(video=0))
+        rgb_array = frame.to_ndarray(format="rgb24")  # [H, W, 3] uint8 RGB
+        container.close()
+
+        # Save as PNG (PIL preserves RGB order)
+        png_path = str(tmp_path / "frame.png")
+        PILImage.fromarray(rgb_array).save(png_path)
+
+        # Load with the processor — image files return [1, C, H, W]
+        proc = ImageModalityProcessor(normalize_image=False)
+        tensor = proc.process_sample(png_path)
+
+        assert tensor.ndim == 4, f"Expected 4D [1, C, H, W], got shape {tensor.shape}"
+        assert tensor.shape[0] == 1, f"Expected T=1 for a single image, got {tensor.shape[0]}"
+
+        # Convert [1, C, H, W] → [H, W, C] to compare against the RGB source
+        tensor_hwc = tensor.squeeze(0).permute(1, 2, 0)
+        expected = torch.from_numpy(rgb_array.astype(np.float32))  # [H, W, C] RGB
+        assert tensor_hwc.shape == expected.shape, (
+            f"Shape mismatch: got {tensor_hwc.shape}, expected {expected.shape}"
+        )
+        assert torch.allclose(tensor_hwc, expected), (
+            "Pixel values do not match the known RGB source frame. "
+            "This would happen if the loader returned BGR instead of RGB."
+        )

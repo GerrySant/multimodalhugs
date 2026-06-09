@@ -61,6 +61,24 @@ This section defines parameters for preparing the dataset, processor, and model.
 
 This section includes training-specific parameters. MultiModalHugs leverages Hugging Face's Trainer. You can refer to the official <a href="https://huggingface.co/docs/transformers/v4.49.0/en/main_classes/trainer#transformers.TrainingArguments">TrainingArguments documentation</a> for a complete list of configurable training parameters.
 
+In addition to standard `TrainingArguments`, MultiModalHugs defines the following extra training parameters:
+
+- **`worker_start_method`** (*Optional, default: None*): Multiprocessing start method for all worker processes. Accepted values: `"fork"`, `"spawn"`, `"forkserver"`. When `None`, the Python/OS default is used (`"fork"` on Linux, `"spawn"` on macOS/Windows).
+
+  Set to `"spawn"` when using `backend="torchcodec"` in `VideoModalityProcessor` with `dataloader_num_workers > 0` on Linux. The `"fork"` start method cannot safely inherit a CUDA context into child processes and will cause errors or deadlocks. This setting is **global**: it affects DataLoader workers, `Dataset.map()` workers, and all other child processes spawned via `torch.multiprocessing`.
+
+  ```yaml
+  training:
+    dataloader_num_workers: 4
+    worker_start_method: spawn
+  ```
+
+- **`metric_name`** (*Optional, default: None*): Name of the metric to use for evaluation (any metric supported by `evaluate.load()`). Multiple metrics can be specified as a comma-separated string: `"bleu,wer"`.
+- **`early_stopping_patience`** (*Optional, default: None*): Number of evaluation calls with no improvement after which training stops. Requires `load_best_model_at_end: true` and `metric_for_best_model` to be set.
+- **`visualize_prediction_prob`** (*Optional, default: 0.05*): Fraction of evaluation samples for which predictions are logged.
+- **`print_decoder_prompt_on_prediction`** (*Optional, default: False*): If `true`, includes the decoder prompt in logged predictions.
+- **`print_special_tokens_on_prediction`** (*Optional, default: False*): If `true`, also logs a version of predictions that includes special tokens.
+
 ---
 
 > **Summary:** Using this configuration file ensures reproducibility and reduces boilerplate code by standardizing the experimental setup across different multimodal tasks.

@@ -2,12 +2,12 @@
 import logging
 import math
 import importlib
+import warnings
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Tuple, Union
 
 # Third-Party Imports
 import torch
-from transformers.models.auto.modeling_auto import MODEL_WITH_LM_HEAD_MAPPING_NAMES
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
 from transformers import (
     M2M100ForConditionalGeneration,
@@ -16,7 +16,6 @@ from transformers import (
     AutoConfig,
 )
 from transformers.modeling_outputs import Seq2SeqLMOutput
-from accelerate.utils import find_tied_parameters
 from ruamel.yaml import YAML
 
 # Local Application Imports
@@ -103,12 +102,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         Beginning-of-stream token ID.
     eos_token_id : int, optional
         End-of-stream token ID.
-    max_length : int
-        Maximum length used by generation.
-    use_backbone_max_length : bool
-        Whether to use the maximum length of the backbone as the generation length. Overrides `max_length`.
-        Defaults to `False`. Can only be used if a backbone is specified.
-
     ```python
     >>> from multimodalhugs.models.multimodal_embedder.configuration_multimodal_embedder import MultiModalEmbedderConfig
     >>> config = MultiModalEmbedderConfig(d_model=1024, backbone_type="m2m_100")
@@ -150,10 +143,14 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         pad_token_id: Optional[int] = None,
         bos_token_id: Optional[int] = None,
         eos_token_id: Optional[int] = None,
-        max_length: int = 200,
-        use_backbone_max_length: bool = False,
         **kwargs):
 
+        warnings.warn(
+            "MultiModalEmbedderConfig is deprecated and will be removed in multimodalhugs v0.8.0. "
+            "Use ModularMultiModalConfig instead.",
+            FutureWarning,
+            stacklevel=2,
+        )
         # Pass remaining arguments to the parent (e.g. name, hashes, revisions)
         super().__init__(**kwargs)
 
@@ -192,9 +189,6 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
 
-        self.max_length = max_length
-        self.use_backbone_max_length = use_backbone_max_length
-
         # additional changes
 
         self.is_encoder_decoder = True
@@ -211,15 +205,9 @@ class MultiModalEmbedderConfig(PretrainedConfig):
             self.backbone_config = AutoConfig.from_pretrained(self.pretrained_backbone)
 
         if self.backbone_config is not None:
-            self.tie_encoder_decoder = self.backbone_config.tie_encoder_decoder
-            self.tie_word_embeddings = self.backbone_config.tie_word_embeddings
-
-        if self.use_backbone_max_length:
-            if self.backbone_config is None:
-                raise ValueError("Cannot use backbone max length (`use_backbone_max_length`) "
-                                                      "without a backbone config.")
-
-            self.max_length = self.backbone_config.max_length
+            # tie_encoder_decoder was removed from all seq2seq model configs in
+            # transformers 5.x and is no longer a supported attribute.
+            self.tie_word_embeddings = getattr(self.backbone_config, "tie_word_embeddings", False)
 
         if self.feature_extractor_type is not None:
             feature_xtractor_config_class = get_feature_extractor_class(self.feature_extractor_type)[1]
@@ -231,3 +219,23 @@ class MultiModalEmbedderConfig(PretrainedConfig):
         self.adapter_ksize = eval(self.adapter_ksize) if isinstance(self.adapter_ksize, str) else self.adapter_ksize
         self.adapter_stride = eval(self.adapter_stride) if isinstance(self.adapter_stride, str) else self.adapter_stride
         self.bos_token_id = self.bos_token_id if self.bos_token_id is not None else self.decoder_start_token_id
+
+    def __getattr__(self, name: str):
+        """Delegate unknown attribute lookups to backbone_config.
+
+        GenerationMixin and DynamicCache in transformers 5.x access several
+        attributes (e.g. vocab_size, num_hidden_layers, hidden_size) directly on
+        self.config.  MultiModalEmbedderConfig is a composite config that wraps a
+        backbone config; delegating here lets the generation machinery find those
+        attributes without needing to enumerate them explicitly.
+
+        Standard Python __getattr__ is only called when the attribute is NOT found
+        through normal lookup, so own attributes always take precedence.
+        """
+        # Guard against infinite recursion during __init__ before backbone_config is set.
+        backbone_config = self.__dict__.get("backbone_config")
+        if backbone_config is not None and hasattr(backbone_config, name):
+            return getattr(backbone_config, name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )

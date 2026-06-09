@@ -4,19 +4,6 @@ This document catalogs every test in the suite, organized by file. Each entry de
 
 ---
 
-## `test_config/`
-
-### `test_multimodal_embedder_config.py`
-
-| Test | What it checks |
-|---|---|
-| `test_config_max_length_default` | `MultiModalEmbedderConfig` has default `max_length=200` |
-| `test_config_max_length_nondefault` | Custom `max_length` can be set at construction |
-| `test_config_use_backbone_max_length_true` | `use_backbone_max_length=True` sets `max_length` to the backbone's value (512) |
-| `test_config_use_backbone_max_length_fails_without_backbone_config` | `use_backbone_max_length=True` without a backbone config raises `ValueError` |
-
----
-
 ## `test_data/`
 
 ### `test_data_utils.py`
@@ -356,7 +343,7 @@ End-to-end tests for `Features2TextTranslationProcessor`.
 
 ### `test_processor_image2text.py`
 
-End-to-end tests for `Image2TextTranslationProcessor`.
+End-to-end tests for `Image2TextTranslationProcessor` and `ImageModalityProcessor`.
 
 | Class | Tests |
 |---|---|
@@ -364,6 +351,7 @@ End-to-end tests for `Image2TextTranslationProcessor`.
 | `TestImageObtainMultimodalInputAndMasks` | Returns `input_frames` and `attention_mask` |
 | `TestImageTransformGetItemsOutput` | Converts signals to tensors |
 | `TestImageProcessorCall` | Returns `BatchFeature`; has expected keys; batch dims consistent |
+| `TestImageLoadChannelOrder` | Regression guard: extracts the first frame of `tests/assets/video/sample_01.mp4` via `av` (RGB), saves as PNG, loads with `ImageModalityProcessor`, and asserts the result is `[1, C, H, W]` (T=1 single-image sequence). Pixel values are compared after converting back to `[H, W, C]`. The test frame has R mean ≈ 190.6 vs B mean ≈ 167.2, so a BGR loader would fail. Skipped if the video asset is absent. |
 
 ---
 
@@ -600,6 +588,8 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 
 **`TestDataCollatorWithMetaProcessor`** — collator delegates to `MultimodalMetaProcessor`
 
+Processors are constructed as `MultimodalMetaProcessor(slots=[...])` — no `tokenizer=` argument; the tokenizer is derived automatically from the first text slot via `@property`.
+
 | Test | What it checks |
 |---|---|
 | `test_text2text_returns_expected_keys` | All expected output keys present |
@@ -609,6 +599,40 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 | `test_labels_padded_with_minus_100` | All label values are either valid token IDs or `-100` |
 | `test_meta_labels_match_legacy_labels` | Labels from MetaProcessor identical to legacy `create_seq2seq_labels_from_samples` output |
 | `test_legacy_processor_path_still_works` | Old-style processors produce labels through the legacy collator path |
+
+---
+
+### `test_tokenizer_utils.py`
+
+Tests for `add_new_special_tokens_from_vocab_file()` in `utils/tokenizer_utils.py`.
+
+Uses `_FakeLangTokenizer`, a minimal stub that replicates `M2M100Tokenizer`'s `_extra_special_tokens` replacement behaviour — no HuggingFace model download required.
+
+**`TestAddNewSpecialTokensPreservation`** — existing `_extra_special_tokens` must survive the call
+
+| Test | What it checks |
+|---|---|
+| `test_language_codes_preserved_when_adding_new_token` | Regression test for commit b59666b: all pre-existing language codes (`__en__`, etc.) remain in `_extra_special_tokens` after adding `__asl__`; verifies the wipe-on-replace bug is fixed |
+| `test_no_existing_extra_tokens_adds_normally` | Tokenizers with empty `_extra_special_tokens` (e.g. FastTokenizer) add new tokens correctly without change |
+| `test_no_duplication_when_token_already_in_vocab` | Token already in the vocabulary is skipped; `_extra_special_tokens` is unchanged |
+| `test_comma_separated_vocab_string` | Comma-separated string adds multiple tokens while preserving existing language codes |
+| `test_token_objects_in_extra_are_stringified` | Non-string entries in `_extra_special_tokens` (e.g. `AddedToken` objects) are converted to `str` before merging |
+
+---
+
+### `test_translation_utils.py`
+
+Tests for `merge_config_and_command_args()` in `tasks/translation/utils.py`.
+
+**`TestMergeConfigDerivedAttributes`** — derived `TrainingArguments` attributes must be recomputed after merge
+
+| Test | What it checks |
+|---|---|
+| `test_fp16_from_yaml_sets_mixed_precision` | `fp16: true` in YAML produces `fp16=True` and `mixed_precision="fp16"` on the returned args — regression test for transformers 5.x bug where stale `_args` was returned instead of freshly constructed `extra_args`, leaving `mixed_precision="no"` and silently disabling AMP |
+| `test_bf16_from_yaml_sets_mixed_precision` | `bf16: true` in YAML produces `bf16=True` and `mixed_precision="bf16"`. Patches `_validate_args` on `ExtendedSeq2SeqTrainingArguments` to suppress the CPU-only hardware rejection — the test is about config merging, not bf16 hardware availability. |
+| `test_no_fp16_in_yaml_keeps_mixed_precision_no` | YAML without `fp16`/`bf16` produces `mixed_precision="no"` |
+| `test_cli_arg_takes_precedence_over_yaml` | A field explicitly provided on the CLI (here `--num_train_epochs 3`) wins over the YAML value (`num_train_epochs: 10`) |
+| `test_missing_section_returns_args_unchanged` | When the requested YAML section is absent, the original `_args` is returned unchanged (same object identity) |
 
 ---
 
@@ -737,7 +761,7 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 |---|---|
 | `test_returns_slots_key` | Expanded config contains a `slots` key |
 | `test_four_slots_generated` | Exactly 4 slots generated (1 modality + 3 text) |
-| `test_output_data_keys_match_standard` | Output keys are `input_frames`, `labels`, `encoder_prompt`, `decoder_input_ids` |
+| `test_output_data_keys_match_standard` | Output keys are `input_frames`, `labels`, `encoder_prompt`, `decoder_prompt_ids` |
 | `test_pipeline_key_removed` | `pipeline:` key absent from expanded config |
 | `test_shorthand_keys_removed` | All shorthand keys (`pipeline`, `tokenizer_path`, `new_vocabulary`, `modality_kwargs`) absent |
 | `test_returns_omegaconf_for_omegaconf_input` | OmegaConf input → OmegaConf output |
@@ -770,8 +794,8 @@ Tests for `build_processor_from_config()` and `expand_pipeline_shorthand()` in `
 | `test_labels_slot_column_map` | `labels` column_map is `{decoder_prompt: target_prefix, output: target}` |
 | `test_labels_slot_role_target` | `labels` slot has `role=target` |
 | `test_encoder_prompt_slot_has_mask_key` | `encoder_prompt` slot has correct mask key |
-| `test_decoder_input_ids_slot_has_mask_key` | `decoder_input_ids` slot has correct mask key |
-| `test_tokenizer_path_in_text_slots` | All three text slots contain `tokenizer_path` |
+| `test_decoder_prompt_ids_slot_has_mask_key` | `decoder_prompt_ids` slot has `output_mask_key == "decoder_prompt_mask"` |
+| `test_tokenizer_path_in_text_slots` | All three text slots (`labels`, `encoder_prompt`, `decoder_prompt_ids`) contain `tokenizer_path` |
 | `test_new_vocabulary_propagated` | `new_vocabulary` propagated to all text slots when set |
 | `test_new_vocabulary_absent_when_not_set` | `new_vocabulary` absent from slot kwargs when not provided |
 
@@ -795,8 +819,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 |---|---|
 | `test_pose_processor_raises_without_pose_format` | `PoseModalityProcessor()` raises `ImportError` mentioning `pose-format` when `_POSE_FORMAT_AVAILABLE=False` |
 | `test_signwriting_processor_raises_without_signwriting` | `SignwritingModalityProcessor()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
-| `test_video_processor_raises_without_cv2_when_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=...)` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
-| `test_video_processor_raises_without_torchvision` | `VideoModalityProcessor()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
+| `test_video_processor_raises_on_invalid_backend` | `VideoModalityProcessor(backend="invalid_backend")` raises `ValueError` mentioning `backend must be one of` |
 | `test_image_processor_raises_without_cv2` | `ImageModalityProcessor()` raises `ImportError` mentioning `opencv-python` when `_CV2_AVAILABLE=False` |
 
 **Datasets**
@@ -807,7 +830,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 | `test_signwriting_dataset_raises_without_signwriting` | `SignWritingDataset()` raises `ImportError` mentioning `signwriting` when `_SIGNWRITING_AVAILABLE=False` |
 | `test_video2text_dataset_raises_without_av` | `Video2TextDataset()` raises `ImportError` mentioning `av` when `_AV_AVAILABLE=False` |
 | `test_video2text_dataset_raises_without_torchvision` | `Video2TextDataset()` raises `ImportError` mentioning `torchvision` when `_TORCHVISION_AVAILABLE=False` |
-| `test_video_processor_no_raise_without_cv2_when_no_custom_preprocessor` | `VideoModalityProcessor(custom_preprocessor_path=None)` does **not** raise when `_CV2_AVAILABLE=False`; cv2 is only required when a custom preprocessor path is provided |
+| `test_video_processor_accepts_supported_backends` | `VideoModalityProcessor(backend=b)` instantiates without error for every backend in `SUPPORTED_BACKENDS`; availability of the backend package is deferred to call time |
 
 ---
 
@@ -826,7 +849,7 @@ Regression tests comparing processor output against golden files in `tests/asset
 | `TestLabelsRegression` | `create_seq2seq_labels_from_samples` | `labels.json` |
 | `TestImage2TextRegression` | `Image2TextTranslationProcessor` | `image2text.json` |
 
-**New flat-slots classes** — verify that `MultimodalMetaProcessor(slots=[...])` produces identical output to the legacy wrappers (same golden files):
+**New flat-slots classes** — verify that `MultimodalMetaProcessor(slots=[...])` (no `tokenizer=` argument; derived from text slot) produces identical output to the legacy wrappers (same golden files):
 
 | Class | Slot configuration | Golden file |
 |---|---|---|
@@ -842,13 +865,17 @@ Regression tests comparing processor output against golden files in `tests/asset
 
 ### `test_model_only.py`
 
-Parametrized over three model configurations (default `max_length`, backbone-derived `max_length`, explicit `max_length`).
+The `model_setup` fixture builds the model via `build_processor_from_config(cfg.processor)` (0.0.5 slot-based format) and passes `processor.tokenizer` to `MultiModalEmbedderModel.build_model`. Config: `tests/test_model_only/configs/test_model_only.yaml`.
 
 | Test | What it checks |
 |---|---|
-| `test_model_maxlength_is_correct` | Model `max_length` matches expected value for each config (200, 15, or 20) |
+| `test_feature_extractor_propagates_no_split_modules` | `FeatureExtractor("clip", config=...)` sets `_no_split_modules` and `_keep_in_fp32_modules` from the inner `CLIPVisionModelWithProjection`; `CLIPEncoderLayer` is present. No fixture — direct instantiation. |
+| `test_model_no_split_modules_contains_all_components` | `MultiModalEmbedderModel._no_split_modules` aggregates class names from both the feature extractor (`CLIPEncoderLayer`) and the backbone (`M2M100EncoderLayer`, `M2M100DecoderLayer`), driving FSDP `TRANSFORMER_BASED_WRAP` policy. |
+| `test_backbone_shared_weights_are_tied` | After `build_model` + vocab extension, `encoder.embed_tokens`, `decoder.embed_tokens`, and `lm_head` all share the same underlying storage as `model.shared` (same `data_ptr`) |
 | `test_training` | Model overfits to a tiny batch: loss drops below `0.11` within 500 epochs |
 | `test_overfitting_accuracy` | WER ≤ 0.125 on test samples after training on the same data |
+
+> **Note (transformers 5.x update):** `test_model_maxlength_is_correct` and its three associated config files (`test_default_max_length.yaml`, `test_nondefault_max_length.yaml`, `test_use_backbone_max_length.yaml`) were removed. `max_length` was removed from `MultiModalEmbedderConfig` and `model.max_length` was removed from `MultiModalEmbedderModel` as part of the transformers 5.x compatibility update (see `docs/transformers_compatibility.md` §8). Generation length is now managed via `model.generation_config.max_length`.
 
 ---
 

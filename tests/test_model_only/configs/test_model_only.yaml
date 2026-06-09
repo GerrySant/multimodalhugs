@@ -19,7 +19,6 @@ model:
     decoder_attention_heads: 1
     decoder_ffn_dim: 64
     encoder_ffn_dim: 64
-    max_length: 20
   pretrained_backbone:
   d_model: 32
   feat_dim: 32
@@ -45,5 +44,45 @@ model:
       image_size: 32
   decoder_start_token_id: 2
 processor:
-  new_vocabulary: tests/test_model_only/new_languages.txt
-  text_tokenizer_path: tests/test_model_only/tiny_tokenizer
+  slots:
+    - processor_class: ImageModalityProcessor
+      processor_kwargs:
+        font_path: tests/e2e_overfitting/other_files/Arial.ttf
+        width: 32
+        height: 32
+        normalize_image: false
+      output_data_key: input_frames
+      output_mask_key: attention_mask
+      column_map:
+        signal: signal
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: tests/test_model_only/tiny_tokenizer
+        new_vocabulary: tests/test_model_only/new_languages.txt
+        role: target
+      output_data_key: labels
+      is_label: true
+      column_map:
+        decoder_prompt: target_prefix
+        output: target
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: tests/test_model_only/tiny_tokenizer
+        new_vocabulary: tests/test_model_only/new_languages.txt
+        role: input
+      output_data_key: encoder_prompt
+      output_mask_key: encoder_prompt_length_padding_mask
+      column_map:
+        encoder_prompt: signal
+
+    - processor_class: TextModalityProcessor
+      processor_kwargs:
+        tokenizer_path: tests/test_model_only/tiny_tokenizer
+        new_vocabulary: tests/test_model_only/new_languages.txt
+        role: input
+      output_data_key: decoder_input_ids
+      output_mask_key: decoder_attention_mask
+      column_map:
+        decoder_prompt: signal

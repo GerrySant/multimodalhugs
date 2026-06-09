@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+from multimodalhugs.processors.meta_processor import _LegacyMetaProcessorBase, ProcessorSlot
 from multimodalhugs.processors.video_modality_processor import VideoModalityProcessor
 from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 from multimodalhugs.processors.utils import SignalUnit
@@ -9,7 +9,7 @@ from multimodalhugs.processors.utils import SignalUnit
 logger = logging.getLogger(__name__)
 
 
-class Video2TextTranslationProcessor(MultimodalMetaProcessor):
+class Video2TextTranslationProcessor(_LegacyMetaProcessorBase):
     """
     .. deprecated::
         Use ``MultimodalMetaProcessor`` with explicit ``ProcessorSlot`` declarations
@@ -36,7 +36,7 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
         self.use_cache = use_cache
         self.signal_start_end_unit = signal_start_end_unit
         if "slots" in kwargs:
-            super().__init__(tokenizer=tokenizer, **kwargs)
+            super().__init__(**kwargs)
             return
         super().__init__(
             slots=[
@@ -75,5 +75,4 @@ class Video2TextTranslationProcessor(MultimodalMetaProcessor):
                     column_map={"decoder_prompt": "signal"},
                 ),
             ],
-            tokenizer=tokenizer,
         )

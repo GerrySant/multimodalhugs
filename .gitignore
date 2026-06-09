@@ -47,3 +47,5 @@ tests/test_model_only/new_languages.json
 tests/test_model_only/new_languages_tokenizer.json
 tests/test_model_only/new_languages_tokenizer/
 docs/archive/
+docs/transformers_compatibility.md
+docs/design_notes/multilingual_seq2seq_trainer.md

@@ -1,7 +1,7 @@
 import importlib
 import os
 from .utils import *
-from transformers import AutoConfig, AutoModelForSeq2SeqLM
+from transformers import AutoConfig, AutoModelForSeq2SeqLM, AutoModelForImageTextToText
 
 # Get current directory (models/)
 models_dir = os.path.dirname(__file__)
@@ -19,6 +19,7 @@ for name in os.listdir(models_dir):
             if model_class and config_class and config_name:
                 AutoConfig.register(config_name, config_class)
                 AutoModelForSeq2SeqLM.register(config_class, model_class)
+                AutoModelForImageTextToText.register(config_class, model_class)
         except Exception as e:
             print(f"Could not register model in '{name}': {e}")
 

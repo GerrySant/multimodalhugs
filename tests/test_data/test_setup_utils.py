@@ -265,7 +265,7 @@ def _make_pipeline_dict(extra: dict = None):
 
 
 # Standard output_data_keys produced by any *2text pipeline shorthand.
-_STANDARD_KEYS = {"input_frames", "labels", "encoder_prompt", "decoder_input_ids"}
+_STANDARD_KEYS = {"input_frames", "labels", "encoder_prompt", "decoder_prompt_ids"}
 
 
 # ---------------------------------------------------------------------------
@@ -460,25 +460,25 @@ class TestExpandPipelineShorthandTextSlots:
         slots = self._get_slots_by_key(_make_pipeline_cfg())
         assert slots["encoder_prompt"]["output_mask_key"] == "encoder_prompt_length_padding_mask"
 
-    def test_decoder_input_ids_slot_has_mask_key(self):
+    def test_decoder_prompt_ids_slot_has_mask_key(self):
         slots = self._get_slots_by_key(_make_pipeline_cfg())
-        assert slots["decoder_input_ids"]["output_mask_key"] == "decoder_attention_mask"
+        assert slots["decoder_prompt_ids"]["output_mask_key"] == "decoder_prompt_mask"
 
     def test_tokenizer_path_in_text_slots(self):
         slots = self._get_slots_by_key(_make_pipeline_cfg())
-        for key in ("labels", "encoder_prompt", "decoder_input_ids"):
+        for key in ("labels", "encoder_prompt", "decoder_prompt_ids"):
             assert slots[key]["processor_kwargs"]["tokenizer_path"] == TINY_TOKENIZER_PATH
 
     def test_new_vocabulary_propagated(self):
         cfg = _make_pipeline_cfg({"new_vocabulary": "__asl__"})
         slots = self._get_slots_by_key(cfg)
-        for key in ("labels", "encoder_prompt", "decoder_input_ids"):
+        for key in ("labels", "encoder_prompt", "decoder_prompt_ids"):
             assert slots[key]["processor_kwargs"]["new_vocabulary"] == "__asl__"
 
     def test_new_vocabulary_absent_when_not_set(self):
         # new_vocabulary is optional; omitting it means it is not injected.
         slots = self._get_slots_by_key(_make_pipeline_cfg())
-        for key in ("labels", "encoder_prompt", "decoder_input_ids"):
+        for key in ("labels", "encoder_prompt", "decoder_prompt_ids"):
             assert "new_vocabulary" not in slots[key]["processor_kwargs"]
 
 

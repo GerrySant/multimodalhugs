@@ -211,7 +211,7 @@ class DataCollatorMultimodalSeq2Seq:
             return_tensors=rt
         ) or {}
         # Use model to prepare decoder inputs if available
-        if 'labels' in batch and self.model and hasattr(self.model, 'prepare_decoder_input_ids_from_labels') and self.model.training:
+        if 'labels' in batch and self.model and hasattr(self.model, 'prepare_decoder_input_ids_from_labels'):
             batch['decoder_input_ids'] = self.model.prepare_decoder_input_ids_from_labels(
                 labels=batch['labels']
             )
@@ -244,7 +244,6 @@ class DataCollatorMultimodalSeq2Seq:
                 "labels" in batch
                 and self.model is not None
                 and hasattr(self.model, "prepare_decoder_input_ids_from_labels")
-                and self.model.training
             ):
                 batch["decoder_input_ids"] = self.model.prepare_decoder_input_ids_from_labels(
                     labels=batch["labels"]

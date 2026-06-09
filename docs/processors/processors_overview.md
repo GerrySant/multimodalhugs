@@ -65,12 +65,16 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 
 | Class | Modality | Key parameters |
 |---|---|---|
-| `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` |
-| `VideoModalityProcessor` | Video files | `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` |
-| `ImageModalityProcessor` | Image files / text-rendered images | `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` |
-| `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` |
-| `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |
-| `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) |
+| `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` — see [pose_modality_processor.md](pose_modality_processor.md) |
+| `VideoModalityProcessor` | Video files | `backend`, `device`, `num_frames`, `custom_preprocessor_path`, `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` — see [video_modality_processor.md](video_modality_processor.md) |
+| `ImageModalityProcessor` | Image files / URLs / text-rendered images | `custom_preprocessor_path`, `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` — see [image_modality_processor.md](image_modality_processor.md) |
+| `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` — see [features_modality_processor.md](features_modality_processor.md) |
+| `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` — see [signwriting_modality_processor.md](signwriting_modality_processor.md) |
+| `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) — see [text_modality_processor.md](text_modality_processor.md) |
+
+For full documentation on `VideoModalityProcessor` — backends, frame sampling,
+GPU decode with torchcodec, output formats, and YAML config examples — see
+[video_modality_processor.md](video_modality_processor.md).
 
 `TextModalityProcessor` is the only processor that carries a tokenizer. The `role` parameter (a `TextRole` enum) controls how the batch is assembled:
 
@@ -207,7 +211,6 @@ def __call__(self, samples):
         "labels" in batch
         and self.model is not None
         and hasattr(self.model, "prepare_decoder_input_ids_from_labels")
-        and self.model.training
     ):
         batch["decoder_input_ids"] = self.model.prepare_decoder_input_ids_from_labels(
             labels=batch["labels"]
@@ -215,7 +218,7 @@ def __call__(self, samples):
     return batch
 ```
 
-The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role=TextRole.TARGET)`.
+`decoder_input_ids` is always built from labels at collation time — this ensures the correct full-length teacher-forcing sequence is in the batch regardless of training mode, which is required when `label_smoothing_factor > 0` (the Trainer pops `labels` before calling the model). The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role=TextRole.TARGET)`.
 
 ---
 

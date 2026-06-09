@@ -41,7 +41,6 @@ from datasets import load_from_disk
 
 import transformers
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import send_example_telemetry
 
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
@@ -144,9 +143,6 @@ def main():
 
     resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
-
-    # Send telemetry for usage tracking (optional).
-    send_example_telemetry("run_translation", model_args, data_args)
 
     # --- Logging configuration ---
     logging.basicConfig(
@@ -274,7 +270,7 @@ def main():
         model=model,
         args=training_args,
         eval_dataset=test_dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=(
             (lambda eval_preds: compute_metrics(eval_preds, tokenizer, metrics_list, metric_names))
@@ -289,7 +285,7 @@ def main():
     # --- Execute evaluation ---
     # Predict is invoked to generate predictions and calculate metrics on the test dataset.
     logger.info("*** Evaluation on the test partition ***")
-    max_length = generate_args.max_length if generate_args.max_length is not None else model.max_length
+    max_length = generate_args.max_length if generate_args.max_length is not None else model.generation_config.max_length
     num_beams = generate_args.num_beams
 
     predict_results = trainer.predict(test_dataset, metric_key_prefix="predict", max_length=max_length, num_beams=num_beams)
