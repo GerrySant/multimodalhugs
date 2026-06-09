@@ -104,7 +104,6 @@ training:
   save_total_limit: 2
   learning_rate: 7e-04
   max_grad_norm: 0.0
-  overwrite_output_dir: true
   predict_with_generate: true
   metric_for_best_model: chrf
   greater_is_better: true

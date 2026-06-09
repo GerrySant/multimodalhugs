@@ -39,11 +39,12 @@ Once training is complete (or interrupted), you may want to continue training fo
 multimodalhugs-train --task "translation" \
     --config_path $CONFIG_PATH \
     --output_dir $OUTPUT_PATH \
-    --overwrite_output_dir false \
     --max_steps 20000
 ```
 
-If `overwrite_output_dir=false` (which is the default in Hugging Face), the trainer will **automatically detect the latest checkpoint** stored in `output_dir` and resume training from that point.
+The trainer will **automatically detect the latest checkpoint** stored in `output_dir` and resume training from that point.
+
+> **Note (transformers 5.x):** `--overwrite_output_dir` was removed in transformers 5.x. Checkpoint auto-detection now runs unconditionally whenever `output_dir` already exists and `do_train=True`.
 
 ---
 
