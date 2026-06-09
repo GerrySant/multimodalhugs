@@ -67,7 +67,7 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 |---|---|---|
 | `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` |
 | `VideoModalityProcessor` | Video files | `backend`, `device`, `num_frames`, `custom_preprocessor_path`, `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` |
-| `ImageModalityProcessor` | Image files / text-rendered images | `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` |
+| `ImageModalityProcessor` | Image files / URLs / text-rendered images | `custom_preprocessor_path`, `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` — see [image_modality_processor.md](image_modality_processor.md) |
 | `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` |
 | `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |
 | `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) |
@@ -91,7 +91,7 @@ When both are set, `num_frames` takes precedence **only when `num_frames < clip_
 
 **Output format** depends on whether `custom_preprocessor_path` is set:
 
-*Without `custom_preprocessor_path`* (default): frames are returned as a raw float32 tensor of shape `[T, C, H, W]` with pixel values in the 0–255 range. No resizing or normalisation is applied. Use this when the downstream model or feature extractor handles its own preprocessing, or when frames are passed to a `FeatureExtractor` component inside the model.
+*Without `custom_preprocessor_path`* (default): frames are returned as a raw float32 tensor of shape `[T, C, H, W]` with pixel values in the 0–255 range. No resizing or normalisation is applied. The only available post-decode transformation is `join_chw=True`, which merges the channel, height, and width dimensions into a single feature axis, producing shape `[T, C*H*W]` — useful when the model expects a flat feature vector per frame.
 
 *With `custom_preprocessor_path`*: frames are passed through the specified HuggingFace image processor (e.g. `"openai/clip-vit-base-patch32"`) after decoding. The processor handles resizing, normalisation, and channel reordering, and returns a float32 tensor of shape `[T, C, H, W]` in the model's expected pixel-value range (typically 0–1 or normalised). With transformers 5.x, the default `TorchvisionBackend` image processor accepts tensors directly — when `backend="torchcodec"` and `device="cuda"`, the decoded CUDA tensor is passed straight to the preprocessor with no CPU transfer, giving a full GPU decode + preprocess pipeline. For CPU-decoded backends, setting `device="cuda"` moves frames to GPU for the preprocessing step.
 
@@ -237,7 +237,7 @@ def __call__(self, samples):
     return batch
 ```
 
-The `model.training` guard was removed: `decoder_input_ids` is always built from labels at collation time so that label smoothing (which pops `labels` before the model runs) always receives the correct full-length teacher-forcing sequence. The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role=TextRole.TARGET)`.
+`decoder_input_ids` is always built from labels at collation time — this ensures the correct full-length teacher-forcing sequence is in the batch regardless of training mode, which is required when `label_smoothing_factor > 0` (the Trainer pops `labels` before calling the model). The collator no longer needs a tokenizer — label processing lives inside `TextModalityProcessor(role=TextRole.TARGET)`.
 
 ---
 
