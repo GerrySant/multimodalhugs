@@ -31,21 +31,24 @@ class ImageModalityProcessor(ModalityProcessor):
       - A pre-loaded torch.Tensor → returned unchanged.
       - A pyarrow.lib.StringScalar → unwrapped to str and handled as above.
 
-    **Output format** depends on whether ``custom_preprocessor_path`` is set:
+    **Output format** — ``process_sample`` always returns a float32 tensor of
+    shape ``[T, C, H, W]`` where T is the number of frames/images in the sample:
 
-    *Without ``custom_preprocessor_path``* (default): ``process_sample`` returns a
-    float32 tensor of shape ``[H, W, C]`` with pixel values in the 0–255 range
-    (or normalised if ``normalize_image=True``). ``process_batch`` pads variable-
-    height images along H, producing ``[B, H_max, W_max, C]``.
+    - Image file path (single image): T = 1, shape ``[1, C, H, W]``.
+      Without ``custom_preprocessor_path``: pixel values in the 0–255 range
+      (or normalised if ``normalize_image=True``).
+      With ``custom_preprocessor_path``: resized and normalised by the
+      specified HuggingFace image processor (e.g. ``CLIPImageProcessor``).
+    - Text string (rendered as word images): T = number of words, each word
+      rendered as a separate ``[C, H, W]`` image, shape ``[N_words, C, H, W]``.
+    - ``.npy`` / pre-loaded numpy array / torch.Tensor: passed through unchanged
+      (shape is the caller's responsibility).
 
-    *With ``custom_preprocessor_path``*: ``process_sample`` passes the loaded PIL
-    image through the specified HuggingFace image processor (e.g.
-    ``"openai/clip-vit-base-patch32"``), which handles resize, normalisation, and
-    channel reordering, returning a ``[C, H, W]`` float32 tensor. Because the
-    preprocessor produces a fixed output size, ``process_batch`` simply stacks
-    samples to ``[B, C, H, W]`` without padding, and returns ``mask=None``.
-    ``normalize_image``, ``mean``, and ``std`` are ignored when a custom
-    preprocessor is set.
+    ``process_batch`` always calls ``pad_and_create_mask``, producing
+    ``[B, T_max, C, H, W]`` with a ``[B, T_max]`` padding mask.  For single-image
+    samples (T = 1) from files the output is ``[B, 1, C, H, W]``, which is
+    compatible with a CLIP ``FeatureExtractor`` in the model.  For text-rendered
+    sequences (T = N_words) the output is ``[B, N_max, C, H, W]``.
 
     process_sample — converts one signal value to a tensor.
     process_batch  — pads (or stacks) a list of tensors and returns a mask.
@@ -134,10 +137,12 @@ class ImageModalityProcessor(ModalityProcessor):
                 ``transformers.image_utils.load_image``; also accepts URLs).
 
         Returns:
-            - Without ``custom_preprocessor_path``: float32 tensor ``[H, W, C]``,
-              pixel values 0–255 (or normalised if ``normalize_image=True``).
-            - With ``custom_preprocessor_path``: float32 tensor ``[C, H, W]`` in
-              the preprocessor's expected range.
+            Float32 tensor of shape ``[1, C, H, W]``:
+            - Without ``custom_preprocessor_path``: pixel values 0–255 (or
+              normalised if ``normalize_image=True``).
+            - With ``custom_preprocessor_path``: resized and normalised by the
+              image processor.
+            For ``.npy`` files: shape depends on the stored array (no T=1 wrap).
 
         Raises:
             ValueError: If the file extension is unsupported or the file cannot
@@ -158,8 +163,8 @@ class ImageModalityProcessor(ModalityProcessor):
         elif ext in {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}:
             pil_image = load_image(path)  # PIL RGB, EXIF rotation applied
             if self.custom_preprocessor is not None:
-                result = self.custom_preprocessor(images=pil_image, return_tensors="pt")["pixel_values"]
-                return result.squeeze(0)  # [C, H, W]
+                # [1, C, H, W] — keep the leading dim so process_batch sees [T, C, H, W]
+                return self.custom_preprocessor(images=pil_image, return_tensors="pt")["pixel_values"]
             image = np.array(pil_image, dtype=np.float32)  # [H, W, 3] RGB
             if self.normalize_image:
                 if self.mean is not None and len(self.mean) != image.shape[-1]:
@@ -168,7 +173,8 @@ class ImageModalityProcessor(ModalityProcessor):
                         f"mean/std have {len(self.mean)} values."
                     )
                 image = (image - np.array(self.mean, dtype=np.float32)) / np.array(self.std, dtype=np.float32)
-            return torch.from_numpy(image)
+            # [H, W, C] → [C, H, W] → [1, C, H, W] so process_batch sees [T, C, H, W]
+            return torch.from_numpy(image).permute(2, 0, 1).unsqueeze(0)
         else:
             raise ValueError(f"Unsupported file format: {ext}")
 
@@ -218,10 +224,9 @@ class ImageModalityProcessor(ModalityProcessor):
                   above.
 
         Returns:
-            - Without ``custom_preprocessor_path``: float32 tensor ``[H, W, C]``
-              (or ``[H, W]`` for grayscale .npy), optionally normalised.
-            - With ``custom_preprocessor_path``: float32 tensor ``[C, H, W]``
-              in the preprocessor's expected range.
+            Float32 tensor. For image file paths: ``[1, C, H, W]``.
+            For text strings: ``[N_words, C, H, W]``.
+            For ``.npy`` files, numpy arrays, or tensors: shape unchanged.
 
         Raises:
             TypeError: If ``values`` is of an unsupported type.
@@ -255,13 +260,13 @@ class ImageModalityProcessor(ModalityProcessor):
         """
         Batch a list of image tensors. Called at collation time.
 
-        Without ``custom_preprocessor_path``: pads variable-size images to a
-        common shape. Returns ``[B, H_max, W_max, C]`` data and a ``[B, H_max]``
-        mask indicating valid rows.
+        Pads a list of ``[T_i, C, H, W]`` tensors along the T dimension,
+        producing ``[B, T_max, C, H, W]`` with a ``[B, T_max]`` mask.
 
-        With ``custom_preprocessor_path``: all images are the same size (the
-        preprocessor resizes them). Stacks without padding to ``[B, C, H, W]``
-        and returns ``mask=None``.
+        For single image files T = 1, so output is ``[B, 1, C, H, W]`` —
+        compatible with a CLIP ``FeatureExtractor`` in the model.
+        For text-rendered sequences T = N_words, so output is
+        ``[B, N_max, C, H, W]``.
 
         Args:
             samples: List of B tensors as returned by ``process_sample``.
@@ -269,8 +274,5 @@ class ImageModalityProcessor(ModalityProcessor):
         Returns:
             ProcessBatchOutput(data, mask).
         """
-        if self.custom_preprocessor is not None:
-            data = torch.stack(samples, dim=0)  # [B, C, H, W]
-            return ProcessBatchOutput(data=data, mask=None)
         padded, mask = pad_and_create_mask(samples)
         return ProcessBatchOutput(data=padded, mask=mask)

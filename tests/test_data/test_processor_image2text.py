@@ -230,15 +230,20 @@ class TestImageLoadChannelOrder:
         png_path = str(tmp_path / "frame.png")
         PILImage.fromarray(rgb_array).save(png_path)
 
-        # Load with the processor
+        # Load with the processor — image files return [1, C, H, W]
         proc = ImageModalityProcessor(normalize_image=False)
         tensor = proc.process_sample(png_path)
 
-        expected = torch.from_numpy(rgb_array.astype(np.float32))
-        assert tensor.shape == expected.shape, (
-            f"Shape mismatch: got {tensor.shape}, expected {expected.shape}"
+        assert tensor.ndim == 4, f"Expected 4D [1, C, H, W], got shape {tensor.shape}"
+        assert tensor.shape[0] == 1, f"Expected T=1 for a single image, got {tensor.shape[0]}"
+
+        # Convert [1, C, H, W] → [H, W, C] to compare against the RGB source
+        tensor_hwc = tensor.squeeze(0).permute(1, 2, 0)
+        expected = torch.from_numpy(rgb_array.astype(np.float32))  # [H, W, C] RGB
+        assert tensor_hwc.shape == expected.shape, (
+            f"Shape mismatch: got {tensor_hwc.shape}, expected {expected.shape}"
         )
-        assert torch.allclose(tensor, expected), (
+        assert torch.allclose(tensor_hwc, expected), (
             "Pixel values do not match the known RGB source frame. "
             "This would happen if the loader returned BGR instead of RGB."
         )

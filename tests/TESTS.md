@@ -351,7 +351,7 @@ End-to-end tests for `Image2TextTranslationProcessor` and `ImageModalityProcesso
 | `TestImageObtainMultimodalInputAndMasks` | Returns `input_frames` and `attention_mask` |
 | `TestImageTransformGetItemsOutput` | Converts signals to tensors |
 | `TestImageProcessorCall` | Returns `BatchFeature`; has expected keys; batch dims consistent |
-| `TestImageLoadChannelOrder` | Regression guard: extracts the first frame of `tests/assets/video/sample_01.mp4` via `av` (RGB), saves as PNG, loads with `ImageModalityProcessor`, and asserts pixel values match the RGB source exactly. The test frame has R mean ≈ 190.6 vs B mean ≈ 167.2, so a BGR loader would fail. Skipped if the video asset is absent. |
+| `TestImageLoadChannelOrder` | Regression guard: extracts the first frame of `tests/assets/video/sample_01.mp4` via `av` (RGB), saves as PNG, loads with `ImageModalityProcessor`, and asserts the result is `[1, C, H, W]` (T=1 single-image sequence). Pixel values are compared after converting back to `[H, W, C]`. The test frame has R mean ≈ 190.6 vs B mean ≈ 167.2, so a BGR loader would fail. Skipped if the video asset is absent. |
 
 ---
 
