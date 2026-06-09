@@ -44,8 +44,6 @@ multimodalhugs-train --task "translation" \
 
 The trainer will **automatically detect the latest checkpoint** stored in `output_dir` and resume training from that point.
 
-> **Note (transformers 5.x):** `--overwrite_output_dir` was removed in transformers 5.x. Checkpoint auto-detection now runs unconditionally whenever `output_dir` already exists and `do_train=True`.
-
 ---
 
 ### 🎯 Option 2: Resume from a specific checkpoint manually
