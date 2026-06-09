@@ -63,6 +63,7 @@ class ImageModalityProcessor(ModalityProcessor):
         normalize_image: bool = True,
         mean: Optional[Union[str, List[float]]] = None,
         std: Optional[Union[str, List[float]]] = None,
+        device: Optional[str] = None,
     ):
         """
         Args:
@@ -92,6 +93,14 @@ class ImageModalityProcessor(ModalityProcessor):
             std: Per-channel standard deviation for normalisation, as a list of
                 floats or a comma-separated string.
                 Required when ``normalize_image=True`` and no preprocessor is set.
+            device: Device on which the ``custom_preprocessor`` runs its resize
+                and normalisation steps (e.g. ``"cuda"`` or ``"cuda:0"``).
+                In transformers 5.x the default ``TorchvisionBackend`` honours
+                this argument and keeps all tensor operations on the specified
+                device, enabling GPU-accelerated image preprocessing without any
+                explicit ``.to(device)`` call in user code.  When ``None``
+                (default) the preprocessor runs on CPU.  Ignored when
+                ``custom_preprocessor_path`` is not set.
         """
         if custom_preprocessor_path is None and normalize_image and (mean is None or std is None):
             raise ValueError(
@@ -121,6 +130,7 @@ class ImageModalityProcessor(ModalityProcessor):
         self.normalize_image = normalize_image
         self.mean = mean
         self.std = std
+        self.device = device
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -164,7 +174,10 @@ class ImageModalityProcessor(ModalityProcessor):
             pil_image = load_image(path)  # PIL RGB, EXIF rotation applied
             if self.custom_preprocessor is not None:
                 # [1, C, H, W] — keep the leading dim so process_batch sees [T, C, H, W]
-                return self.custom_preprocessor(images=pil_image, return_tensors="pt")["pixel_values"]
+                call_kwargs = {"images": pil_image, "return_tensors": "pt"}
+                if self.device is not None:
+                    call_kwargs["device"] = self.device
+                return self.custom_preprocessor(**call_kwargs)["pixel_values"]
             image = np.array(pil_image, dtype=np.float32)  # [H, W, 3] RGB
             if self.normalize_image:
                 if self.mean is not None and len(self.mean) != image.shape[-1]:
@@ -267,9 +280,10 @@ class ImageModalityProcessor(ModalityProcessor):
                 # Convert to list of PIL images (uint8 RGB) for the preprocessor
                 frames_np = frames.permute(0, 2, 3, 1).numpy().astype(np.uint8)
                 pil_frames = [Image.fromarray(f) for f in frames_np]
-                result = self.custom_preprocessor(
-                    images=pil_frames, return_tensors="pt"
-                )["pixel_values"]  # [N_words, C', H', W']
+                call_kwargs = {"images": pil_frames, "return_tensors": "pt"}
+                if self.device is not None:
+                    call_kwargs["device"] = self.device
+                result = self.custom_preprocessor(**call_kwargs)["pixel_values"]  # [N_words, C', H', W']
                 return result
             return frames
 

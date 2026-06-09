@@ -79,6 +79,7 @@ processor:
         font_path: /path/to/font.ttf   # required for text rendering
         width: 224    # used only for text rendering canvas size
         height: 224
+        device: cuda  # optional: GPU-accelerated resize + normalisation (transformers 5.x)
       output_data_key: input_frames
       output_mask_key: attention_mask
 ```
@@ -162,6 +163,7 @@ by the preprocessor after rendering.
 | `normalize_image` | `bool` | `True` | If `True`, normalises pixel values with `mean` and `std`. Requires both to be set. Ignored when `custom_preprocessor_path` is set. |
 | `mean` | `list[float] \| str \| None` | `None` | Per-channel mean for normalisation. Accepts a list or a comma-separated string (e.g. `"0.485,0.456,0.406"`). Required when `normalize_image=True` and no preprocessor is set. |
 | `std` | `list[float] \| str \| None` | `None` | Per-channel standard deviation. Same format as `mean`. |
+| `device` | `str \| None` | `None` | Device on which the `custom_preprocessor` runs (e.g. `"cuda"` or `"cuda:0"`). In transformers 5.x the default `TorchvisionBackend` honours this and runs resize/normalisation on GPU. Ignored when `custom_preprocessor_path` is not set. |
 
 ---
 
