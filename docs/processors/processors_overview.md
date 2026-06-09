@@ -65,12 +65,12 @@ This means expensive I/O (reading video or pose files) is done lazily per item d
 
 | Class | Modality | Key parameters |
 |---|---|---|
-| `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` |
+| `PoseModalityProcessor` | `.pose` files | `reduce_holistic_poses`, `skip_frames_stride`, `signal_start_end_unit` — see [pose_modality_processor.md](pose_modality_processor.md) |
 | `VideoModalityProcessor` | Video files | `backend`, `device`, `num_frames`, `custom_preprocessor_path`, `skip_frames_stride`, `join_chw`, `use_cache`, `signal_start_end_unit` — see [video_modality_processor.md](video_modality_processor.md) |
 | `ImageModalityProcessor` | Image files / URLs / text-rendered images | `custom_preprocessor_path`, `font_path`, `width`, `height`, `normalize_image`, `mean`, `std` — see [image_modality_processor.md](image_modality_processor.md) |
-| `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` |
-| `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` |
-| `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) |
+| `FeaturesModalityProcessor` | `.npy` / `.pt` feature files | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` — see [features_modality_processor.md](features_modality_processor.md) |
+| `SignwritingModalityProcessor` | FSW SignWriting strings | `custom_preprocessor_path`, `width`, `height`, `channels` — see [signwriting_modality_processor.md](signwriting_modality_processor.md) |
+| `TextModalityProcessor` | Text strings | `tokenizer`, `tokenizer_path`, `new_vocabulary`, `role` (`TextRole.INPUT` or `TextRole.TARGET`) — see [text_modality_processor.md](text_modality_processor.md) |
 
 For full documentation on `VideoModalityProcessor` — backends, frame sampling,
 GPU decode with torchcodec, output formats, and YAML config examples — see
