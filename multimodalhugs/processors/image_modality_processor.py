@@ -180,20 +180,28 @@ class ImageModalityProcessor(ModalityProcessor):
 
     def _render_text(self, text: str) -> torch.Tensor:
         """
-        Render a plain text string as a typographic image.
+        Render a plain text string as a typographic image sequence.
+
+        Each word in ``text`` is rendered as a separate ``[C, H, W]`` image.
+        When ``custom_preprocessor`` is set, raw (un-normalised) frames are
+        returned so the preprocessor can apply its own normalisation; manual
+        normalisation via ``normalize_image`` / ``mean`` / ``std`` is skipped.
 
         Args:
             text: The text string to render using the configured font.
 
         Returns:
-            Float tensor of shape (N_words, C, H, W), optionally normalised.
+            Float tensor of shape ``[N_words, C, H, W]``.
+            Pixel values are in the 0–255 range when ``custom_preprocessor``
+            is set; otherwise optionally normalised by ``mean`` / ``std``.
         """
+        apply_normalize = self.normalize_image and self.custom_preprocessor is None
         image = get_images(
             src_text=text,
             font_path=self.font_path,
             width=self.width,
             height=self.height,
-            normalize_image=self.normalize_image,
+            normalize_image=apply_normalize,
             mean=self.mean,
             std=self.std,
         )
@@ -224,9 +232,14 @@ class ImageModalityProcessor(ModalityProcessor):
                   above.
 
         Returns:
-            Float32 tensor. For image file paths: ``[1, C, H, W]``.
-            For text strings: ``[N_words, C, H, W]``.
-            For ``.npy`` files, numpy arrays, or tensors: shape unchanged.
+            Float32 tensor of shape ``[T, C, H, W]``:
+            - Image file / URL: T=1 → ``[1, C, H, W]``.
+            - Text string: T=N_words → ``[N_words, C, H, W]``.
+            ``custom_preprocessor`` is applied to image files and rendered text
+            frames; the output size is determined by the preprocessor.
+            ``.npy`` files, numpy arrays, and tensors are passed through
+            unchanged (precomputed features — ``custom_preprocessor`` is
+            not applied).
 
         Raises:
             TypeError: If ``values`` is of an unsupported type.
@@ -248,7 +261,17 @@ class ImageModalityProcessor(ModalityProcessor):
             is_url = values.startswith("http://") or values.startswith("https://")
             if is_url or os.path.exists(values):
                 return self._load_from_path(values)
-            return self._render_text(values)
+            # Text rendering — apply custom_preprocessor if set
+            frames = self._render_text(values)  # [N_words, C, H, W], values 0-255
+            if self.custom_preprocessor is not None:
+                # Convert to list of PIL images (uint8 RGB) for the preprocessor
+                frames_np = frames.permute(0, 2, 3, 1).numpy().astype(np.uint8)
+                pil_frames = [Image.fromarray(f) for f in frames_np]
+                result = self.custom_preprocessor(
+                    images=pil_frames, return_tensors="pt"
+                )["pixel_values"]  # [N_words, C', H', W']
+                return result
+            return frames
 
         raise TypeError(f"Unsupported type for image input: {type(values)}")
 
