@@ -12,6 +12,7 @@ authors = [
     { name = "Sarah Ebling" }
 ]
 readme = "README.md"
+requires-python = ">=3.11"
 dependencies = [
     "datasets",
     "torch>=2.6,<2.11",  # torchvision 0.26 (torch 2.11) removed read_video — see issue #83
@@ -58,10 +59,7 @@ full = [
 ]
 dev = [
     "pytest",
-    "pylint",
-    "black",
-    "isort",
-    "pre-commit",
+    "ruff",
     "jupyter",
     "mediapipe<0.10.30"
 ]
@@ -78,18 +76,39 @@ visualization = [
     "plotly"
 ]
 
-[tool.yapf]
-based_on_style = "google"
-column_limit = 120
+# Formatting and linting follow transformers' own ruff configuration (119 columns,
+# py311 target). Run `ruff format` and `ruff check` on the files you change; see AGENTS.md §5.
+[tool.ruff]
+target-version = "py311"
+line-length = 119
 
-[tool.pylint]
-max-line-length = 120
-disable = [
-    "C0114", # Missing module docstring
-    "C0115", # Missing class docstring
-    "C0116", # Missing function or method docstring
-    "C0301", # Line too long
+[tool.ruff.lint]
+select = [
+    "E",       # pycodestyle errors
+    "F",       # Pyflakes
+    "I",       # isort
+    "W",       # pycodestyle warnings
+    "UP",      # pyupgrade
+    "SIM",     # flake8-simplify
+    "C4",      # flake8-comprehensions
+    "S110",    # try-except-pass
+    "RUF013",  # implicit Optional in annotations
 ]
+ignore = [
+    "E501",  # line length is the formatter's job
+    "E741",  # ambiguous variable names (l, O, I)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403", "F811"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = ["multimodalhugs"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.setuptools.packages.find]
 where = ["."]

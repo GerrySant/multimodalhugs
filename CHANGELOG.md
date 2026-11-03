@@ -6,6 +6,15 @@ Version numbers are of the form `1.0.0`.
 
 Each version section may have subsections for: _Added_, _Changed_, _Removed_, _Deprecated_, and _Fixed_.
 
+## [Unreleased]
+
+### Changed
+
+- **Development tooling.** `ruff` (configured in `pyproject.toml`, 119 columns, `py311` target, mirroring transformers' own settings) replaces `black`, `isort`, `pylint` and `yapf` as the formatter and linter; `pre-commit` leaves the `dev` extra because no hook configuration exists in the repository. The tree is not reformatted in this change: contributors run `ruff format` and `ruff check` on the files they touch, and a dedicated chore commit will format the whole tree. See `AGENTS.md` §5.
+- **Python floor declared.** `pyproject.toml` now states `requires-python = ">=3.11"`, and the CI workflow runs on 3.11. This is the floor of current `transformers` releases, and the version the `StrEnum` backport in `processors/utils.py` was guarding. Installing on an older interpreter now fails at install time instead of at import time.
+
+---
+
 ## [0.5.4]
 
 ### Fixed
