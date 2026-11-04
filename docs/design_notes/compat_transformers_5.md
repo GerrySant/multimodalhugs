@@ -312,6 +312,28 @@ loss = (...).detach().mean()
 ```
 Applied to both the `label_smoother` path and the default `outputs["loss"]` path.
 
+**f) Unconditional `gen_kwargs` override from `model.generation_config` (commit ed5b2fa)**
+
+Symbol: `MultiLingualSeq2SeqTrainer.prediction_step` — the local `gen_kwargs` dict was
+overwritten before the inherited `_gen_kwargs` merge (removed).
+Files affected: `multimodalhugs/multilingual_seq2seq_trainer.py`.
+What changed upstream: `Seq2SeqTrainer.evaluate()` and `predict()` store
+`generation_max_length`/`generation_num_beams` from `Seq2SeqTrainingArguments` in
+`self._gen_kwargs`, and `prediction_step` merges them only when its `**gen_kwargs` parameter
+is empty (`if len(gen_kwargs) == 0 and hasattr(self, "_gen_kwargs")`; verified in 5.22.1).
+The override's first statement was:
+```python
+gen_kwargs = self.model.generation_config.to_dict()
+```
+so `gen_kwargs` was never empty, the merge never fired, and the model's saved generation
+config silently won over the CLI flags. This predates 5.x; it is listed here because the
+migration is where it was found and fixed.
+Fix: the line was deleted (commit ed5b2fa), so the override starts from the same empty
+`gen_kwargs` as upstream and the inherited flow applies. Research consequence: evaluation
+runs that passed `--generation_max_length`/`--generation_num_beams` and relied on them now
+honour those flags; runs that relied on the checkpoint's `generation_config.json` are
+unchanged when the flags are not set.
+
 ---
 
 ### 24. Manual `_no_split_modules`/`_keep_in_fp32_modules` propagation is redundant in 5.5
