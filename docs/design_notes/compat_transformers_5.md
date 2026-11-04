@@ -773,3 +773,15 @@ with patch.object(ExtendedSeq2SeqTrainingArguments, "_validate_args"):
     result = merge_config_and_command_args(...)
 ```
 Patching directly on the concrete class ensures the mock is found first in the MRO regardless of any `_validate_args` overrides in intermediate classes across transformers versions. `mixed_precision` is computed by `__post_init__` before `_validate_args` is called, so the patch suppresses only the hardware-check exception without affecting the attribute being asserted.
+
+---
+
+### 39. Legacy wrappers and 0.5.x saved processors still write the renamed `decoder_input_ids` slot key
+**Files affected:** `multimodalhugs/processors/meta_processor.py`, `multimodalhugs/processors/legacy/{pose2text,video2text,image2text,features2text,signwriting,text2text}_preprocessor.py`
+
+**Change:** Not an upstream change; a consequence of entry 36 inside this repository. Entry 36 renamed the prompt slot to `decoder_prompt_ids`/`decoder_prompt_mask` in `_TEXT_SLOTS_TEMPLATE`, made the collator always overwrite `batch["decoder_input_ids"]` with the shifted labels, and made `prediction_step` read the prompt only from `decoder_prompt_ids`. Two producers of the old key were not migrated: the six deprecated wrappers in `processors/legacy/`, which build their slots in `__init__`, and every `processor_config.json` saved by multimodalhugs 0.5.x (the flat-slots format exists since 0.5.0), which `from_pretrained` reconstructed verbatim. With either, the slot's output was produced and then overwritten by the collator, `decoder_prompt_ids` was absent, and generation took the empty-prompt branch: the TSV `decoder_prompt` column (for M2M100 the target-language code) never reached `generate()`. A silent regression against master (`AGENTS.md` §6) and a break of the saved-processor compatibility promise (§4).
+
+**Fix:**
+- `MultimodalMetaProcessor.from_pretrained` (`_reconstruct_slot`) maps `output_data_key` `decoder_input_ids` → `decoder_prompt_ids` and `output_mask_key` `decoder_attention_mask` → `decoder_prompt_mask` through the module constant `_RENAMED_SLOT_KEYS`, and emits one `warnings.warn(..., FutureWarning)` per loaded processor naming the old key, the new key, the action (`multimodalhugs-setup --do_processor`) and the removal version (v0.8.0). This is the deprecation path of `AGENTS.md` §8 applied to a saved artefact: the old file keeps loading, the user is told what to do, and the shim has a stated end. It covers the `AutoProcessor.from_pretrained` path the CLI uses, because the legacy classes inherit this `from_pretrained` and accept `slots=`.
+- The six legacy wrappers declare the new keys directly; no warning there, because the wrappers are already deprecated and construct the slot themselves.
+- Not mapped, by design: slots built in memory from a YAML `slots:` block (`build_processor_from_config`) or from Python with the old keys. The CLI saves and reloads the processor, so a YAML config with the old keys is mapped at train time with the warning; a processor used in memory without a save/load round trip keeps the keys it was given.

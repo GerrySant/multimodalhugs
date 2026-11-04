@@ -18,8 +18,10 @@ none ignored), and the pull request is merged into `master`.
   - b16421e `[docs] Rewrite the migration handoff note`
 - Follow-ups, 2026-11-04:
   - 122be9b `[docs] Record the prediction_step gen_kwargs override removal` (entry 23 f)
-  - `[docs] Update decoder_input_ids references to decoder_prompt_ids` (the commit that
-    carries this line): docs and example YAMLs now show the `decoder_prompt_ids` slot key.
+  - 1d4a52d `[docs] Update decoder_input_ids references to decoder_prompt_ids`
+  - `[fix] Map legacy decoder_input_ids slot keys to decoder_prompt_ids on load` (the commit
+    that carries this line; record entry 39): legacy wrappers and 0.5.x saved processors
+    deliver the decoder prompt to generation again.
 
 ## Remaining
 
@@ -45,23 +47,11 @@ none ignored), and the pull request is merged into `master`.
    | Job 2: test sacrebleu / chrf | | | |
    | Job 2: decoded sample | | | |
 
-2. Decide what to do with the old slot key still used inside the package and the suite:
-   the six legacy wrappers in `multimodalhugs/processors/legacy/` and the `slots:` configs
-   `tests/test_model_only/configs/test_model_only.yaml` and `tests/e2e_overfitting/config.yaml`
-   (plus inline slots in `tests/test_data/test_meta_processor.py`, `test_datacollator.py`
-   and `test_processor_regression.py`) still write `decoder_input_ids` /
-   `decoder_attention_mask`. Read in the code, not executed: `DataCollatorMultimodalSeq2Seq`
-   calls the meta processor first and then overwrites `batch["decoder_input_ids"]` from the
-   labels, so such a slot's prompt never reaches `prediction_step` and generation takes the
-   empty-prompt path. The suite is green because no test pins the prompt at generation (only
-   `tests/test_data/test_setup_utils.py` checks the template key names). Changing the
-   test configs needs approval (`AGENTS.md` §7); the legacy wrappers are deprecated and may
-   be left as they are if their removal is near.
-3. Open the pull request against `master` (description per `AGENTS.md` §10: motivation,
+2. Open the pull request against `master` (description per `AGENTS.md` §10: motivation,
    summary, how it was tested including the table above, what to review closely).
-4. After the merge, release as 0.6.0: minor, because the branch carries breaking changes
+3. After the merge, release as 0.6.0: minor, because the branch carries breaking changes
    (`CHANGELOG.md`, `[Unreleased]`), per `AGENTS.md` §8. Then delete this note.
-5. Not part of this branch: the planned rename of the model family to `ModularMultiModal*`
+4. Not part of this branch: the planned rename of the model family to `ModularMultiModal*`
    and its deprecation path are a separate later effort.
 
 ## How to resume

@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -15,6 +16,15 @@ from transformers.utils import PROCESSOR_NAME
 from multimodalhugs.processors.modality_processor import ModalityProcessor
 
 logger = logging.getLogger(__name__)
+
+# Slot keys renamed when the decoder prompt stopped sharing a key with the
+# teacher-forcing sequence (docs/design_notes/decoder_prompt_ids.md). Processors
+# saved by multimodalhugs 0.5.x carry the old names; from_pretrained maps them and
+# warns. Remove this mapping in v0.8.0.
+_RENAMED_SLOT_KEYS: dict[str, dict[str, str]] = {
+    "output_data_key": {"decoder_input_ids": "decoder_prompt_ids"},
+    "output_mask_key": {"decoder_attention_mask": "decoder_prompt_mask"},
+}
 
 
 @dataclass
@@ -226,6 +236,11 @@ class MultimodalMetaProcessor(ProcessorMixin):
             Note: all processor classes used in a saved config must be either
             exported from ``multimodalhugs.processors`` or supplied via this
             argument.  See issue #77 for a planned global-registration API.
+
+        Slot keys renamed since the processor was saved (``decoder_input_ids``
+        → ``decoder_prompt_ids``, ``decoder_attention_mask`` →
+        ``decoder_prompt_mask``) are mapped on load with a ``FutureWarning``;
+        the mapping is removed in v0.8.0.
         """
         import multimodalhugs.processors as proc_module
 
@@ -258,6 +273,8 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     _key = (_pkw.get("tokenizer_path"), _pkw.get("new_vocabulary"))
                     _tok_cache[_key] = tokenizer
                     break
+
+        renamed_keys: list[str] = []
 
         def _reconstruct_slot(slot_dict: Dict[str, Any]) -> ProcessorSlot:
             class_name = slot_dict["processor_class"]
@@ -294,15 +311,35 @@ class MultimodalMetaProcessor(ProcessorMixin):
                         _tok_cache[cache_key] = proc.tokenizer
             else:
                 proc = proc_cls(**proc_kwargs)
+            output_data_key = slot_dict["output_data_key"]
+            output_mask_key = slot_dict.get("output_mask_key")
+            new_data_key = _RENAMED_SLOT_KEYS["output_data_key"].get(output_data_key)
+            if new_data_key is not None:
+                renamed_keys.append(f"output_data_key '{output_data_key}' -> '{new_data_key}'")
+                output_data_key = new_data_key
+            new_mask_key = _RENAMED_SLOT_KEYS["output_mask_key"].get(output_mask_key)
+            if new_mask_key is not None:
+                renamed_keys.append(f"output_mask_key '{output_mask_key}' -> '{new_mask_key}'")
+                output_mask_key = new_mask_key
             return ProcessorSlot(
                 processor=proc,
-                output_data_key=slot_dict["output_data_key"],
-                output_mask_key=slot_dict.get("output_mask_key"),
+                output_data_key=output_data_key,
+                output_mask_key=output_mask_key,
                 column_map=slot_dict["column_map"],
                 is_label=slot_dict.get("is_label", False),
             )
 
-        return cls(slots=[_reconstruct_slot(s) for s in config["slots"]])
+        slots = [_reconstruct_slot(s) for s in config["slots"]]
+        if renamed_keys:
+            warnings.warn(
+                f"The processor at '{pretrained_model_name_or_path}' was saved with slot keys "
+                f"that have since been renamed ({', '.join(renamed_keys)}); they were mapped on "
+                "load. Re-run `multimodalhugs-setup --do_processor` to save the processor with "
+                "the new keys. This mapping is removed in multimodalhugs v0.8.0.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        return cls(slots=slots)
 
     def __repr__(self) -> str:
         tok = type(self.tokenizer).__name__ if self.tokenizer is not None else "None"

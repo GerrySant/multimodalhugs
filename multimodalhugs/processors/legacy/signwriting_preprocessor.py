@@ -68,8 +68,8 @@ class SignwritingProcessor(_LegacyMetaProcessorBase):
                 ),
                 ProcessorSlot(
                     processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                    output_data_key="decoder_input_ids",
-                    output_mask_key="decoder_attention_mask",
+                    output_data_key="decoder_prompt_ids",
+                    output_mask_key="decoder_prompt_mask",
                     column_map={"decoder_prompt": "signal"},
                 ),
             ],
