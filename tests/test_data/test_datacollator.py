@@ -186,8 +186,8 @@ def _make_text2text_meta(tokenizer):
             ),
             ProcessorSlot(
                 processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
+                output_data_key="decoder_prompt_ids",
+                output_mask_key="decoder_prompt_mask",
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
@@ -216,8 +216,8 @@ def _make_features2text_meta(tokenizer):
             ),
             ProcessorSlot(
                 processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
+                output_data_key="decoder_prompt_ids",
+                output_mask_key="decoder_prompt_mask",
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
@@ -240,7 +240,7 @@ class TestDataCollatorWithMetaProcessor:
         assert "labels" in result
         assert "encoder_prompt" in result
         assert "encoder_prompt_length_padding_mask" in result
-        assert "decoder_input_ids" in result
+        assert "decoder_prompt_ids" in result
 
     def test_features2text_returns_expected_keys(self, tokenizer, features_batch_samples):
         meta = _make_features2text_meta(tokenizer)

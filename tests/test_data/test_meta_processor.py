@@ -20,7 +20,7 @@ Design decisions reflected in these tests
     output keys that Pose2TextTranslationProcessor + DataCollator produced:
         input_frames, attention_mask,
         encoder_prompt, encoder_prompt_length_padding_mask,
-        decoder_input_ids, decoder_attention_mask,
+        decoder_prompt_ids, decoder_prompt_mask,
         labels
 
 * Labels are produced by the MetaProcessor (via a slot with is_label=True),
@@ -30,6 +30,7 @@ Design decisions reflected in these tests
 
 import json
 import tempfile
+import warnings
 
 import pytest
 import torch
@@ -129,8 +130,8 @@ def make_pose2text_meta(tokenizer):
             ),
             ProcessorSlot(
                 processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
+                output_data_key="decoder_prompt_ids",
+                output_mask_key="decoder_prompt_mask",
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
@@ -160,8 +161,8 @@ def make_text2text_meta(tokenizer):
             ),
             ProcessorSlot(
                 processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
+                output_data_key="decoder_prompt_ids",
+                output_mask_key="decoder_prompt_mask",
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
@@ -191,8 +192,8 @@ def _make_features2text_meta(tokenizer, use_cache=False):
             ),
             ProcessorSlot(
                 processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
+                output_data_key="decoder_prompt_ids",
+                output_mask_key="decoder_prompt_mask",
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
@@ -228,8 +229,8 @@ def _make_multi_input_meta(tokenizer):
             ),
             ProcessorSlot(
                 processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                output_data_key="decoder_input_ids",
-                output_mask_key="decoder_attention_mask",
+                output_data_key="decoder_prompt_ids",
+                output_mask_key="decoder_prompt_mask",
                 column_map={"decoder_prompt": "signal"},
             ),
         ],
@@ -320,11 +321,11 @@ class TestMultimodalMetaProcessorPose2Text:
         assert "encoder_prompt" in result
         assert "encoder_prompt_length_padding_mask" in result
 
-    def test_call_produces_decoder_input_ids(self, tokenizer, pose_batch_samples):
+    def test_call_produces_decoder_prompt_ids(self, tokenizer, pose_batch_samples):
         meta = make_pose2text_meta(tokenizer)
         result = meta(pose_batch_samples)
-        assert "decoder_input_ids" in result
-        assert "decoder_attention_mask" in result
+        assert "decoder_prompt_ids" in result
+        assert "decoder_prompt_mask" in result
 
     def test_call_produces_labels(self, tokenizer, pose_batch_samples):
         meta = make_pose2text_meta(tokenizer)
@@ -545,8 +546,8 @@ class TestMetaProcessorBackwardCompatibility:
         "attention_mask",
         "encoder_prompt",
         "encoder_prompt_length_padding_mask",
-        "decoder_input_ids",
-        "decoder_attention_mask",
+        "decoder_prompt_ids",
+        "decoder_prompt_mask",
         "labels",
     }
 
@@ -555,8 +556,8 @@ class TestMetaProcessorBackwardCompatibility:
         "attention_mask",
         "encoder_prompt",
         "encoder_prompt_length_padding_mask",
-        "decoder_input_ids",
-        "decoder_attention_mask",
+        "decoder_prompt_ids",
+        "decoder_prompt_mask",
         "labels",
     }
 
@@ -642,7 +643,7 @@ class TestMetaProcessorConstruction:
         assert meta.slots[0].output_data_key == "input_frames"
         assert meta.slots[1].output_data_key == "labels"
         assert meta.slots[2].output_data_key == "encoder_prompt"
-        assert meta.slots[3].output_data_key == "decoder_input_ids"
+        assert meta.slots[3].output_data_key == "decoder_prompt_ids"
 
     def test_label_slot_is_labeled(self, tokenizer):
         meta = _make_features2text_meta(tokenizer)
@@ -756,8 +757,8 @@ class TestMetaProcessorCall:
             "attention_mask",
             "encoder_prompt",
             "encoder_prompt_length_padding_mask",
-            "decoder_input_ids",
-            "decoder_attention_mask",
+            "decoder_prompt_ids",
+            "decoder_prompt_mask",
         }
         for key in expected:
             assert key in result, f"Missing key: '{key}'"
@@ -827,7 +828,7 @@ class TestMetaProcessorMultiSlot:
         assert "input_frames" in result
         assert "secondary_input" in result
         assert "encoder_prompt" in result
-        assert "decoder_input_ids" in result
+        assert "decoder_prompt_ids" in result
 
 
 # ---------------------------------------------------------------------------
@@ -948,8 +949,8 @@ class TestMultimodalMetaProcessorRoundTrip:
                 ),
                 ProcessorSlot(
                     processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                    output_data_key="decoder_input_ids",
-                    output_mask_key="decoder_attention_mask",
+                    output_data_key="decoder_prompt_ids",
+                    output_mask_key="decoder_prompt_mask",
                     column_map={"decoder_prompt": "signal"},
                 ),
             ],
@@ -1217,3 +1218,89 @@ class TestTokenizerCacheScenarios:
         assert vocab_size_a != vocab_size_b, (
             "Slots with different new_vocabulary should produce different vocabulary sizes"
         )
+
+
+# ---------------------------------------------------------------------------
+# Legacy slot keys in a saved processor_config.json (compat record entry 39)
+# ---------------------------------------------------------------------------
+
+def _make_text2text_meta_with_legacy_keys(tokenizer):
+    """text→text slots as multimodalhugs 0.5.x saved them: the prompt slot still
+    writes ``decoder_input_ids`` / ``decoder_attention_mask``."""
+    return MultimodalMetaProcessor(
+        slots=[
+            ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
+                output_data_key="input_ids",
+                output_mask_key="attention_mask",
+                column_map={"signal": "signal"},
+            ),
+            ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.TARGET),
+                output_data_key="labels",
+                is_label=True,
+                column_map={"decoder_prompt": "target_prefix", "output": "target"},
+            ),
+            ProcessorSlot(
+                processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
+                output_data_key="decoder_input_ids",
+                output_mask_key="decoder_attention_mask",
+                column_map={"decoder_prompt": "signal"},
+            ),
+        ],
+    )
+
+
+class TestLegacySlotKeyMapping:
+    """
+    ``from_pretrained()`` maps the slot keys renamed with the decoder-prompt fix
+    (``decoder_input_ids`` → ``decoder_prompt_ids``, ``decoder_attention_mask`` →
+    ``decoder_prompt_mask``) and warns once per processor; a config saved with the
+    new keys loads without that warning.
+
+    Regression tests for ``docs/design_notes/compat_transformers_5.md`` entry 39:
+    a ``processor_config.json`` saved by 0.5.x carried the old keys, the collator
+    overwrote ``decoder_input_ids`` with the shifted labels, and generation ran
+    without the decoder prompt.
+    """
+
+    def test_old_keys_are_mapped_with_future_warning(
+        self, tokenizer, tmp_path, text_batch_samples_no_signal
+    ):
+        meta = _make_text2text_meta_with_legacy_keys(tokenizer)
+        meta.save_pretrained(str(tmp_path))
+        with open(tmp_path / "processor_config.json") as f:
+            saved = json.load(f)
+        # The file really carries the old keys, as a 0.5.x save would.
+        assert saved["slots"][-1]["output_data_key"] == "decoder_input_ids"
+        assert saved["slots"][-1]["output_mask_key"] == "decoder_attention_mask"
+
+        with pytest.warns(FutureWarning, match="decoder_input_ids.*decoder_prompt_ids") as record:
+            loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+        ours = [w for w in record if "multimodalhugs-setup --do_processor" in str(w.message)]
+        assert len(ours) == 1, "exactly one FutureWarning per loaded processor"
+        assert "decoder_attention_mask' -> 'decoder_prompt_mask'" in str(ours[0].message)
+        assert "v0.8.0" in str(ours[0].message)
+
+        assert loaded.slots[-1].output_data_key == "decoder_prompt_ids"
+        assert loaded.slots[-1].output_mask_key == "decoder_prompt_mask"
+        result = loaded(text_batch_samples_no_signal)
+        assert "decoder_prompt_ids" in result
+        assert "decoder_prompt_mask" in result
+        assert "decoder_input_ids" not in result
+
+    def test_new_keys_load_without_warning(self, tokenizer, tmp_path):
+        meta = make_text2text_meta(tokenizer)
+        assert meta.slots[-1].output_data_key == "decoder_prompt_ids"
+        meta.save_pretrained(str(tmp_path))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            loaded = MultimodalMetaProcessor.from_pretrained(str(tmp_path))
+        ours = [
+            w for w in caught
+            if issubclass(w.category, FutureWarning)
+            and "multimodalhugs-setup --do_processor" in str(w.message)
+        ]
+        assert ours == []
+        assert loaded.slots[-1].output_data_key == "decoder_prompt_ids"
+        assert loaded.slots[-1].output_mask_key == "decoder_prompt_mask"

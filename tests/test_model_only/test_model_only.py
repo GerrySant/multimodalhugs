@@ -256,3 +256,85 @@ def test_overfitting_accuracy(model_setup, prepare_trained_model):
     # and despite maximum effort to fix the seed and other sources of non-determinism
 
     assert error_rate <= 0.125, "Model prediction is not accurate"
+
+
+@pytest.mark.parametrize(
+    "model_setup",
+    [
+        {
+            "id": "default_setup",
+            "config_path": "tests/test_model_only/configs/test_model_only.yaml",
+        },
+    ],
+    indirect=True,
+)
+def test_legacy_wrapper_prompt_reaches_prediction_step(model_setup, tmp_path):
+    """
+    The decoder prompt collated through a legacy wrapper reaches the prompted
+    branch of ``MultiLingualSeq2SeqTrainer.prediction_step``: ``generate()`` is
+    called with ``decoder_input_ids = [decoder_start_token_id, prompt]``. With an
+    empty ``decoder_prompt`` the empty-prompt branch is taken and ``generate()``
+    receives no ``decoder_input_ids``. Both branches are pinned so the test
+    cannot pass by accident.
+
+    Regression test for ``docs/design_notes/compat_transformers_5.md`` entry 39:
+    the wrappers wrote the prompt to ``decoder_input_ids``, the collator
+    overwrote it with the shifted labels, and generation silently ran without
+    the prompt.
+    """
+    from unittest.mock import patch
+
+    from transformers import Seq2SeqTrainingArguments
+
+    from multimodalhugs.data.datacollators.multimodal_datacollator import DataCollatorMultimodalSeq2Seq
+    from multimodalhugs.multilingual_seq2seq_trainer import MultiLingualSeq2SeqTrainer
+    from multimodalhugs.processors.legacy.image2text_preprocessor import Image2TextTranslationProcessor
+
+    (model, tokenizer, _), _ = model_setup
+    processor = Image2TextTranslationProcessor(
+        tokenizer=tokenizer,
+        font_path="tests/e2e_overfitting/other_files/Arial.ttf",
+        width=32,
+        height=32,
+        normalize_image=False,
+    )
+    assert processor.slots[-1].output_data_key == "decoder_prompt_ids"
+    collator = DataCollatorMultimodalSeq2Seq(processor=processor, model=model)
+    args = Seq2SeqTrainingArguments(
+        output_dir=str(tmp_path), predict_with_generate=True, report_to="none", use_cpu=True
+    )
+    trainer = MultiLingualSeq2SeqTrainer(
+        model=model,
+        args=args,
+        data_collator=collator,
+        processing_class=tokenizer,
+        visualize_prediction_prob=0.0,
+    )
+
+    def samples(decoder_prompt):
+        return [
+            {"signal": "ranch", "encoder_prompt": "__fcs__", "decoder_prompt": decoder_prompt, "output": "ranch"},
+            {"signal": "Mitte", "encoder_prompt": "__gsg__", "decoder_prompt": decoder_prompt, "output": "Mitte"},
+        ]
+
+    prompt_id = tokenizer.convert_tokens_to_ids("__fr__")
+    assert prompt_id != tokenizer.unk_token_id
+
+    # Non-empty prompt: the prompted branch builds [bos, prompt] for generate().
+    batch = collator(samples("__fr__"))
+    assert "decoder_prompt_ids" in batch
+    assert batch["decoder_prompt_mask"].sum() == 2
+    with patch.object(trainer.model, "generate", wraps=trainer.model.generate) as spy:
+        trainer.prediction_step(trainer.model, batch, prediction_loss_only=False, max_new_tokens=2)
+    gen_kwargs = spy.call_args.kwargs
+    assert "decoder_input_ids" in gen_kwargs, "empty-prompt branch taken although decoder_prompt is set"
+    prefix = gen_kwargs["decoder_input_ids"]
+    assert prefix.shape == (2, 2)
+    assert torch.equal(prefix[:, 0], torch.full((2,), model.config.decoder_start_token_id))
+    assert torch.equal(prefix[:, 1], torch.full((2,), prompt_id))
+
+    # Empty prompt: the empty-prompt branch calls generate() without decoder_input_ids.
+    batch_empty = collator(samples(""))
+    with patch.object(trainer.model, "generate", wraps=trainer.model.generate) as spy:
+        trainer.prediction_step(trainer.model, batch_empty, prediction_loss_only=False, max_new_tokens=2)
+    assert "decoder_input_ids" not in spy.call_args.kwargs

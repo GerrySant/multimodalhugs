@@ -382,7 +382,7 @@ End-to-end tests for `Text2TextTranslationProcessor`.
 | Class | Tests |
 |---|---|
 | `TestText2TextObtainMultimodalInputAndMasks` | Returns `input_ids` and `attention_mask`; shapes match; variable-length padding |
-| `TestText2TextObtainPrompts` | Returns `encoder_prompt` with mask; `decoder_input_ids` with mask |
+| `TestText2TextObtainPrompts` | Returns `encoder_prompt` with mask; `decoder_prompt_ids` with mask |
 | `TestText2TextProcessorCall` | Returns `BatchFeature`; has all expected keys |
 | `TestText2TextProcessPrompts` | Encoder and decoder slots tokenize text |
 
@@ -411,7 +411,7 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 | `test_call_produces_input_frames` | Output contains `input_frames` |
 | `test_call_produces_attention_mask` | Output contains `attention_mask` |
 | `test_call_produces_encoder_prompt` | Output contains `encoder_prompt` and `encoder_prompt_length_padding_mask` |
-| `test_call_produces_decoder_input_ids` | Output contains `decoder_input_ids` and `decoder_attention_mask` |
+| `test_call_produces_decoder_prompt_ids` | Output contains `decoder_prompt_ids` and `decoder_prompt_mask` |
 | `test_call_produces_labels` | Output contains `labels` |
 | `test_input_frames_shape` | `input_frames` is `(batch, frames, features)` |
 | `test_attention_mask_shape` | `attention_mask` is `(batch, frames)` |
@@ -553,6 +553,13 @@ Tests for `ProcessorSlot` and `MultimodalMetaProcessor` (the flat-slots architec
 | `test_text2text_transform_output_identical` | `_transform_get_items_output` output identical after load |
 | `test_features2text_processor_kwargs_preserved` | `skip_frames_stride`, `temporal_dimension_position`, `use_cache` survive serialisation |
 | `test_features2text_output_identical` | All output tensors identical before and after save/load (features→text) |
+
+**`TestLegacySlotKeyMapping`** — slot keys renamed by the decoder-prompt fix (compat record entry 39)
+
+| Test | What it checks |
+|---|---|
+| `test_old_keys_are_mapped_with_future_warning` | A `processor_config.json` saved with `decoder_input_ids` / `decoder_attention_mask` (as 0.5.x wrote it) loads with exactly one `FutureWarning` naming both keys, `multimodalhugs-setup --do_processor` and v0.8.0; the slot comes back as `decoder_prompt_ids` / `decoder_prompt_mask` and the output carries the new keys only |
+| `test_new_keys_load_without_warning` | A config saved with the new keys loads without that warning and keeps them |
 
 ---
 
@@ -836,7 +843,7 @@ Tests that each modality processor and dataset raises a clear `ImportError` (men
 
 ### `test_processor_regression.py`
 
-Regression tests comparing processor output against golden files in `tests/assets/golden/`. Golden files capture shape, dtype, mean, std, min, max, sum, and first/last 8 values of every output tensor. To regenerate: `python tests/assets/generate_golden.py`.
+Regression tests comparing processor output against golden files in `tests/assets/golden/`. Golden files capture shape, dtype, mean, std, min, max, sum, and first/last 8 values of every output tensor. To regenerate: `python tests/assets/generate_golden.py`. The decoder-prompt tensors are keyed `decoder_prompt_ids` / `decoder_prompt_mask` (renamed from `decoder_input_ids` / `decoder_attention_mask` with compat record entry 39; the tensors did not change).
 
 **Legacy processor classes** — verify that existing processors have not changed behaviour:
 
@@ -874,8 +881,9 @@ The `model_setup` fixture builds the model via `build_processor_from_config(cfg.
 | `test_backbone_shared_weights_are_tied` | After `build_model` + vocab extension, `encoder.embed_tokens`, `decoder.embed_tokens`, and `lm_head` all share the same underlying storage as `model.shared` (same `data_ptr`) |
 | `test_training` | Model overfits to a tiny batch: loss drops below `0.11` within 500 epochs |
 | `test_overfitting_accuracy` | WER ≤ 0.125 on test samples after training on the same data |
+| `test_legacy_wrapper_prompt_reaches_prediction_step` | Regression test for compat record entry 39. A batch collated through `Image2TextTranslationProcessor` carries `decoder_prompt_ids`; `MultiLingualSeq2SeqTrainer.prediction_step` calls `generate()` with `decoder_input_ids = [decoder_start_token_id, prompt]` when `decoder_prompt` is set, and without `decoder_input_ids` when it is empty (both branches pinned) |
 
-> **Note (transformers 5.x update):** `test_model_maxlength_is_correct` and its three associated config files (`test_default_max_length.yaml`, `test_nondefault_max_length.yaml`, `test_use_backbone_max_length.yaml`) were removed. `max_length` was removed from `MultiModalEmbedderConfig` and `model.max_length` was removed from `MultiModalEmbedderModel` as part of the transformers 5.x compatibility update (see `docs/transformers_compatibility.md` §8). Generation length is now managed via `model.generation_config.max_length`.
+> **Note (transformers 5.x update):** `test_model_maxlength_is_correct` and its three associated config files (`test_default_max_length.yaml`, `test_nondefault_max_length.yaml`, `test_use_backbone_max_length.yaml`) were removed. `max_length` was removed from `MultiModalEmbedderConfig` and `model.max_length` was removed from `MultiModalEmbedderModel` as part of the transformers 5.x compatibility update (see `docs/design_notes/compat_transformers_5.md` entry 8). Generation length is now managed via `model.generation_config.max_length`.
 
 ---
 
