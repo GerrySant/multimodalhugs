@@ -15,6 +15,11 @@ none ignored), and the pull request is merged into `master`.
   - fef66ea `[fix] Remove deprecation warnings that name classes not yet available`
   - 2bffcba `[docs] Add decoder_prompt_ids decision note`
   - e3073f9 `[docs] Add CHANGELOG entries for the transformers 5 migration`
+  - b16421e `[docs] Rewrite the migration handoff note`
+- Follow-ups, 2026-11-04:
+  - 122be9b `[docs] Record the prediction_step gen_kwargs override removal` (entry 23 f)
+  - `[docs] Update decoder_input_ids references to decoder_prompt_ids` (the commit that
+    carries this line): docs and example YAMLs now show the `decoder_prompt_ids` slot key.
 
 ## Remaining
 
@@ -40,11 +45,18 @@ none ignored), and the pull request is merged into `master`.
    | Job 2: test sacrebleu / chrf | | | |
    | Job 2: decoded sample | | | |
 
-2. Fix the stale references found during the close-out, in the pull request: the slot key
-   `decoder_input_ids` is still shown in `docs/processor_redesign.md`,
-   `docs/customization/custom_processor_creation_guide.md` and
-   `docs/customization/custom_model_creation_guide.md`; the docstring of
-   `tests/assets/sample_data.py` still lists the two removed verification scripts.
+2. Decide what to do with the old slot key still used inside the package and the suite:
+   the six legacy wrappers in `multimodalhugs/processors/legacy/` and the `slots:` configs
+   `tests/test_model_only/configs/test_model_only.yaml` and `tests/e2e_overfitting/config.yaml`
+   (plus inline slots in `tests/test_data/test_meta_processor.py`, `test_datacollator.py`
+   and `test_processor_regression.py`) still write `decoder_input_ids` /
+   `decoder_attention_mask`. Read in the code, not executed: `DataCollatorMultimodalSeq2Seq`
+   calls the meta processor first and then overwrites `batch["decoder_input_ids"]` from the
+   labels, so such a slot's prompt never reaches `prediction_step` and generation takes the
+   empty-prompt path. The suite is green because no test pins the prompt at generation (only
+   `tests/test_data/test_setup_utils.py` checks the template key names). Changing the
+   test configs needs approval (`AGENTS.md` §7); the legacy wrappers are deprecated and may
+   be left as they are if their removal is near.
 3. Open the pull request against `master` (description per `AGENTS.md` §10: motivation,
    summary, how it was tested including the table above, what to review closely).
 4. After the merge, release as 0.6.0: minor, because the branch carries breaking changes

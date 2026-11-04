@@ -229,8 +229,8 @@ MultimodalMetaProcessor(
         ),
         ProcessorSlot(
             processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-            output_data_key="decoder_input_ids",
-            output_mask_key="decoder_attention_mask",
+            output_data_key="decoder_prompt_ids",
+            output_mask_key="decoder_prompt_mask",
             column_map={"decoder_prompt": "signal"},
         ),
     ],
@@ -382,8 +382,8 @@ processor:
       processor_kwargs:
         tokenizer_path: /path/to/tokenizer
         role: input
-      output_data_key: decoder_input_ids
-      output_mask_key: decoder_attention_mask
+      output_data_key: decoder_prompt_ids
+      output_mask_key: decoder_prompt_mask
       column_map:
         decoder_prompt: signal
 ```
@@ -465,7 +465,7 @@ processor:
 
 Supported `pipeline` values: `pose2text`, `video2text`, `image2text`, `features2text`, `signwriting2text`, `text2text`.
 
-The shorthand always expands to the same 4-slot layout: one modality slot (`input_frames` / `attention_mask`) plus three `TextModalityProcessor` slots (`labels`, `encoder_prompt`, `decoder_input_ids`). When the standard layout is not enough, use the full `slots:` format instead.
+The shorthand always expands to the same 4-slot layout: one modality slot (`input_frames` / `attention_mask`) plus three `TextModalityProcessor` slots (`labels`, `encoder_prompt`, `decoder_prompt_ids`). When the standard layout is not enough, use the full `slots:` format instead.
 
 Three levels of interface, all supported simultaneously:
 

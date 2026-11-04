@@ -1,5 +1,5 @@
 """
-Canonical sample data for multimodalhugs tests and verification scripts.
+Canonical sample data for multimodalhugs tests.
 
 This module is the single source of truth for:
   - Path constants (assets, tokenizer, processors, fonts)
@@ -8,8 +8,6 @@ This module is the single source of truth for:
 All of the following must stay byte-for-byte consistent with this module:
   - tests/test_data/conftest.py   (pytest fixtures that return these samples)
   - tests/assets/generate_golden.py  (generates the committed golden JSON files)
-  - tests/assets/verify_meta_processor.py
-  - tests/assets/verify_setup_and_train_loading.py
 
 SIGNWRITING_STRINGS are also imported by conftest.py for non-asset (batch) fixtures.
 """
