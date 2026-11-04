@@ -1,14 +1,14 @@
 import logging
 from typing import Any, Optional
 
-from multimodalhugs.processors.meta_processor import MultimodalMetaProcessor, ProcessorSlot
+from multimodalhugs.processors.meta_processor import _LegacyMetaProcessorBase, ProcessorSlot
 from multimodalhugs.processors.signwriting_modality_processor import SignwritingModalityProcessor
 from multimodalhugs.processors.text_modality_processor import TextModalityProcessor, TextRole
 
 logger = logging.getLogger(__name__)
 
 
-class SignwritingProcessor(MultimodalMetaProcessor):
+class SignwritingProcessor(_LegacyMetaProcessorBase):
     """
     .. deprecated::
         Use ``MultimodalMetaProcessor`` with explicit ``ProcessorSlot`` declarations
@@ -39,7 +39,7 @@ class SignwritingProcessor(MultimodalMetaProcessor):
         self.channels = channels
         self.invert_frame = invert_frame
         if "slots" in kwargs:
-            super().__init__(tokenizer=tokenizer, **kwargs)
+            super().__init__(**kwargs)
             return
         super().__init__(
             slots=[
@@ -68,10 +68,9 @@ class SignwritingProcessor(MultimodalMetaProcessor):
                 ),
                 ProcessorSlot(
                     processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-                    output_data_key="decoder_input_ids",
-                    output_mask_key="decoder_attention_mask",
+                    output_data_key="decoder_prompt_ids",
+                    output_mask_key="decoder_prompt_mask",
                     column_map={"decoder_prompt": "signal"},
                 ),
             ],
-            tokenizer=tokenizer,
         )

@@ -48,7 +48,7 @@ Every `pipeline:` shorthand expands to exactly 4 slots:
 | 1 | `input_frames` + `attention_mask` | Modality processor (varies by pipeline) | — | `signal` (+ `signal_start`/`signal_end` for temporal modalities) |
 | 2 | `labels` | `TextModalityProcessor` | `target` | `decoder_prompt` + `output` TSV columns |
 | 3 | `encoder_prompt` + `encoder_prompt_length_padding_mask` | `TextModalityProcessor` | `input` | `encoder_prompt` TSV column |
-| 4 | `decoder_input_ids` + `decoder_attention_mask` | `TextModalityProcessor` | `input` | `decoder_prompt` TSV column |
+| 4 | `decoder_prompt_ids` + `decoder_prompt_mask` | `TextModalityProcessor` | `input` | `decoder_prompt` TSV column |
 
 Slot 1 is the only one that varies between pipelines:
 
@@ -109,8 +109,8 @@ processor:
         tokenizer_path: facebook/m2m100_418M
         new_vocabulary: "__asl__"
         role: input
-      output_data_key: decoder_input_ids
-      output_mask_key: decoder_attention_mask
+      output_data_key: decoder_prompt_ids
+      output_mask_key: decoder_prompt_mask
       column_map:
         decoder_prompt: signal
 ```
@@ -210,8 +210,8 @@ processor = MultimodalMetaProcessor(slots=[
             new_vocabulary="__asl__",
             role=TextRole.INPUT,
         ),
-        output_data_key="decoder_input_ids",
-        output_mask_key="decoder_attention_mask",
+        output_data_key="decoder_prompt_ids",
+        output_mask_key="decoder_prompt_mask",
         column_map={"decoder_prompt": "signal"},
     ),
 ])
@@ -393,8 +393,8 @@ def forward(
     attention_mask,                      # padding mask for input_frames
     encoder_prompt,                      # encoder text prompt token IDs
     encoder_prompt_length_padding_mask,  # padding mask for encoder_prompt
-    decoder_input_ids,                   # decoder context token IDs
-    decoder_attention_mask,              # padding mask for decoder_input_ids
+    decoder_prompt_ids,                  # decoder prompt (generation prefix) token IDs
+    decoder_prompt_mask,                 # padding mask for decoder_prompt_ids
     labels,                              # training target token IDs (with -100 padding)
     ...
 )
@@ -404,7 +404,7 @@ def forward(
 |---|---|---|
 | Main encoder input (pose, video, image, features, SignWriting) | `input_frames` | `attention_mask` |
 | Encoder text prompt | `encoder_prompt` | `encoder_prompt_length_padding_mask` |
-| Decoder context text | `decoder_input_ids` | `decoder_attention_mask` |
+| Decoder context text | `decoder_prompt_ids` | `decoder_prompt_mask` |
 | Training labels | `labels` | *(omit — no mask needed)* |
 
 ### Custom or future models

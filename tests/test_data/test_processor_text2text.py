@@ -52,9 +52,9 @@ class TestText2TextObtainPrompts:
     def test_decoder_prompt(self, tokenizer, text_batch_samples):
         processor = Text2TextTranslationProcessor(tokenizer=tokenizer)
         result = processor(batch=text_batch_samples)
-        assert "decoder_input_ids" in result
-        assert "decoder_attention_mask" in result
-        assert result["decoder_input_ids"].shape[0] == len(text_batch_samples)
+        assert "decoder_prompt_ids" in result
+        assert "decoder_prompt_mask" in result
+        assert result["decoder_prompt_ids"].shape[0] == len(text_batch_samples)
 
 
 class TestText2TextProcessorCall:
@@ -68,11 +68,11 @@ class TestText2TextProcessorCall:
         result = processor(batch=text_batch_samples)
         # Should have input_ids, attention_mask from multimodal
         # encoder_prompt, encoder_prompt_length_padding_mask from encoder prompt
-        # decoder_input_ids, decoder_attention_mask from decoder prompt
+        # decoder_prompt_ids, decoder_prompt_mask from decoder prompt
         assert "input_ids" in result
         assert "attention_mask" in result
         assert "encoder_prompt" in result
-        assert "decoder_input_ids" in result
+        assert "decoder_prompt_ids" in result
 
 
 class TestText2TextProcessPrompts:

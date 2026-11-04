@@ -33,7 +33,6 @@ from datasets import load_from_disk
 
 import transformers
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import send_example_telemetry
 
 from multimodalhugs.data import DataCollatorMultimodalSeq2Seq
 from multimodalhugs.utils import print_module_details
@@ -67,6 +66,10 @@ def main():
         processor_args = merge_config_and_command_args(extra_args.config_path, ProcessorArguments, "processor", processor_args, sys.argv[1:])
         data_args = merge_config_and_command_args(extra_args.config_path, DataTrainingArguments, "data", data_args, sys.argv[1:])
 
+    if training_args.worker_start_method is not None:
+        import torch.multiprocessing as tmp
+        tmp.set_start_method(training_args.worker_start_method, force=True)
+
     resolve_missing_arg(model_args, 'model_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(processor_args, 'processor_name_or_path', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
     resolve_missing_arg(data_args, 'dataset_dir', training_args.output_dir, extra_args.setup_path if hasattr(extra_args, 'setup_path') else None)
@@ -75,10 +78,6 @@ def main():
 
     # set remove_unused_columns to false
     setattr(training_args, "remove_unused_columns", False)
-
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_translation", model_args, data_args)
 
     # Setup logging
     logging.basicConfig(
@@ -111,17 +110,12 @@ def main():
 
     # Detecting last checkpoint.
     last_checkpoint = None
-    if os.path.isdir(training_args.output_dir) and training_args.do_train and not training_args.overwrite_output_dir:
+    if os.path.isdir(training_args.output_dir) and training_args.do_train:
         last_checkpoint = get_last_checkpoint(training_args.output_dir)
-        if last_checkpoint is None and len(os.listdir(training_args.output_dir)) > 0:
-            raise ValueError(
-                f"Output directory ({training_args.output_dir}) already exists and is not empty. "
-                "Use --overwrite_output_dir to overcome."
-            )
-        elif last_checkpoint is not None and training_args.resume_from_checkpoint is None:
+        if last_checkpoint is not None and training_args.resume_from_checkpoint is None:
             logger.info(
-                f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
-                "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
+                f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, "
+                "change the `--output_dir` to a fresh directory."
             )
 
     # Set seed before initializing model.
@@ -195,20 +189,6 @@ def main():
     else:
         logger.info("There is nothing to do. Please pass `do_train`, `do_eval` and/or `do_predict`.")
         return
-
-    # Check the whether the source target length fits in the model, if it has absolute positional embeddings
-    if (
-        hasattr(model.config, "max_position_embeddings")
-        and not hasattr(model.config, "relative_attention_max_distance")
-        and model.config.max_position_embeddings < data_args.max_source_length
-    ):
-        raise ValueError(
-            f"`--max_source_length` is set to {data_args.max_source_length}, but the model only has"
-            f" {model.config.max_position_embeddings} position encodings. Consider either reducing"
-            f" `--max_source_length` to {model.config.max_position_embeddings} or using a model with larger position "
-            "embeddings"
-        )
-
 
     if training_args.label_smoothing_factor > 0 and not hasattr(model, "prepare_decoder_input_ids_from_labels"):
         logger.warning(
@@ -333,7 +313,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=(
             compute_metrics if training_args.predict_with_generate and metrics_list else None
@@ -387,7 +367,7 @@ def main():
         max_length = (
             generate_args.max_length
             if generate_args.max_length is not None
-            else model.max_length
+            else model.generation_config.max_length
         )
         num_beams = generate_args.num_beams if generate_args.num_beams is not None else training_args.generation_num_beams
 

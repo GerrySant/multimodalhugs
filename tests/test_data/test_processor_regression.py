@@ -228,8 +228,8 @@ def _text_slots(tokenizer):
         ),
         ProcessorSlot(
             processor=TextModalityProcessor(tokenizer=tokenizer, role=TextRole.INPUT),
-            output_data_key="decoder_input_ids",
-            output_mask_key="decoder_attention_mask",
+            output_data_key="decoder_prompt_ids",
+            output_mask_key="decoder_prompt_mask",
             column_map={"decoder_prompt": "signal"},
         ),
     ]
@@ -253,7 +253,6 @@ class TestMetaProcessorPose2TextGolden:
                 ),
                 *_text_slots(tokenizer),
             ],
-            tokenizer=tokenizer,
         )
         result = processor(batch=pose_asset_samples)
         check_all_keys(result, load_golden("pose2text"))
@@ -280,7 +279,6 @@ class TestMetaProcessorVideo2TextGolden:
                 ),
                 *_text_slots(tokenizer),
             ],
-            tokenizer=tokenizer,
         )
         result = processor(batch=video_asset_samples)
         check_all_keys(result, load_golden("video2text"))
@@ -299,7 +297,6 @@ class TestMetaProcessorFeatures2TextGolden:
                 ),
                 *_text_slots(tokenizer),
             ],
-            tokenizer=tokenizer,
         )
         result = processor(batch=features_asset_samples)
         check_all_keys(result, load_golden("features2text"))
@@ -319,7 +316,6 @@ class TestMetaProcessorText2TextGolden:
                 ),
                 *_text_slots(tokenizer),
             ],
-            tokenizer=tokenizer,
         )
         result = processor(batch=text_asset_samples)
         check_all_keys(result, load_golden("text2text"))
@@ -343,7 +339,6 @@ class TestMetaProcessorImage2TextGolden:
                 ),
                 *_text_slots(tokenizer),
             ],
-            tokenizer=tokenizer,
         )
         result = processor(batch=image_asset_samples)
         check_all_keys(result, load_golden("image2text"))

@@ -59,8 +59,8 @@ processor:
         tokenizer_path: "<pretrained-tokenizer>"
         new_vocabulary: "__asl__"
         role: input
-      output_data_key: decoder_input_ids
-      output_mask_key: decoder_attention_mask
+      output_data_key: decoder_prompt_ids
+      output_mask_key: decoder_prompt_mask
       column_map:
         decoder_prompt: signal
 

@@ -41,7 +41,7 @@ def load_tokenizer_from_vocab_file(vocab_file, special_tokens_dict=None, output_
     tokenizer.save(tokenizer_path)
 
     # Load the tokenizer with HuggingFace transformers
-    fast_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer, additional_special_tokens=list(vocab.keys()))
+    fast_tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer, extra_special_tokens=list(vocab.keys()))
     fast_tokenizer.add_special_tokens({
         'bos_token': '<s>',
         'eos_token': '</s>',
@@ -93,10 +93,13 @@ def add_new_special_tokens_from_vocab_file(tokenizer, vocab_file, output_dir=Non
             skipped_tokens.append(token)
 
     if added_tokens:
-        tokenizer.add_special_tokens(
-            {'additional_special_tokens': added_tokens},
-            replace_additional_special_tokens=False
-        )
+        # M2M100Tokenizer (and similar) stores language codes in `_extra_special_tokens`.
+        # Calling add_special_tokens({'extra_special_tokens': [...]}) replaces that list,
+        # wiping language tokens like __en__ from all_special_tokens and breaking
+        # skip_special_tokens=True during decoding. Preserve the existing list first.
+        existing_extra = [str(t) for t in getattr(tokenizer, '_extra_special_tokens', [])]
+        all_extra = existing_extra + [t for t in added_tokens if t not in existing_extra]
+        tokenizer.add_special_tokens({'extra_special_tokens': all_extra})
         logger.info("Added tokens: %s", added_tokens)
     else:
         logger.info("No new tokens to add.")

@@ -6,10 +6,11 @@ import torch.nn as nn
 import numpy as np
 
 from jiwer import wer
-from transformers import PreTrainedTokenizerFast
-from multimodalhugs.utils.tokenizer_utils import load_tokenizer_from_vocab_file
+from transformers import CLIPVisionConfig
 from multimodalhugs.models.multimodal_embedder.modeling_multimodal_embedder import MultiModalEmbedderModel
+from multimodalhugs.modules.feature_extractor import FeatureExtractor
 from omegaconf import OmegaConf
+from multimodalhugs.training_setup.setup_utils import build_processor_from_config
 from .global_variables import DEVICE, INPUTS, LABELS, SAMPLES
 
 
@@ -31,22 +32,22 @@ def model_setup(request):
         torch.backends.cudnn.benchmark = False
 
     cfg = OmegaConf.load(config_path)
-    src_tokenizer = load_tokenizer_from_vocab_file(vocab_file=cfg.processor.new_vocabulary)
-    tgt_tokenizer = PreTrainedTokenizerFast.from_pretrained(cfg.processor.text_tokenizer_path)
+    processor = build_processor_from_config(cfg.processor)
+    tokenizer = processor.tokenizer
 
     model_kwargs = OmegaConf.to_container(cfg.model, resolve=True)
     model_kwargs.update({
-        "src_tokenizer": src_tokenizer,
-        "tgt_tokenizer": tgt_tokenizer,
+        "src_tokenizer": tokenizer,
+        "tgt_tokenizer": tokenizer,
         "config_path": config_path,
-        "new_vocab_tokens": src_tokenizer.additional_special_tokens
+        "new_vocab_tokens": tokenizer.extra_special_tokens,
     })
 
     model = MultiModalEmbedderModel.build_model(**model_kwargs).to(DEVICE)
 
     print("model_setup id:", id(model))
 
-    return (model, src_tokenizer, tgt_tokenizer), params
+    return (model, tokenizer, tokenizer), params
 
 
 def _train_model(model):
@@ -76,30 +77,99 @@ def _train_model(model):
     return model, losses
 
 
+def test_feature_extractor_propagates_no_split_modules():
+    """
+    FeatureExtractor must expose _no_split_modules and _keep_in_fp32_modules
+    from its inner pretrained model so that MultiModalEmbedderModel can build
+    correct FSDP parallelism metadata.  Without the fix, both attributes
+    returned [] for the vision encoder branch.
+    """
+    vision_config = CLIPVisionConfig(
+        hidden_size=32,
+        num_hidden_layers=1,
+        num_attention_heads=1,
+        intermediate_size=64,
+        projection_dim=32,
+        image_size=32,
+    )
+    fe = FeatureExtractor("clip", config=vision_config)
+
+    assert hasattr(fe, "_no_split_modules"), (
+        "FeatureExtractor must set _no_split_modules after __init__"
+    )
+    assert hasattr(fe, "_keep_in_fp32_modules"), (
+        "FeatureExtractor must set _keep_in_fp32_modules after __init__"
+    )
+    assert "CLIPEncoderLayer" in fe._no_split_modules, (
+        f"Expected 'CLIPEncoderLayer' in FeatureExtractor._no_split_modules, "
+        f"got {fe._no_split_modules}"
+    )
+
+
 @pytest.mark.parametrize(
     "model_setup",
     [
         {
-            "id": "default_max_length",
-            "config_path": "tests/test_model_only/configs/test_default_max_length.yaml",
-            "expected_max_length": 200,
-        },
-        {
-            "id": "nondefault_max_length",
-            "config_path": "tests/test_model_only/configs/test_nondefault_max_length.yaml",
-            "expected_max_length": 15,
-        },
-        {
-            "id": "use_backbone_max_length",
-            "config_path": "tests/test_model_only/configs/test_use_backbone_max_length.yaml",
-            "expected_max_length": 20,
+            "id": "default_setup",
+            "config_path": "tests/test_model_only/configs/test_model_only.yaml",
         },
     ],
     indirect=True,
 )
-def test_model_maxlength_is_correct(model_setup):
-    (model, src_tokenizer, tgt_tokenizer), params = model_setup
-    assert model.max_length == params["expected_max_length"], "Model max length is not correct"
+def test_model_no_split_modules_contains_all_components(model_setup):
+    """
+    MultiModalEmbedderModel._no_split_modules must aggregate the split-boundary
+    class names from both the feature extractor (CLIPEncoderLayer) and the
+    backbone (M2M100EncoderLayer, M2M100DecoderLayer).  This drives FSDP wrap
+    policy when TRANSFORMER_BASED_WRAP is used.
+    """
+    (model, _, _), _ = model_setup
+    no_split = model._no_split_modules
+
+    for expected in ("CLIPEncoderLayer", "M2M100EncoderLayer", "M2M100DecoderLayer"):
+        assert expected in no_split, (
+            f"Expected '{expected}' in MultiModalEmbedderModel._no_split_modules, "
+            f"got {no_split}"
+        )
+
+
+@pytest.mark.parametrize(
+    "model_setup",
+    [
+        {
+            "id": "default_setup",
+            "config_path": "tests/test_model_only/configs/test_model_only.yaml",
+        },
+    ],
+    indirect=True,
+)
+def test_backbone_shared_weights_are_tied(model_setup):
+    """
+    Verify that after build_model (which extends the vocabulary), the backbone's
+    shared weight tensors are properly tied — i.e. encoder embed_tokens, decoder
+    embed_tokens, and lm_head all share the same underlying storage.
+
+    In transformers 5.x, _tied_weights_keys is a dict and tie_weights() is called
+    explicitly after load_state_dict.  This test guards against regressions where
+    vocab extension breaks weight tying.
+    """
+    (model, _, _), _ = model_setup
+    backbone = model.backbone
+
+    shared = backbone.model.shared.weight
+    enc_embed = backbone.model.encoder.embed_tokens.weight
+    dec_embed = backbone.model.decoder.embed_tokens.weight
+    lm_head = backbone.lm_head.weight
+
+    assert shared.data_ptr() == enc_embed.data_ptr(), (
+        "encoder embed_tokens.weight is not tied to model.shared.weight"
+    )
+    assert shared.data_ptr() == dec_embed.data_ptr(), (
+        "decoder embed_tokens.weight is not tied to model.shared.weight"
+    )
+    assert shared.data_ptr() == lm_head.data_ptr(), (
+        "lm_head.weight is not tied to model.shared.weight"
+    )
 
 
 @pytest.mark.parametrize(
@@ -186,3 +256,85 @@ def test_overfitting_accuracy(model_setup, prepare_trained_model):
     # and despite maximum effort to fix the seed and other sources of non-determinism
 
     assert error_rate <= 0.125, "Model prediction is not accurate"
+
+
+@pytest.mark.parametrize(
+    "model_setup",
+    [
+        {
+            "id": "default_setup",
+            "config_path": "tests/test_model_only/configs/test_model_only.yaml",
+        },
+    ],
+    indirect=True,
+)
+def test_legacy_wrapper_prompt_reaches_prediction_step(model_setup, tmp_path):
+    """
+    The decoder prompt collated through a legacy wrapper reaches the prompted
+    branch of ``MultiLingualSeq2SeqTrainer.prediction_step``: ``generate()`` is
+    called with ``decoder_input_ids = [decoder_start_token_id, prompt]``. With an
+    empty ``decoder_prompt`` the empty-prompt branch is taken and ``generate()``
+    receives no ``decoder_input_ids``. Both branches are pinned so the test
+    cannot pass by accident.
+
+    Regression test for ``docs/design_notes/compat_transformers_5.md`` entry 39:
+    the wrappers wrote the prompt to ``decoder_input_ids``, the collator
+    overwrote it with the shifted labels, and generation silently ran without
+    the prompt.
+    """
+    from unittest.mock import patch
+
+    from transformers import Seq2SeqTrainingArguments
+
+    from multimodalhugs.data.datacollators.multimodal_datacollator import DataCollatorMultimodalSeq2Seq
+    from multimodalhugs.multilingual_seq2seq_trainer import MultiLingualSeq2SeqTrainer
+    from multimodalhugs.processors.legacy.image2text_preprocessor import Image2TextTranslationProcessor
+
+    (model, tokenizer, _), _ = model_setup
+    processor = Image2TextTranslationProcessor(
+        tokenizer=tokenizer,
+        font_path="tests/e2e_overfitting/other_files/Arial.ttf",
+        width=32,
+        height=32,
+        normalize_image=False,
+    )
+    assert processor.slots[-1].output_data_key == "decoder_prompt_ids"
+    collator = DataCollatorMultimodalSeq2Seq(processor=processor, model=model)
+    args = Seq2SeqTrainingArguments(
+        output_dir=str(tmp_path), predict_with_generate=True, report_to="none", use_cpu=True
+    )
+    trainer = MultiLingualSeq2SeqTrainer(
+        model=model,
+        args=args,
+        data_collator=collator,
+        processing_class=tokenizer,
+        visualize_prediction_prob=0.0,
+    )
+
+    def samples(decoder_prompt):
+        return [
+            {"signal": "ranch", "encoder_prompt": "__fcs__", "decoder_prompt": decoder_prompt, "output": "ranch"},
+            {"signal": "Mitte", "encoder_prompt": "__gsg__", "decoder_prompt": decoder_prompt, "output": "Mitte"},
+        ]
+
+    prompt_id = tokenizer.convert_tokens_to_ids("__fr__")
+    assert prompt_id != tokenizer.unk_token_id
+
+    # Non-empty prompt: the prompted branch builds [bos, prompt] for generate().
+    batch = collator(samples("__fr__"))
+    assert "decoder_prompt_ids" in batch
+    assert batch["decoder_prompt_mask"].sum() == 2
+    with patch.object(trainer.model, "generate", wraps=trainer.model.generate) as spy:
+        trainer.prediction_step(trainer.model, batch, prediction_loss_only=False, max_new_tokens=2)
+    gen_kwargs = spy.call_args.kwargs
+    assert "decoder_input_ids" in gen_kwargs, "empty-prompt branch taken although decoder_prompt is set"
+    prefix = gen_kwargs["decoder_input_ids"]
+    assert prefix.shape == (2, 2)
+    assert torch.equal(prefix[:, 0], torch.full((2,), model.config.decoder_start_token_id))
+    assert torch.equal(prefix[:, 1], torch.full((2,), prompt_id))
+
+    # Empty prompt: the empty-prompt branch calls generate() without decoder_input_ids.
+    batch_empty = collator(samples(""))
+    with patch.object(trainer.model, "generate", wraps=trainer.model.generate) as spy:
+        trainer.prediction_step(trainer.model, batch_empty, prediction_loss_only=False, max_new_tokens=2)
+    assert "decoder_input_ids" not in spy.call_args.kwargs

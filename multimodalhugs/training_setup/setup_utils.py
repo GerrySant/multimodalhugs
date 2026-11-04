@@ -118,11 +118,11 @@ _TEXT_SLOTS_TEMPLATE: list = [
         "column_map": {"encoder_prompt": "signal"},
         "_role": "input",
     },
-    # 3. Decoder input slot — reads decoder_prompt TSV column as decoder context
+    # 3. Decoder prompt slot — reads decoder_prompt TSV column as per-sample generation prefix
     {
         "processor_class": "TextModalityProcessor",
-        "output_data_key": "decoder_input_ids",
-        "output_mask_key": "decoder_attention_mask",
+        "output_data_key": "decoder_prompt_ids",
+        "output_mask_key": "decoder_prompt_mask",
         "column_map": {"decoder_prompt": "signal"},
         "_role": "input",
     },
@@ -165,7 +165,7 @@ def expand_pipeline_shorthand(processor_cfg):
     ``image2text``, ``features2text``, ``signwriting2text``, ``text2text``.
 
     The modality slot is always placed first; the three standard text output
-    slots (``labels``, ``encoder_prompt``, ``decoder_input_ids``) follow in
+    slots (``labels``, ``encoder_prompt``, ``decoder_prompt_ids``) follow in
     that order.
 
     When the standard layout is not enough (different column names, extra

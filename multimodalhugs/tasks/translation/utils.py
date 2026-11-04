@@ -143,13 +143,10 @@ def merge_config_and_command_args(config_path, class_type, section, _args, remai
         v[2:].replace("-", "_") for v in (remaining_args or []) if v.startswith("--")
     ]
 
-    yaml_keys = section_conf.keys()
-    return merge_arguments(
-        cmd_args=_args,
-        extra_args=extra_args,
-        command_arg_names=command_arg_names,
-        yaml_arg_keys=yaml_keys,
-    )
+    for f in fields(extra_args):
+        if f.name in command_arg_names:
+            setattr(extra_args, f.name, getattr(_args, f.name))
+    return extra_args
 
 def check_t5_fp16_compatibility(model, fp16: bool):
     """

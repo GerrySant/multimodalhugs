@@ -152,8 +152,8 @@ class TestFeaturesProcessorCall:
         "attention_mask",
         "encoder_prompt",
         "encoder_prompt_length_padding_mask",
-        "decoder_input_ids",
-        "decoder_attention_mask",
+        "decoder_prompt_ids",
+        "decoder_prompt_mask",
     }
 
     def test_returns_batch_feature(self, tokenizer, features_batch_samples):

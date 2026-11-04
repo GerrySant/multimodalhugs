@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -15,6 +16,15 @@ from transformers.utils import PROCESSOR_NAME
 from multimodalhugs.processors.modality_processor import ModalityProcessor
 
 logger = logging.getLogger(__name__)
+
+# Slot keys renamed when the decoder prompt stopped sharing a key with the
+# teacher-forcing sequence (docs/design_notes/decoder_prompt_ids.md). Processors
+# saved by multimodalhugs 0.5.x carry the old names; from_pretrained maps them and
+# warns. Remove this mapping in v0.8.0.
+_RENAMED_SLOT_KEYS: dict[str, dict[str, str]] = {
+    "output_data_key": {"decoder_input_ids": "decoder_prompt_ids"},
+    "output_mask_key": {"decoder_attention_mask": "decoder_prompt_mask"},
+}
 
 
 @dataclass
@@ -82,26 +92,24 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     pre-populating decoder_input_ids), not for intra-slot
                     communication.
 
-    tokenizer — optional pre-built tokenizer. If None, auto-derived from the
-                first text slot. Stored as self.tokenizer so that save_pretrained
-                writes the tokenizer to disk alongside the slot config, allowing
-                from_pretrained to reconstruct text slots without requiring the
-                original tokenizer_path to be accessible. None is valid for
-                pipelines with no text slots.
+    tokenizer — read-only property derived from the first text slot that
+                owns a tokenizer. None for pipelines with no text slots.
+                save_pretrained writes the tokenizer to disk alongside the
+                slot config so that from_pretrained can reconstruct text
+                slots without requiring the original tokenizer_path.
     """
 
-    # attributes is empty because we fully own save_pretrained / from_pretrained.
-    # ProcessorMixin.save_pretrained iterates attributes and calls .save_pretrained()
-    # on each — keeping "tokenizer" here would require a non-None tokenizer and
-    # would duplicate the saving we already do in our override.
-    attributes = []
+    # MultimodalMetaProcessor.__init__ has no modality-named parameters
+    # (ProcessorMixin 5.x looks for tokenizer, image_processor, …), so
+    # get_attributes() naturally returns [] and ProcessorMixin.__init__
+    # requires no typed components. save_pretrained/from_pretrained are
+    # fully overridden below.
     tokenizer_class = None
     name = "multimodal_meta_processor"
 
     def __init__(
         self,
         slots: List[ProcessorSlot],
-        tokenizer: Optional[Any] = None,
     ):
         if not slots:
             raise ValueError(
@@ -126,19 +134,19 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     )
                 seen_mask_keys.add(slot.output_mask_key)
         self.slots = slots
-        if tokenizer is None:
-            tokenizer = next(
-                (
-                    s.processor.tokenizer
-                    for s in slots
-                    if hasattr(s.processor, "tokenizer") and s.processor.tokenizer is not None
-                ),
-                None,
-            )
-        # Set tokenizer directly — bypasses ProcessorMixin type validation which
-        # requires a non-None PreTrainedTokenizerBase when tokenizer_class is set.
-        self.tokenizer = tokenizer
         super().__init__()
+
+    @property
+    def tokenizer(self):
+        """Return the tokenizer from the first text slot, or None if no text slot exists."""
+        return next(
+            (
+                s.processor.tokenizer
+                for s in self.slots
+                if hasattr(s.processor, "tokenizer") and s.processor.tokenizer is not None
+            ),
+            None,
+        )
 
     # ------------------------------------------------------------------
     # HF save / load compatibility
@@ -228,6 +236,11 @@ class MultimodalMetaProcessor(ProcessorMixin):
             Note: all processor classes used in a saved config must be either
             exported from ``multimodalhugs.processors`` or supplied via this
             argument.  See issue #77 for a planned global-registration API.
+
+        Slot keys renamed since the processor was saved (``decoder_input_ids``
+        → ``decoder_prompt_ids``, ``decoder_attention_mask`` →
+        ``decoder_prompt_mask``) are mapped on load with a ``FutureWarning``;
+        the mapping is removed in v0.8.0.
         """
         import multimodalhugs.processors as proc_module
 
@@ -235,8 +248,10 @@ class MultimodalMetaProcessor(ProcessorMixin):
 
         try:
             tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
-        except OSError:
+        except (OSError, ValueError):
             # No tokenizer files present in the directory — valid for non-text pipelines.
+            # OSError: raised by transformers 4.x when no tokenizer files found.
+            # ValueError: raised by transformers 5.x in the same situation.
             logger.debug(
                 "No tokenizer found in '%s'; setting tokenizer=None. "
                 "This is expected for processors with no text slots.",
@@ -258,6 +273,8 @@ class MultimodalMetaProcessor(ProcessorMixin):
                     _key = (_pkw.get("tokenizer_path"), _pkw.get("new_vocabulary"))
                     _tok_cache[_key] = tokenizer
                     break
+
+        renamed_keys: list[str] = []
 
         def _reconstruct_slot(slot_dict: Dict[str, Any]) -> ProcessorSlot:
             class_name = slot_dict["processor_class"]
@@ -294,18 +311,35 @@ class MultimodalMetaProcessor(ProcessorMixin):
                         _tok_cache[cache_key] = proc.tokenizer
             else:
                 proc = proc_cls(**proc_kwargs)
+            output_data_key = slot_dict["output_data_key"]
+            output_mask_key = slot_dict.get("output_mask_key")
+            new_data_key = _RENAMED_SLOT_KEYS["output_data_key"].get(output_data_key)
+            if new_data_key is not None:
+                renamed_keys.append(f"output_data_key '{output_data_key}' -> '{new_data_key}'")
+                output_data_key = new_data_key
+            new_mask_key = _RENAMED_SLOT_KEYS["output_mask_key"].get(output_mask_key)
+            if new_mask_key is not None:
+                renamed_keys.append(f"output_mask_key '{output_mask_key}' -> '{new_mask_key}'")
+                output_mask_key = new_mask_key
             return ProcessorSlot(
                 processor=proc,
-                output_data_key=slot_dict["output_data_key"],
-                output_mask_key=slot_dict.get("output_mask_key"),
+                output_data_key=output_data_key,
+                output_mask_key=output_mask_key,
                 column_map=slot_dict["column_map"],
                 is_label=slot_dict.get("is_label", False),
             )
 
-        return cls(
-            slots=[_reconstruct_slot(s) for s in config["slots"]],
-            tokenizer=tokenizer,
-        )
+        slots = [_reconstruct_slot(s) for s in config["slots"]]
+        if renamed_keys:
+            warnings.warn(
+                f"The processor at '{pretrained_model_name_or_path}' was saved with slot keys "
+                f"that have since been renamed ({', '.join(renamed_keys)}); they were mapped on "
+                "load. Re-run `multimodalhugs-setup --do_processor` to save the processor with "
+                "the new keys. This mapping is removed in multimodalhugs v0.8.0.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        return cls(slots=slots)
 
     def __repr__(self) -> str:
         tok = type(self.tokenizer).__name__ if self.tokenizer is not None else "None"
@@ -409,3 +443,24 @@ class MultimodalMetaProcessor(ProcessorMixin):
                 result[slot.output_mask_key] = mask
 
         return BatchFeature(result)
+
+
+class _LegacyMetaProcessorBase(MultimodalMetaProcessor):
+    """
+    Base class for deprecated task-specific processor wrappers.
+
+    Legacy processors (e.g. Text2TextTranslationProcessor) accept ``tokenizer``
+    as a build-time convenience parameter to pass into their TextModalityProcessor
+    slots. ProcessorMixin 5.x would misinterpret that parameter name as a required
+    typed modality component, so this base class overrides ``get_attributes()`` to
+    return [] — the same natural result that MultimodalMetaProcessor itself produces,
+    but explicitly enforced so that subclass __init__ signatures do not re-trigger
+    the detection.
+
+    All legacy complexity is isolated here; the modern MultimodalMetaProcessor API
+    needs no such override.
+    """
+
+    @classmethod
+    def get_attributes(cls):
+        return []
